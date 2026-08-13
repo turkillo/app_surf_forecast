@@ -125,3 +125,30 @@ def test_fallo_de_red_reintenta_y_se_recupera(monkeypatch):
     datos = _pedir("http://x", {}, sesion=sesion)
     assert datos == {"ok": True}
     assert sesion.llamadas == 3
+
+
+class _RespuestaJsonInvalido:
+    """Simula un cuerpo que no es JSON (p.ej. un proxy devolviendo HTML)."""
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        raise ValueError("Expecting value: line 1 column 1 (char 0)")
+
+
+class _SesionJsonSiempreInvalido:
+    def __init__(self):
+        self.llamadas = 0
+
+    def get(self, url, params=None, timeout=None):
+        self.llamadas += 1
+        return _RespuestaJsonInvalido()
+
+
+def test_json_malformado_reintenta_y_termina_en_error_datos(monkeypatch):
+    monkeypatch.setattr("surf.fetch.time.sleep", lambda s: None)
+    sesion = _SesionJsonSiempreInvalido()
+    with pytest.raises(ErrorDatos, match="fallaron"):
+        _pedir("http://x", {}, sesion=sesion)
+    assert sesion.llamadas == 3

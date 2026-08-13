@@ -41,11 +41,13 @@ def _pedir(url: str, params: dict, sesion=None) -> dict:
             if datos.get("error"):
                 raise ErrorDatos(f"Open-Meteo devolvio error: {datos.get('reason')}")
             return datos
-        except requests.exceptions.RequestException as e:
-            # Solo fallos de red/HTTP se reintentan. Un ErrorDatos semantico
-            # (Open-Meteo respondio pero con {"error": true}) no es RequestException
-            # y se propaga de inmediato: reintentar no arregla una coordenada
-            # invalida ni un parametro mal formado.
+        except (requests.exceptions.RequestException, ValueError) as e:
+            # Fallos de red/HTTP y de parseo (JSON malformado, p.ej. un
+            # proxy o un 502 que devuelve HTML) se reintentan. ErrorDatos
+            # semantico (Open-Meteo respondio pero con {"error": true}) no
+            # es RequestException ni ValueError y se propaga de inmediato:
+            # reintentar no arregla una coordenada invalida ni un parametro
+            # mal formado.
             ultimo = e
             if intento < REINTENTOS - 1:
                 time.sleep(ESPERA_BASE_S * (2 ** intento))
