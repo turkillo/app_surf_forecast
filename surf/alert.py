@@ -39,6 +39,8 @@ def detectar_ventanas(dias: list[DiaEvaluado]) -> list[Ventana]:
         racha: list[DiaEvaluado] = []
         for d in grupo:
             if not d.es_bueno:
+                if len(racha) >= DIAS_MINIMOS_VENTANA:
+                    ventanas.append(_armar(spot_id, racha))
                 racha = []
                 continue
             if racha and d.fecha != racha[-1].fecha + timedelta(days=1):
@@ -100,21 +102,34 @@ def decidir_alertas(ventanas: list[Ventana], estado: dict,
             continue
 
         mejor_previa = max(previas, key=lambda r: r["score"])
-        se_extendio = any(v.hasta > date.fromisoformat(r["hasta"]) for r in previas)
+        # "Se extiende" cubre crecer en cualquier direccion: el swell puede
+        # adelantarse (desde mas temprano) o durar mas (hasta mas tarde). En
+        # los dos casos cambia cuando hay que viajar, y amerita el aviso.
+        se_extendio = any(v.hasta > date.fromisoformat(r["hasta"])
+                          or v.desde < date.fromisoformat(r["desde"])
+                          for r in previas)
         mejoro = v.score - mejor_previa["score"] >= SALTO_SCORE_REALERTA
         if se_extendio or mejoro:
             a_alertar.append(v)
 
+    def _reemplazada(r: dict) -> bool:
+        """r queda obsoleto solo si TODAS las ventanas de hoy que lo tocan
+        volvieron a alertar. Si una ventana ancha ya alertada se parte en dos
+        por un dia malo intermedio y solo una mitad re-alerta, la otra mitad
+        sigue necesitando su historial: no alcanza con que r solape a
+        alguna ventana alertada, tiene que quedar cubierto por completo.
+        """
+        solapantes = [v for v in ventanas if _solapa(v, r)]
+        return bool(solapantes) and all(v in a_alertar for v in solapantes)
+
     corte = hoy - timedelta(days=DIAS_RETENCION_ESTADO)
+    conservadas = [r for r in alertadas
+                  if date.fromisoformat(r["hasta"]) >= corte and not _reemplazada(r)]
+    nuevas = [{**_a_registro(v), "fecha_alerta": hoy.isoformat()} for v in a_alertar]
+
     nuevo = {
         "ultima_corrida": hoy.isoformat(),
         "observadas": [_a_registro(v) for v in ventanas],
-        "alertadas": (
-            [r for r in alertadas if date.fromisoformat(r["hasta"]) >= corte
-             and not any(_solapa(v, r) for v in a_alertar)]
-            + [{**_a_registro(v), "fecha_alerta": hoy.isoformat()} for v in a_alertar]
-        ),
+        "alertadas": conservadas + nuevas,
     }
-    nuevo["alertadas"] = [r for r in nuevo["alertadas"]
-                          if date.fromisoformat(r["hasta"]) >= corte]
     return a_alertar, nuevo
