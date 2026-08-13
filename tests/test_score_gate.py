@@ -8,7 +8,7 @@ from surf.spots import Spot, Swell
 SPOT = Spot(
     id="test", nombre="Test", pais="AR", lat=-38.15, lon=-57.68,
     tipo="point_break", costa_mira=140,
-    swell=Swell(ventana=(110, 204), ideal=157, min_altura=1.0,
+    swell=Swell(ventana=(110, 200), ideal=157, min_altura=1.0,
                 max_altura=3.5, rango_ideal=(1.5, 2.5), min_periodo=9),
     viento_ideal=315, temporada=[3, 4, 5, 6, 7, 8],
     url_surfforecast="http://x", fuentes=["test"], confianza="alta",

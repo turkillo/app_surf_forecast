@@ -50,9 +50,9 @@ def test_direccion_ideal_da_uno():
 
 
 def test_direccion_en_el_borde_de_la_ventana_da_medio():
-    # ventana (110, 204), ideal 157
-    assert factor_direccion(110, SPOT) == pytest.approx(0.5)
-    assert factor_direccion(204, SPOT) == pytest.approx(0.5)
+    # Ambos bordes de la ventana dan 0.5, independientemente de la simetria
+    assert factor_direccion(SPOT.swell.ventana[0], SPOT) == pytest.approx(0.5)
+    assert factor_direccion(SPOT.swell.ventana[1], SPOT) == pytest.approx(0.5)
 
 
 def test_viento_glassy_da_uno():
@@ -94,3 +94,57 @@ def test_score_de_condiciones_apenas_suficientes_es_bajo():
 def test_los_pesos_suman_uno():
     from surf.score import PESOS
     assert sum(PESOS.values()) == pytest.approx(1.0)
+
+
+def test_direccion_asimetrica_izquierda_da_medio():
+    # Ventana asimetrica: [210, 270], ideal 225. Distancia a 210 es 15, a 270 es 45.
+    from surf.spots import Swell, Spot
+    spot_asimetrico = Spot(
+        id="test_asim_izq", nombre="Test Asimetrico Izq", pais="AR", lat=-38.15, lon=-57.68,
+        tipo="point_break", costa_mira=140,
+        swell=Swell(ventana=(210, 270), ideal=225, min_altura=1.0,
+                    max_altura=3.5, rango_ideal=(1.5, 2.5), min_periodo=9),
+        viento_ideal=315, temporada=[3, 4, 5, 6, 7, 8],
+        url_surfforecast="http://x", fuentes=["test"], confianza="alta",
+    )
+    # El borde izquierdo (210) debe dar 0.5 con la formula por lado
+    assert factor_direccion(210, spot_asimetrico) == pytest.approx(0.5)
+    # El borde derecho (270) tambien debe dar 0.5
+    assert factor_direccion(270, spot_asimetrico) == pytest.approx(0.5)
+
+
+def test_direccion_asimetrica_derecha_da_medio():
+    # Ventana asimetrica: [173, 247], ideal 202. Distancia a 173 es 29, a 247 es 45.
+    from surf.spots import Swell, Spot
+    spot_asimetrico = Spot(
+        id="test_asim_der", nombre="Test Asimetrico Der", pais="AR", lat=-38.15, lon=-57.68,
+        tipo="point_break", costa_mira=140,
+        swell=Swell(ventana=(173, 247), ideal=202, min_altura=1.0,
+                    max_altura=3.5, rango_ideal=(1.5, 2.5), min_periodo=9),
+        viento_ideal=315, temporada=[3, 4, 5, 6, 7, 8],
+        url_surfforecast="http://x", fuentes=["test"], confianza="alta",
+    )
+    # El borde izquierdo (173) debe dar 0.5 con la formula por lado
+    assert factor_direccion(173, spot_asimetrico) == pytest.approx(0.5)
+    # El borde derecho (247) tambien debe dar 0.5
+    assert factor_direccion(247, spot_asimetrico) == pytest.approx(0.5)
+
+
+def test_factor_altura_clampea_fuera_de_rango():
+    # Valores extremos fuera del rango deben quedar clampeados
+    assert factor_altura(-100.0, SPOT) >= 0.4
+    assert factor_altura(-100.0, SPOT) <= 1.0
+    assert factor_altura(1000.0, SPOT) >= 0.4
+    assert factor_altura(1000.0, SPOT) <= 1.0
+
+
+def test_factor_viento_offshore_clampea_fuera_de_rango():
+    # Valores extremos fuera del rango deben quedar clampeados
+    assert factor_viento(1000.0, "offshore") >= 0.4
+    assert factor_viento(1000.0, "offshore") <= 1.0
+
+
+def test_factor_viento_cross_clampea_fuera_de_rango():
+    # Valores extremos fuera del rango deben quedar clampeados
+    assert factor_viento(1000.0, "cross") >= 0.3
+    assert factor_viento(1000.0, "cross") <= 1.0

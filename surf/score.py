@@ -71,8 +71,10 @@ def factor_altura(altura: float, spot: Spot) -> float:
     if ideal_min <= altura <= ideal_max:
         return 1.0
     if altura < ideal_min:
-        return _interpolar(altura, sw.min_altura, ideal_min, PISO_FACTOR_ALTURA, 1.0)
-    return _interpolar(altura, ideal_max, sw.max_altura, 1.0, PISO_FACTOR_ALTURA)
+        f = _interpolar(altura, sw.min_altura, ideal_min, PISO_FACTOR_ALTURA, 1.0)
+    else:
+        f = _interpolar(altura, ideal_max, sw.max_altura, 1.0, PISO_FACTOR_ALTURA)
+    return min(1.0, max(PISO_FACTOR_ALTURA, f))
 
 
 def factor_periodo(periodo: float, spot: Spot) -> float:
@@ -85,8 +87,9 @@ def factor_direccion(direccion: float, spot: Spot) -> float:
     """1.0 en la direccion ideal, 0.5 en los bordes de la ventana."""
     sw = spot.swell
     desvio = angular_diff(direccion, sw.ideal)
-    borde = max(angular_diff(sw.ventana[0], sw.ideal),
-                angular_diff(sw.ventana[1], sw.ideal))
+    # Determinar qué borde usar: izquierdo si direccion <= ideal, derecho si no
+    delta = ((direccion - sw.ideal + 180) % 360) - 180
+    borde = angular_diff(sw.ventana[0], sw.ideal) if delta <= 0 else angular_diff(sw.ventana[1], sw.ideal)
     if borde == 0:
         return 1.0
     f = _interpolar(desvio, 0.0, borde, 1.0, PISO_FACTOR_DIRECCION)
@@ -100,13 +103,15 @@ def factor_viento(viento_kmh: float, clase: str) -> float:
     if clase == "offshore":
         if viento_kmh <= OFFSHORE_IDEAL_KMH:
             return 1.0
-        return _interpolar(viento_kmh, OFFSHORE_IDEAL_KMH, OFFSHORE_MAX_KMH,
-                           1.0, PISO_FACTOR_OFFSHORE)
+        f = _interpolar(viento_kmh, OFFSHORE_IDEAL_KMH, OFFSHORE_MAX_KMH,
+                        1.0, PISO_FACTOR_OFFSHORE)
+        return min(1.0, max(PISO_FACTOR_OFFSHORE, f))
     if clase == "cross":
         if viento_kmh <= CROSS_IDEAL_KMH:
             return FACTOR_CROSS_IDEAL
-        return _interpolar(viento_kmh, CROSS_IDEAL_KMH, CROSS_MAX_KMH,
-                           FACTOR_CROSS_IDEAL, PISO_FACTOR_CROSS)
+        f = _interpolar(viento_kmh, CROSS_IDEAL_KMH, CROSS_MAX_KMH,
+                        FACTOR_CROSS_IDEAL, PISO_FACTOR_CROSS)
+        return min(1.0, max(PISO_FACTOR_CROSS, f))
     return FACTOR_ONSHORE
 
 
