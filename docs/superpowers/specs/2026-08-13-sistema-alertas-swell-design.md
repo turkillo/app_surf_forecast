@@ -175,7 +175,10 @@ es el mismo. Para no tener que elegir:
 
 - **🔥 ALERTA** — pasa el gate completo más la persistencia. Push inmediato a Telegram.
 - **📋 Digest semanal** — los domingos, todo lo que quedó cerca del umbral (falló por un
-  solo criterio, por ejemplo período 8.5 s). Sin push agresivo.
+  solo criterio, por ejemplo período 8.5 s). Sin push agresivo. **Se envía siempre**,
+  incluso sin nada que reportar; en ese caso una sola línea de "sin ventanas esta
+  semana". Además de cerrar el hueco de los falsos negativos, funciona como latido del
+  sistema (ver *Riesgo operativo*).
 
 Así nada se pierde en silencio, pero el push solo suena cuando vale la pena.
 
@@ -421,6 +424,43 @@ El principio: **ante la duda, no escribir estado corrupto**. Es preferible perde
 corrida que envenenar la cadena de persistencia.
 
 ---
+
+## Costo
+
+**Requisito del usuario: el sistema tiene que ser gratis.** Verificado el 2026-08-13.
+
+| Servicio | Límite del tier gratuito | Uso estimado | Margen |
+|---|---|---|---|
+| Open-Meteo | 10.000 llamadas/día, 300.000/mes | ~39/día (13 spots × 3 endpoints) | 0,4% |
+| GitHub Actions | 2.000 min/mes en repo privado (plan Free) | ~60 min/mes (2 min/día) | 3% |
+| Telegram Bot API | sin límite relevante | 0-4 mensajes/semana | — |
+
+**Costo total: USD 0.** El margen es de dos órdenes de magnitud en ambos servicios, así
+que ampliar la lista de spots no acerca el sistema a ningún techo.
+
+Condiciones a respetar:
+
+- El tier gratuito de Open-Meteo es **solo para uso no comercial**. Este proyecto es de
+  uso personal y califica. Si eso cambiara, hay que revisar la licencia.
+- Open-Meteo no ofrece garantía de uptime en el plan gratuito. Cubierto por el manejo de
+  errores: una corrida fallida no escribe estado y se recupera al día siguiente.
+- El backtest usa la Archive API, también incluida en el tier gratuito. Es una carga
+  puntual de ~40 llamadas, no recurrente.
+
+## Riesgo operativo: desactivación del workflow programado
+
+**GitHub desactiva automáticamente los workflows programados en repos que pasan 60 días
+sin actividad de commits.** Es la falla más peligrosa del diseño porque es silenciosa:
+el sistema deja de correr y no avisa.
+
+**Mitigación:** el workflow commitea `state.json` en cada corrida diaria, lo que mantiene
+el repositorio activo de forma permanente y evita que el contador de 60 días llegue a
+cumplirse. Como respaldo, GitHub envía un aviso por email antes de desactivar, y
+reactivar es un clic en la pestaña Actions.
+
+**Verificación:** el mensaje de digest de los domingos se envía siempre, incluso cuando
+no hay nada cerca del umbral (en ese caso, una línea de "sin ventanas esta semana").
+Funciona como latido: si un domingo no llega nada, el sistema está caído.
 
 ## Fuera de alcance
 
