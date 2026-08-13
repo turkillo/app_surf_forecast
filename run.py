@@ -10,7 +10,8 @@ from datetime import date
 from pathlib import Path
 from typing import Callable
 
-from surf.alert import decidir_alertas, detectar_ventanas, estado_vacio
+from surf.alert import (Ventana, decidir_alertas, detectar_ventanas,
+                        estado_vacio, registrar_corrida)
 from surf.fetch import ErrorDatos, obtener_horas
 from surf.notify import ErrorEnvio, enviar, formatear_alerta, formatear_digest
 from surf.score import DiaEvaluado, evaluar_dia
@@ -28,14 +29,17 @@ def _cerca_del_umbral(dia: DiaEvaluado) -> bool:
     return any(k in dia.motivo_principal for k in ("periodo", "onshore", "cross", "direccion"))
 
 
-def _enviar_seguro(mensaje: str, enviar_fn: Callable[[str], None], spot_id: str) -> None:
+def _enviar_seguro(mensaje: str, enviar_fn: Callable[[str], None], spot_id: str) -> bool:
     """Envuelve un envio individual. Un fallo de Telegram no debe abortar la
     corrida ni propagar un traceback a los logs del job (ver Tarea 9: fuga
-    de token via excepcion sin capturar)."""
+    de token via excepcion sin capturar). Devuelve si el envio se entrego,
+    para que quien llama solo registre como alertado lo que realmente salio."""
     try:
         enviar_fn(mensaje)
+        return True
     except ErrorEnvio as e:
         print(f"[WARN] no se pudo enviar el mensaje de {spot_id}: {e}", file=sys.stderr)
+        return False
 
 
 def correr(spots: list[Spot], hoy: date,
@@ -64,13 +68,20 @@ def correr(spots: list[Spot], hoy: date,
         raise RuntimeError("ningun spot devolvio datos; no se escribe estado")
 
     ventanas = detectar_ventanas(todos_los_dias)
-    a_alertar, estado_nuevo = decidir_alertas(ventanas, estado, hoy)
+    a_alertar = decidir_alertas(ventanas, estado, hoy)
 
     enviados: list[str] = []
+    entregadas: list[Ventana] = []
     for v in sorted(a_alertar, key=lambda x: -x.score):
         m = formatear_alerta(v, por_id[v.spot_id])
-        _enviar_seguro(m, enviar_fn, v.spot_id)
+        if _enviar_seguro(m, enviar_fn, v.spot_id):
+            entregadas.append(v)
         enviados.append(m)
+
+    # Solo lo que efectivamente se entrego queda marcado como alertado: una
+    # ventana cuyo envio fallo (Telegram caido, token invalido, rate limit)
+    # no debe perderse para siempre, tiene que reintentarse al dia siguiente.
+    estado_nuevo = registrar_corrida(ventanas, entregadas, estado, hoy)
 
     if hoy.weekday() == DIA_DEL_DIGEST:
         m = formatear_digest(cercanos[:10], hubo_alertas=len(a_alertar), fecha=hoy)
@@ -100,7 +111,7 @@ def main() -> int:
     except RuntimeError as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         try:
-            enviar(f"⚠️ El sistema de alertas fallo hoy: {e}", token, chat_id)
+            enviar(f"⚠️ El sistema de alertas falló hoy: {e}", token, chat_id)
         except ErrorEnvio:
             pass
         return 1

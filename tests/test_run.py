@@ -112,3 +112,40 @@ def test_un_envio_fallido_no_aborta_los_demas():
 
     assert len(intentos) == 2
     assert estado_nuevo["ultima_corrida"] == HOY.isoformat()
+
+
+def test_una_ventana_no_entregada_no_queda_marcada_como_alertada():
+    """Ronda 1 de revision: si Telegram esta caido y el envio de la alerta
+    falla, la ventana no debe quedar registrada como alertada -- si quedara
+    marcada, se pierde para siempre y solo re-alertaria si el score sube
+    mucho o la ventana se extiende."""
+    from datetime import timedelta
+
+    def enviar_que_siempre_falla(m):
+        raise ErrorEnvio("Telegram caido")
+
+    estado_previo, _ = correr([SPOT], HOY - timedelta(days=1), _traer_bueno,
+                              lambda m: None, estado_vacio())
+    estado_nuevo, _ = correr([SPOT], HOY, _traer_bueno,
+                             enviar_que_siempre_falla, estado_previo)
+
+    assert estado_nuevo["alertadas"] == []
+
+
+def test_una_ventana_no_entregada_se_reintenta_al_dia_siguiente():
+    from datetime import timedelta
+
+    def enviar_que_siempre_falla(m):
+        raise ErrorEnvio("Telegram caido")
+
+    estado_previo, _ = correr([SPOT], HOY - timedelta(days=1), _traer_bueno,
+                              lambda m: None, estado_vacio())
+    estado_dia_fallido, _ = correr([SPOT], HOY, _traer_bueno,
+                                   enviar_que_siempre_falla, estado_previo)
+
+    enviados_dia_siguiente = []
+    correr([SPOT], HOY + timedelta(days=1), _traer_bueno,
+           enviados_dia_siguiente.append, estado_dia_fallido)
+
+    assert len(enviados_dia_siguiente) >= 1
+    assert "BUEN SWELL" in enviados_dia_siguiente[0]

@@ -3,7 +3,7 @@ from datetime import date, timedelta
 import pytest
 
 from surf.alert import (DIAS_RETENCION_ESTADO, Ventana, decidir_alertas,
-                        detectar_ventanas, estado_vacio)
+                        detectar_ventanas, estado_vacio, registrar_corrida)
 from surf.score import DiaEvaluado
 
 HOY = date(2026, 8, 13)
@@ -13,6 +13,20 @@ def dia(d, bueno=True, score=80.0, spot="chicama"):
     return DiaEvaluado(fecha=date(2026, 8, d), spot_id=spot, es_bueno=bueno,
                        score=score if bueno else 0.0, horas_buenas=5 if bueno else 0,
                        bloque=None, resumen=None, motivo_principal=None)
+
+
+def _decidir_y_registrar(ventanas, estado, hoy):
+    """Simula una corrida donde todo lo decidido se entrega sin fallar.
+
+    La mayoria de los tests de este archivo prueban la logica de
+    persistencia/anti-repeticion, no el manejo de fallos de envio (eso lo
+    cubren los tests dedicados mas abajo). Este helper reproduce el
+    contrato viejo de decidir_alertas (decidir + registrar en un paso)
+    para no repetir el mismo par de llamadas en cada test.
+    """
+    a_alertar = decidir_alertas(ventanas, estado, hoy)
+    nuevo = registrar_corrida(ventanas, a_alertar, estado, hoy)
+    return a_alertar, nuevo
 
 
 def test_dos_dias_consecutivos_forman_ventana():
@@ -43,66 +57,66 @@ def test_ventanas_de_spots_distintos_no_se_mezclan():
 
 def test_ventana_nueva_no_alerta_falta_persistencia():
     v = detectar_ventanas([dia(21), dia(22)])
-    a_alertar, nuevo = decidir_alertas(v, estado_vacio(), HOY)
+    a_alertar, nuevo = _decidir_y_registrar(v, estado_vacio(), HOY)
     assert a_alertar == []
     assert len(nuevo["observadas"]) == 1
 
 
 def test_ventana_confirmada_ayer_si_alerta():
     v = detectar_ventanas([dia(21), dia(22)])
-    _, estado = decidir_alertas(v, estado_vacio(), date(2026, 8, 12))
-    a_alertar, _ = decidir_alertas(v, estado, HOY)
+    _, estado = _decidir_y_registrar(v, estado_vacio(), date(2026, 8, 12))
+    a_alertar, _ = _decidir_y_registrar(v, estado, HOY)
     assert len(a_alertar) == 1
     assert a_alertar[0].spot_id == "chicama"
 
 
 def test_no_realerta_la_misma_ventana():
     v = detectar_ventanas([dia(21), dia(22)])
-    _, e1 = decidir_alertas(v, estado_vacio(), date(2026, 8, 12))
-    _, e2 = decidir_alertas(v, e1, HOY)          # alerta aca
-    a_alertar, _ = decidir_alertas(v, e2, date(2026, 8, 14))
+    _, e1 = _decidir_y_registrar(v, estado_vacio(), date(2026, 8, 12))
+    _, e2 = _decidir_y_registrar(v, e1, HOY)          # alerta aca
+    a_alertar, _ = _decidir_y_registrar(v, e2, date(2026, 8, 14))
     assert a_alertar == []
 
 
 def test_realerta_si_el_score_mejora_mucho():
     v1 = detectar_ventanas([dia(21, score=70), dia(22, score=70)])
-    _, e1 = decidir_alertas(v1, estado_vacio(), date(2026, 8, 12))
-    _, e2 = decidir_alertas(v1, e1, HOY)
+    _, e1 = _decidir_y_registrar(v1, estado_vacio(), date(2026, 8, 12))
+    _, e2 = _decidir_y_registrar(v1, e1, HOY)
     v2 = detectar_ventanas([dia(21, score=92), dia(22, score=92)])
-    a_alertar, _ = decidir_alertas(v2, e2, date(2026, 8, 14))
+    a_alertar, _ = _decidir_y_registrar(v2, e2, date(2026, 8, 14))
     assert len(a_alertar) == 1
 
 
 def test_realerta_si_la_ventana_se_extiende():
     v1 = detectar_ventanas([dia(21), dia(22)])
-    _, e1 = decidir_alertas(v1, estado_vacio(), date(2026, 8, 12))
-    _, e2 = decidir_alertas(v1, e1, HOY)
+    _, e1 = _decidir_y_registrar(v1, estado_vacio(), date(2026, 8, 12))
+    _, e2 = _decidir_y_registrar(v1, e1, HOY)
     v2 = detectar_ventanas([dia(21), dia(22), dia(23)])
-    a_alertar, _ = decidir_alertas(v2, e2, date(2026, 8, 14))
+    a_alertar, _ = _decidir_y_registrar(v2, e2, date(2026, 8, 14))
     assert len(a_alertar) == 1
 
 
 def test_la_ventana_que_corre_un_dia_sigue_siendo_la_misma():
     # Ayer se vio 21-22, hoy el modelo la muestra 20-22: es la misma ventana
     v1 = detectar_ventanas([dia(21), dia(22)])
-    _, e1 = decidir_alertas(v1, estado_vacio(), date(2026, 8, 12))
+    _, e1 = _decidir_y_registrar(v1, estado_vacio(), date(2026, 8, 12))
     v2 = detectar_ventanas([dia(20), dia(21), dia(22)])
-    a_alertar, _ = decidir_alertas(v2, e1, HOY)
+    a_alertar, _ = _decidir_y_registrar(v2, e1, HOY)
     assert len(a_alertar) == 1  # alerta por persistencia, no la trata como nueva
 
 
 def test_un_hueco_en_las_corridas_resetea_la_persistencia():
     # Si la ultima corrida fue hace 3 dias, no hay confirmacion valida
     v = detectar_ventanas([dia(21), dia(22)])
-    _, estado = decidir_alertas(v, estado_vacio(), date(2026, 8, 9))
-    a_alertar, _ = decidir_alertas(v, estado, HOY)
+    _, estado = _decidir_y_registrar(v, estado_vacio(), date(2026, 8, 9))
+    a_alertar, _ = _decidir_y_registrar(v, estado, HOY)
     assert a_alertar == []
 
 
 def test_se_purgan_las_ventanas_ya_pasadas():
     v = detectar_ventanas([dia(21), dia(22)])
-    _, estado = decidir_alertas(v, estado_vacio(), date(2026, 8, 12))
-    _, limpio = decidir_alertas([], estado, date(2026, 9, 30))
+    _, estado = _decidir_y_registrar(v, estado_vacio(), date(2026, 8, 12))
+    _, limpio = _decidir_y_registrar([], estado, date(2026, 9, 30))
     assert limpio["observadas"] == []
     assert limpio["alertadas"] == []
 
@@ -130,10 +144,10 @@ def test_dos_ventanas_separadas_por_un_dia_malo_se_detectan_ambas():
 
 def test_realerta_si_la_ventana_se_extiende_hacia_atras():
     v1 = detectar_ventanas([dia(21), dia(22)])
-    _, e1 = decidir_alertas(v1, estado_vacio(), date(2026, 8, 12))
-    _, e2 = decidir_alertas(v1, e1, HOY)          # alerta aca (21-22)
+    _, e1 = _decidir_y_registrar(v1, estado_vacio(), date(2026, 8, 12))
+    _, e2 = _decidir_y_registrar(v1, e1, HOY)          # alerta aca (21-22)
     v2 = detectar_ventanas([dia(20), dia(21), dia(22)])
-    a_alertar, _ = decidir_alertas(v2, e2, date(2026, 8, 14))
+    a_alertar, _ = _decidir_y_registrar(v2, e2, date(2026, 8, 14))
     assert len(a_alertar) == 1
 
 
@@ -145,19 +159,19 @@ def test_realerta_si_la_ventana_se_extiende_hacia_atras():
 def test_ventana_partida_en_dos_no_pierde_el_historial_del_pedazo_no_alertado():
     # Historial: chicama 21-25 con score 80, ya alertado una vez (dia 11).
     v_ancha = detectar_ventanas([dia(d, score=80) for d in range(21, 26)])
-    _, e1 = decidir_alertas(v_ancha, estado_vacio(), date(2026, 8, 10))
-    _, e2 = decidir_alertas(v_ancha, e1, date(2026, 8, 11))  # alerta aca (80)
+    _, e1 = _decidir_y_registrar(v_ancha, estado_vacio(), date(2026, 8, 10))
+    _, e2 = _decidir_y_registrar(v_ancha, e1, date(2026, 8, 11))  # alerta aca (80)
 
     # El pronostico se refina: el dia 23 pasa a malo y la ventana se parte.
     # A (21-22) sube fuerte de score y re-alerta; B (24-25) no cambia.
     dias_partidos = [dia(21, score=97), dia(22, score=97), dia(23, bueno=False),
                      dia(24, score=80), dia(25, score=80)]
     v_partida = detectar_ventanas(dias_partidos)
-    a_alertar_3, e3 = decidir_alertas(v_partida, e2, date(2026, 8, 12))
+    a_alertar_3, e3 = _decidir_y_registrar(v_partida, e2, date(2026, 8, 12))
     assert [v.desde for v in a_alertar_3] == [date(2026, 8, 21)]  # solo A
 
     # Al dia siguiente, sin cambios: B no deberia alertar como si fuera nueva.
-    a_alertar_4, _ = decidir_alertas(v_partida, e3, date(2026, 8, 13))
+    a_alertar_4, _ = _decidir_y_registrar(v_partida, e3, date(2026, 8, 13))
     assert a_alertar_4 == []
 
 
@@ -177,8 +191,56 @@ def test_la_purga_retiene_solo_lo_dentro_de_la_retencion():
     estado = {"ultima_corrida": "2026-09-29", "observadas": [],
              "alertadas": [vieja, en_el_borde, reciente]}
 
-    _, limpio = decidir_alertas([], estado, hoy)
+    _, limpio = _decidir_y_registrar([], estado, hoy)
 
     assert vieja not in limpio["alertadas"]
     assert en_el_borde in limpio["alertadas"]
     assert reciente in limpio["alertadas"]
+
+
+# --- Ronda 1 de revision de la Tarea 10: si el envio de una alerta falla,
+# la ventana no puede quedar marcada como alertada -- si quedara marcada,
+# se pierde para siempre (solo re-alertaria si el score sube mucho o la
+# ventana se extiende). decidir_alertas / registrar_corrida se separaron
+# justamente para que quien orquesta pueda registrar solo lo que se
+# entrego de verdad. ---
+
+def test_ventana_no_entregada_no_queda_marcada_como_alertada():
+    v = detectar_ventanas([dia(21), dia(22)])
+    _, e1 = _decidir_y_registrar(v, estado_vacio(), date(2026, 8, 12))
+
+    a_alertar = decidir_alertas(v, e1, HOY)
+    assert len(a_alertar) == 1  # decidir_alertas SI dice que corresponde alertar
+
+    # Pero el envio fallo: quien orquesta no la pasa como entregada.
+    e2 = registrar_corrida(v, [], e1, HOY)
+    assert e2["alertadas"] == e1["alertadas"]  # no se agrego nada nuevo
+
+
+def test_ventana_no_entregada_se_reintenta_al_dia_siguiente():
+    v = detectar_ventanas([dia(21), dia(22)])
+    _, e1 = _decidir_y_registrar(v, estado_vacio(), date(2026, 8, 12))
+
+    a_alertar_hoy = decidir_alertas(v, e1, HOY)
+    assert len(a_alertar_hoy) == 1
+    e2 = registrar_corrida(v, [], e1, HOY)  # el envio fallo hoy
+
+    # Al dia siguiente, con las mismas ventanas observadas ayer (hoy), la
+    # ventana no entregada se vuelve a proponer para alertar.
+    a_alertar_manana = decidir_alertas(v, e2, HOY + timedelta(days=1))
+    assert len(a_alertar_manana) == 1
+    assert a_alertar_manana[0].spot_id == "chicama"
+
+
+def test_ventana_entregada_si_queda_marcada_como_alertada():
+    v = detectar_ventanas([dia(21), dia(22)])
+    _, e1 = _decidir_y_registrar(v, estado_vacio(), date(2026, 8, 12))
+
+    a_alertar = decidir_alertas(v, e1, HOY)
+    e2 = registrar_corrida(v, a_alertar, e1, HOY)  # esta vez si se entrega
+
+    assert len(e2["alertadas"]) == 1
+    assert e2["alertadas"][0]["spot_id"] == "chicama"
+    # Y como ya quedo registrada, no se vuelve a proponer sin novedad.
+    a_alertar_manana = decidir_alertas(v, e2, HOY + timedelta(days=1))
+    assert a_alertar_manana == []

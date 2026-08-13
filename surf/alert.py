@@ -76,11 +76,12 @@ def _a_registro(v: Ventana) -> dict:
 
 
 def decidir_alertas(ventanas: list[Ventana], estado: dict,
-                    hoy: date) -> tuple[list[Ventana], dict]:
-    """Aplica persistencia y anti-repeticion.
+                    hoy: date) -> list[Ventana]:
+    """Aplica persistencia y anti-repeticion. Funcion de decision pura.
 
-    Devuelve las ventanas a alertar y el estado actualizado. El estado nuevo
-    se escribe solo si la corrida completa termino bien.
+    Devuelve las ventanas que corresponde alertar hoy. No toca el estado:
+    quien llama todavia no sabe si el envio de cada una va a llegar, asi que
+    no hay nada que registrar todavia. Ver `registrar_corrida`.
     """
     ultima = estado.get("ultima_corrida")
     ultima_fecha = date.fromisoformat(ultima) if ultima else None
@@ -112,24 +113,42 @@ def decidir_alertas(ventanas: list[Ventana], estado: dict,
         if se_extendio or mejoro:
             a_alertar.append(v)
 
+    return a_alertar
+
+
+def registrar_corrida(ventanas: list[Ventana], entregadas: list[Ventana],
+                      estado: dict, hoy: date) -> dict:
+    """Construye el estado nuevo a partir de lo que se detecto y lo que
+    efectivamente se logro entregar.
+
+    Separado de `decidir_alertas` a proposito: `decidir_alertas` dice que
+    ventanas corresponde alertar, pero el envio puede fallar (Telegram
+    caido, token invalido, rate limit). Si una ventana decidida no esta en
+    `entregadas`, no se marca como alertada aca -- queda pendiente, y como
+    `decidir_alertas` la va a volver a proponer al no encontrarla en
+    "alertadas", se reintenta sola en la proxima corrida. Marcarla como
+    alertada sin haberse entregado la perderia para siempre (solo
+    re-alertaria si el score sube mucho o la ventana se extiende).
+    """
+    alertadas = estado.get("alertadas", [])
+
     def _reemplazada(r: dict) -> bool:
         """r queda obsoleto solo si TODAS las ventanas de hoy que lo tocan
-        volvieron a alertar. Si una ventana ancha ya alertada se parte en dos
+        se entregaron. Si una ventana ancha ya alertada se parte en dos
         por un dia malo intermedio y solo una mitad re-alerta, la otra mitad
         sigue necesitando su historial: no alcanza con que r solape a
-        alguna ventana alertada, tiene que quedar cubierto por completo.
+        alguna ventana entregada, tiene que quedar cubierto por completo.
         """
         solapantes = [v for v in ventanas if _solapa(v, r)]
-        return bool(solapantes) and all(v in a_alertar for v in solapantes)
+        return bool(solapantes) and all(v in entregadas for v in solapantes)
 
     corte = hoy - timedelta(days=DIAS_RETENCION_ESTADO)
     conservadas = [r for r in alertadas
                   if date.fromisoformat(r["hasta"]) >= corte and not _reemplazada(r)]
-    nuevas = [{**_a_registro(v), "fecha_alerta": hoy.isoformat()} for v in a_alertar]
+    nuevas = [{**_a_registro(v), "fecha_alerta": hoy.isoformat()} for v in entregadas]
 
-    nuevo = {
+    return {
         "ultima_corrida": hoy.isoformat(),
         "observadas": [_a_registro(v) for v in ventanas],
         "alertadas": conservadas + nuevas,
     }
-    return a_alertar, nuevo

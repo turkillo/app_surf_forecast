@@ -79,6 +79,34 @@ actividad de commits, y esa desactivación es silenciosa — no llega ningún
 aviso. El commit de estado, al correr todos los días, mantiene el repo
 activo y evita que el sistema se apague solo sin que nadie se entere.
 
+## Si el workflow falla
+
+1. Andá a la pestaña **Actions** del repositorio y abrí la corrida que
+   falló (la de la fecha en cuestión, o la última con una X roja).
+2. Mirá el log del paso **"Chequear los spots"** — ahí queda todo lo que
+   imprime `run.py`, con las advertencias `[WARN]` de cada spot que no trajo
+   datos y, si corresponde, el `[ERROR]` final.
+3. El **exit code** del paso te dice qué pasó:
+   - **1**: la corrida falló porque *ningún* spot devolvió datos (Open-Meteo
+     caído, o los 13 fallaron por algún otro motivo). El sistema intenta
+     avisar por Telegram del fallo; si ese aviso también falla, quedás sin
+     notificación y solo te enterás mirando los logs. `state.json` no se
+     tocó — el próximo día arranca desde el mismo estado que tenía antes.
+   - **2**: faltan los secrets `TELEGRAM_TOKEN` o `TELEGRAM_CHAT_ID`. Revisá
+     que estén cargados en **Settings → Secrets and variables → Actions**
+     con esos nombres exactos.
+4. Si sale bien un chequeo pero falla el paso siguiente, **"Guardar el
+   estado"**, sospechá primero de la protección de rama: si la rama por
+   defecto tiene una regla de protección que exige pull request o revisión
+   para todo push (incluyendo el del propio repositorio), el `git push` de
+   ese paso va a fallar **todos los días**, aunque el chequeo de spots haya
+   ido perfecto. En ese caso hay que excluir al usuario/bot que corre el
+   workflow de esa regla, o darle un permiso especial para pushear
+   `state.json` directo a la rama por defecto.
+5. Una alerta que no llegó por un corte de Telegram no se pierde: si el
+   envío de un mensaje falla, esa ventana queda sin marcar como alertada en
+   `state.json` y el sistema la vuelve a intentar solo, al día siguiente.
+
 ## Ajustar los umbrales de un spot
 
 Todos los umbrales viven en `spots.yaml`, no en el código. Para ajustar un
