@@ -47,14 +47,14 @@ def test_altura_por_encima_del_maximo_no_pasa():
 def test_periodo_corto_no_pasa():
     r = evaluar_hora(hora(periodo=7.2), SPOT)
     assert r.pasa is False
-    assert "periodo" in r.motivo_rechazo
+    assert "período" in r.motivo_rechazo
 
 
 def test_direccion_fuera_de_la_ventana_no_pasa():
     # Swell del NE en un spot que solo recibe del S/SE
     r = evaluar_hora(hora(direccion=45), SPOT)
     assert r.pasa is False
-    assert "direccion" in r.motivo_rechazo
+    assert "dirección" in r.motivo_rechazo
 
 
 def test_swell_perfecto_con_onshore_no_pasa():

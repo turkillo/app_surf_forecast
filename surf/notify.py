@@ -13,7 +13,7 @@ TIMEOUT_S = 20
 
 _MESES = ["", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
           "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
-_DIAS = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
+_DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
 
 class ErrorEnvio(Exception):
@@ -25,7 +25,9 @@ def _fecha_corta(d: date) -> str:
 
 
 def _linea_dia(dia: DiaEvaluado, spot: Spot) -> str:
-    r = dia.resumen or {}
+    if dia.resumen is None:
+        return f"{_fecha_corta(dia.fecha):<7} (sin datos de pronóstico)"
+    r = dia.resumen
     clase = clasificar_viento(r.get("viento_direccion", 0), spot.costa_mira)
     return (
         f"{_fecha_corta(dia.fecha):<7} "
@@ -41,10 +43,15 @@ def formatear_alerta(ventana: Ventana, spot: Spot) -> str:
     mejor = max(ventana.dias, key=lambda d: d.score)
     cant = len(ventana.dias)
 
+    if ventana.desde.month == ventana.hasta.month:
+        rango_fechas = f"{_fecha_corta(ventana.desde)} a {_fecha_corta(ventana.hasta)} de {_MESES[ventana.hasta.month]}"
+    else:
+        rango_fechas = f"{_fecha_corta(ventana.desde)} de {_MESES[ventana.desde.month]} a {_fecha_corta(ventana.hasta)} de {_MESES[ventana.hasta.month]}"
+
+    plural = "día" if cant == 1 else "días"
     partes = [
         f"🔥 BUEN SWELL — {spot.nombre}",
-        f"{_fecha_corta(ventana.desde)} a {_fecha_corta(ventana.hasta)} "
-        f"de {_MESES[ventana.hasta.month]} ({cant} dias)",
+        f"{rango_fechas} ({cant} {plural})",
         "",
     ]
     partes += [_linea_dia(d, spot) for d in ventana.dias]
@@ -75,15 +82,15 @@ def formatear_digest(cercanos: list[tuple[DiaEvaluado, Spot]],
     partes.append("")
 
     if not cercanos:
-        partes.append("Sin ventanas cerca del umbral en los proximos dias.")
+        partes.append("Sin ventanas cerca del umbral en los próximos días.")
     else:
-        partes.append("Quedo cerca pero no alcanzo:")
+        partes.append("Quedó cerca pero no alcanzó:")
         for dia, spot in cercanos:
             partes.append(f"· {spot.nombre} — {_fecha_corta(dia.fecha)}: {dia.motivo_principal}")
 
     partes.append("")
-    partes.append("(Este resumen llega todos los domingos. Si algun domingo no llega, "
-                  "el sistema esta caido.)")
+    partes.append("(Este resumen llega todos los domingos. Si algún domingo no llega, "
+                  "el sistema está caído.)")
     return "\n".join(partes)
 
 
@@ -97,5 +104,12 @@ def enviar(mensaje: str, token: str, chat_id: str, sesion=None) -> None:
             timeout=TIMEOUT_S,
         )
         r.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        msg = f"no se pudo enviar a Telegram ({e.response.status_code} {e.response.reason})"
+        raise ErrorEnvio(msg) from e
+    except requests.exceptions.Timeout:
+        raise ErrorEnvio("no se pudo enviar a Telegram: timeout") from None
+    except requests.exceptions.RequestException as e:
+        raise ErrorEnvio(f"no se pudo enviar a Telegram: error de conexion") from e
     except Exception as e:  # noqa: BLE001
-        raise ErrorEnvio(f"no se pudo enviar a Telegram: {e}") from e
+        raise ErrorEnvio(f"no se pudo enviar a Telegram: error inesperado") from e

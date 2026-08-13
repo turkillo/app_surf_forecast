@@ -136,14 +136,14 @@ def _gate_viento(hora: Hora, clase: str) -> str | None:
         return None
     if clase == "offshore":
         if hora.viento_kmh > OFFSHORE_MAX_KMH:
-            return f"offshore muy fuerte ({hora.viento_kmh:.0f} km/h, maximo {OFFSHORE_MAX_KMH:.0f})"
+            return f"offshore muy fuerte ({hora.viento_kmh:.0f} km/h, máximo {OFFSHORE_MAX_KMH:.0f})"
         return None
     if clase == "cross":
         if hora.viento_kmh > CROSS_MAX_KMH:
-            return f"cross muy fuerte ({hora.viento_kmh:.0f} km/h, maximo {CROSS_MAX_KMH:.0f})"
+            return f"cross muy fuerte ({hora.viento_kmh:.0f} km/h, máximo {CROSS_MAX_KMH:.0f})"
         return None
     if hora.viento_kmh > ONSHORE_MAX_KMH:
-        return f"viento onshore ({hora.viento_kmh:.0f} km/h, maximo {ONSHORE_MAX_KMH:.0f})"
+        return f"viento onshore ({hora.viento_kmh:.0f} km/h, máximo {ONSHORE_MAX_KMH:.0f})"
     return None
 
 
@@ -154,14 +154,14 @@ def _gate(hora: Hora, spot: Spot, clase: str) -> str | None:
     if not hora.es_de_dia:
         return "fuera de horas de luz"
     if hora.swell_altura < sw.min_altura:
-        return f"altura insuficiente ({hora.swell_altura:.1f}m, minimo {sw.min_altura:.1f}m)"
+        return f"altura insuficiente ({hora.swell_altura:.1f}m, mínimo {sw.min_altura:.1f}m)"
     if hora.swell_altura > sw.max_altura:
-        return f"el spot cierra con este tamano ({hora.swell_altura:.1f}m, maximo {sw.max_altura:.1f}m)"
+        return f"el spot cierra con este tamaño ({hora.swell_altura:.1f}m, máximo {sw.max_altura:.1f}m)"
     if hora.swell_periodo < sw.min_periodo:
-        return f"periodo corto ({hora.swell_periodo:.1f}s, minimo {sw.min_periodo:.1f}s)"
+        return f"período corto ({hora.swell_periodo:.1f}s, mínimo {sw.min_periodo:.1f}s)"
     if not en_ventana(hora.swell_direccion, sw.ventana):
         return (
-            f"direccion fuera de la ventana del spot "
+            f"dirección fuera de la ventana del spot "
             f"({hora.swell_direccion:.0f}, ventana {sw.ventana[0]:.0f}-{sw.ventana[1]:.0f})"
         )
     return _gate_viento(hora, clase)

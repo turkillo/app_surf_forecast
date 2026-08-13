@@ -74,12 +74,37 @@ def test_el_digest_vacio_igual_dice_algo():
 def test_el_digest_lista_lo_que_quedo_cerca():
     d = DiaEvaluado(fecha=date(2026, 8, 18), spot_id=SPOT.id, es_bueno=False,
                     score=0.0, horas_buenas=0, bloque=None, resumen=None,
-                    motivo_principal="periodo corto (8.5s, minimo 9.0s)")
+                    motivo_principal="período corto (8.5s, mínimo 9.0s)")
     m = formatear_digest([(d, SPOT)], hubo_alertas=0, fecha=date(2026, 8, 16))
     assert SPOT.nombre in m
-    assert "periodo corto" in m
+    assert "período corto" in m
 
 
 def test_el_digest_reporta_cuantas_alertas_hubo():
     m = formatear_digest([], hubo_alertas=3, fecha=date(2026, 8, 16))
     assert "3" in m
+
+
+def test_enviar_no_filtra_el_token_en_error():
+    from unittest.mock import Mock
+    from surf.notify import enviar, ErrorEnvio
+    import requests
+
+    mock_sesion = Mock()
+    mock_response = Mock()
+    mock_response.status_code = 401
+    mock_response.reason = "Unauthorized"
+
+    # Simular un HTTPError que contendria la URL con el token en requests
+    error_http = requests.exceptions.HTTPError()
+    error_http.response = mock_response
+    mock_sesion.post.side_effect = error_http
+
+    token_secreto = "123456789:AAHsecretTokenValueXYZ"
+
+    with pytest.raises(ErrorEnvio) as exc_info:
+        enviar("test", token_secreto, "12345", sesion=mock_sesion)
+
+    # El token no debe aparecer en el mensaje de error
+    assert token_secreto not in str(exc_info.value)
+    assert "401" in str(exc_info.value)
