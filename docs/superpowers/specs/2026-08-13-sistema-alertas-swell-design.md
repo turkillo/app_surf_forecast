@@ -411,7 +411,7 @@ justamente el que quedó apagada.
 ### Estructura
 
 ```
-surf-alerts/
+app_surf_forecast/
 ├── spots.yaml              # los 13 perfiles investigados
 ├── fetch.py                # Open-Meteo: marine + viento + sunrise/sunset
 ├── score.py                # gate + score  ← el corazón

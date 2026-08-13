@@ -44,7 +44,7 @@
 - [ ] **Step 1: Crear el entorno y los archivos de configuración**
 
 ```bash
-cd /Users/martinturjanski/Documents/Personal/surf-alerts
+cd /Users/martinturjanski/Documents/Personal/app_surf_forecast
 python3 -m venv .venv
 .venv/bin/pip install --quiet --upgrade pip
 ```
@@ -2481,7 +2481,7 @@ jobs:
         # workflows programados tras 60 dias sin commits, y esa falla seria
         # silenciosa.
         run: |
-          git config user.name "surf-alerts-bot"
+          git config user.name "surf-forecast-bot"
           git config user.email "bot@users.noreply.github.com"
           git add state.json
           git diff --staged --quiet || git commit -m "chore: estado del $(date -u +%Y-%m-%d)"
