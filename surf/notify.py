@@ -106,10 +106,10 @@ def enviar(mensaje: str, token: str, chat_id: str, sesion=None) -> None:
         r.raise_for_status()
     except requests.exceptions.HTTPError as e:
         msg = f"no se pudo enviar a Telegram ({e.response.status_code} {e.response.reason})"
-        raise ErrorEnvio(msg) from e
+        raise ErrorEnvio(msg) from None
     except requests.exceptions.Timeout:
         raise ErrorEnvio("no se pudo enviar a Telegram: timeout") from None
     except requests.exceptions.RequestException as e:
-        raise ErrorEnvio(f"no se pudo enviar a Telegram: error de conexion") from e
+        raise ErrorEnvio(f"no se pudo enviar a Telegram: error de conexión") from None
     except Exception as e:  # noqa: BLE001
-        raise ErrorEnvio(f"no se pudo enviar a Telegram: error inesperado") from e
+        raise ErrorEnvio(f"no se pudo enviar a Telegram: error inesperado") from None

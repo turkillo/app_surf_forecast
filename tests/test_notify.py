@@ -89,13 +89,13 @@ def test_enviar_no_filtra_el_token_en_error():
     from unittest.mock import Mock
     from surf.notify import enviar, ErrorEnvio
     import requests
+    import traceback
 
     mock_sesion = Mock()
     mock_response = Mock()
     mock_response.status_code = 401
     mock_response.reason = "Unauthorized"
 
-    # Simular un HTTPError que contendria la URL con el token en requests
     error_http = requests.exceptions.HTTPError()
     error_http.response = mock_response
     mock_sesion.post.side_effect = error_http
@@ -105,6 +105,61 @@ def test_enviar_no_filtra_el_token_en_error():
     with pytest.raises(ErrorEnvio) as exc_info:
         enviar("test", token_secreto, "12345", sesion=mock_sesion)
 
-    # El token no debe aparecer en el mensaje de error
+    # El token no debe aparecer en str(ErrorEnvio)
     assert token_secreto not in str(exc_info.value)
     assert "401" in str(exc_info.value)
+
+    # El token no debe aparecer tampoco en el traceback completo (que es lo que se loguea)
+    tb = traceback.format_exc()
+    assert token_secreto not in tb
+
+
+def test_ventana_que_cruza_mes_muestra_ambos_meses():
+    from surf.alert import Ventana
+    from dataclasses import replace
+
+    d1 = dia(30)
+    d2 = replace(dia(2), fecha=date(2026, 9, 2))
+    ventana = Ventana(
+        spot_id=SPOT.id,
+        desde=date(2026, 8, 30),
+        hasta=date(2026, 9, 2),
+        dias=[d1, d2],
+        score=87.0
+    )
+    m = formatear_alerta(ventana, SPOT)
+    assert "agosto" in m
+    assert "septiembre" in m
+
+
+def test_alerta_con_resumen_none_marca_datos_faltantes():
+    from surf.alert import Ventana
+
+    d1 = DiaEvaluado(fecha=date(2026, 8, 21), spot_id=SPOT.id, es_bueno=True,
+                     score=87.0, horas_buenas=5,
+                     bloque=(datetime(2026, 8, 21, 7), datetime(2026, 8, 21, 11)),
+                     resumen=None, motivo_principal=None)
+    ventana = Ventana(
+        spot_id=SPOT.id,
+        desde=date(2026, 8, 21),
+        hasta=date(2026, 8, 21),
+        dias=[d1],
+        score=87.0
+    )
+    m = formatear_alerta(ventana, SPOT)
+    assert "sin datos de pronóstico" in m
+
+
+def test_ventana_de_un_dia_usa_singular():
+    from surf.alert import Ventana
+
+    d1 = dia(21)
+    ventana = Ventana(
+        spot_id=SPOT.id,
+        desde=date(2026, 8, 21),
+        hasta=date(2026, 8, 21),
+        dias=[d1],
+        score=87.0
+    )
+    m = formatear_alerta(ventana, SPOT)
+    assert "1 día" in m
