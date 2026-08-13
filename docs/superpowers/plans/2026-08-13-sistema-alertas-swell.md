@@ -1885,6 +1885,11 @@ def detectar_ventanas(dias: list[DiaEvaluado]) -> list[Ventana]:
         racha: list[DiaEvaluado] = []
         for d in grupo:
             if not d.es_bueno:
+                # Volcar la racha ANTES de resetear: si no, una ventana que
+                # califica se pierde en silencio apenas la corta un dia malo,
+                # que es el caso normal en un pronostico real de 7 dias.
+                if len(racha) >= DIAS_MINIMOS_VENTANA:
+                    ventanas.append(_armar(spot_id, racha))
                 racha = []
                 continue
             if racha and d.fecha != racha[-1].fecha + timedelta(days=1):
