@@ -135,8 +135,8 @@
   tipo: beach_break
   costa_mira: 224
   swell:
-    ventana: [225, 305]
-    ideal: 292
+    ventana: [180, 280]
+    ideal: 210
     min_altura: 1.0
     max_altura: 2.0
     rango_ideal: [1.3, 1.7]
@@ -202,10 +202,10 @@
     rango_ideal: [2.0, 3.4]
     min_periodo: 10
   viento_ideal: 67
-  temporada: [12, 1, 2]
+  temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://www.surf-forecast.com/breaks/Chicama"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
-  confianza: alta
+  confianza: media
 
 - id: lobitos
   nombre: "Lobitos, Piura"
@@ -218,11 +218,11 @@
     ventana: [210, 270]
     ideal: 225
     min_altura: 1.0
-    max_altura: 2.0
-    rango_ideal: [1.3, 1.8]
+    max_altura: 3.0
+    rango_ideal: [1.7, 2.6]
     min_periodo: 10
   viento_ideal: 112
-  temporada: [3, 4, 5]
+  temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://www.surf-forecast.com/breaks/Lobitos"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: baja

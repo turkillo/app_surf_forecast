@@ -393,19 +393,46 @@ surf-forecast da dos vientos distintos (NE en la guía, ESE en la estadística).
 2. Más serio: surf-forecast da `swell ideal = West northwest` (292), pero la costa mide
    224. Un swell del WNW llega 68 grados fuera de la normal de la playa. Wannasurf lista
    *SouthWest* dentro de su rango, y el SW es el groundswell dominante del Pacífico sur en
-   esta costa. **No se ajustó el número** para hacerlo encajar: se dejó `ideal` en 292 como
-   lo documenta la fuente designada, se ensanchó la ventana hasta 225 para cubrir el sector
-   SW que documenta Wannasurf, y se bajó la confianza a `baja` para que el backtest
-   histórico tenga prioridad acá. Este es el spot donde menos hay que creerle al perfil
-   documentado.
+   esta costa. **Se priorizó la geometría medida por sobre el campo de la fuente.** Ver
+   abajo.
+
+**Corrección aplicada (revisión, fix 1/5): la geometría medida gana sobre el campo de la
+fuente cuando el campo cierra una compuerta**
+
+En la primera pasada se dejó `ideal: 292` y `ventana: [225, 305]`, con el criterio de "no
+tocar el número que documenta la fuente designada". **Ese criterio estaba mal aplicado
+acá**, y la distinción importa para el resto del proyecto:
+
+- La política vale cuando el número es **informativo**: si queda algo corrido, degrada un
+  puntaje y el backtest lo corrige.
+- No vale cuando el número **cierra una compuerta**. `swell.ventana` es gate duro: lo que
+  cae afuera no genera alerta nunca, y el backtest no puede corregir lo que jamás se evaluó.
+
+Con `ventana: [225, 305]` quedaba excluido todo el sector 180-224. El groundswell del
+Pacífico sur llega a la península de Nicoya desde ~190-215 (SSW-SW) de abril a noviembre y
+**es el swell principal de Santa Teresa**: la ventana anterior dejaba afuera la temporada
+principal entera, sin una sola alerta posible. Y como `factor_dir` valía 1.0 en 292, hasta
+un SW de 225 entrando de frente puntuaba la mitad.
+
+La contradicción ya estaba medida en este mismo documento: `costa_mira` = 224 por muestreo
+DEM, o sea 68 grados de desfasaje contra el `ideal` de la fuente. Con la playa mirando al
+224, un WNW llega oblicuo y refractado mientras que el SW entra de frente. **La medición
+propia le gana al campo de surf-forecast**, que es justamente lo que la fuente 3 existe para
+arbitrar.
+
+`confianza` sigue en `baja`: el perfil quedó armado en contra de la fuente primaria, así que
+el backtest histórico tiene que revisarlo igual.
 
 **Conversión**
 
 - `tipo`: `beach_break` -> `min_periodo` 9
-- `swell.ideal`: 292 (WNW)
-- `swell.ventana`: [225, 305]. `ideal ± 45` daría [247, 337]; se ensancha el borde inferior
-  a 225 porque Wannasurf documenta SW, y se recorta el superior a 305 porque el DEM muestra
-  tierra a partir de ~305. Contenida en `costa_mira ± 90` = [134, 314].
+- `swell.ideal`: **210**. Entre la normal de la costa medida (224, donde la transferencia de
+  energía es máxima) y el centro de la banda de llegada del groundswell del Pacífico sur
+  (~202), de modo que ni el swell dominante ni un SW de frente queden penalizados. El 292 de
+  surf-forecast queda descartado, con el descarte registrado arriba.
+- `swell.ventana`: **[180, 280]**. Cubre entera la banda 190-215 del groundswell del sur y
+  llega hasta el W para los swells de invierno boreal que documentan las dos fuentes.
+  Contenida en `costa_mira ± 90` = [134, 314] y dentro del sector de mar del DEM (160-300).
 - `min_altura` 1.0 / `max_altura` 2.0 -> R=1.0 -> `rango_ideal` [1.3, 1.7]
 - `temporada`: [1..12]. surf-forecast la documenta explícitamente como spot de todo el año
   y no declara un mes óptimo. El campo no discrimina nada en este spot; queda registrado
@@ -552,18 +579,37 @@ point break, y el techo de 5 m está documentado en Wannasurf.
   muestra el DEM entre 150 y 190. El rango de Wannasurf (S a SW, 180-225) queda contenido.
 - `min_altura` 1.0 (Wannasurf "less than 1m", aplica el piso) / `max_altura` 4.0
   -> R=3.0 -> `rango_ideal` [2.0, 3.4]
-- `temporada`: [12, 1, 2]
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]** (corregido, ver abajo)
 
-**Tensión registrada (no resuelta acá).** surf-forecast define la temporada como *verano /
-febrero*, pero su propia definición de "mejor época" es *swell surfeable con viento flojo u
-offshore*, o sea que premia los días chicos y vidriados. El swell grande de Chicama es el
-groundswell del Pacífico sur, de abril a octubre. Se respetó la regla del brief
-(`temporada` = temporada favorita de surf-forecast), pero este es un campo que el backtest
-histórico debería revisar: tal como está, el detector puede descartar los meses en que
-Chicama realmente rompe grande.
+**Corrección aplicada (revisión, fix 1/5): `temporada` [12,1,2] -> [4,5,6,7,8,9,10]**
 
-**Confianza: alta.** Las tres fuentes coinciden en dirección de swell (SSW/SW-S), viento
-del sector E/ENE y tipo point break, y el techo de 4 m está documentado.
+La primera pasada dejó `[12, 1, 2]` siguiendo al pie de la letra la regla del brief
+(`temporada` = temporada favorita de surf-forecast), y **registró la tensión sin resolverla**.
+Registrarla no alcanzaba: el número estaba mal y había que corregirlo.
+
+El diagnóstico original era correcto. surf-forecast define "mejor época" como *swell
+surfeable con viento flojo u offshore*, o sea que premia los días chicos y vidriados, no los
+meses en que el spot rompe. El groundswell del Pacífico sur que hace a Chicama entra de
+**abril a octubre**. Dos verificaciones independientes lo confirman:
+
+1. **`huanchaco` está a 42 km sobre la misma costa, con la misma exposición, y tiene
+   `[3, 4, 5]`.** Dos spots vecinos no pueden tener temporadas disjuntas: `[12,1,2]` y
+   `[3,4,5]` no se solapan en un solo mes. Esa sola incoherencia dentro del propio
+   `spots.yaml` ya bastaba para descartar el dato.
+2. El groundswell del Pacífico sur es estacional y llega a la costa peruana de abril a
+   octubre; es el mismo motor que alimenta a `lobitos` (ver la corrección análoga ahí).
+
+**Por qué importaba aunque `temporada` no sea gate.** No se pierden alertas: el daño es en
+la Tarea 12. `coincide_la_temporada` habría dado `NO COINCIDE`, y la tabla de remediación
+del plan lee esa señal como "la ventana de swell está mal orientada". O sea que el backtest
+habría mandado a alguien a romper una `swell.ventana` que está bien, guiado por un campo que
+estaba mal. Un dato incorrecto en un campo no-gate puede hacer que se rompa un campo que sí
+lo es.
+
+**Confianza: media** (bajada de `alta`). Las tres fuentes siguen coincidiendo en dirección
+de swell (SSW/SW-S), viento del sector E/ENE y tipo point break, y el techo de 4 m está
+documentado; pero la temporada quedó armada contra lo que dice surf-forecast, así que el
+perfil ya no tiene las tres fuentes limpias.
 
 ---
 
@@ -629,12 +675,44 @@ del offshore que predice la geometría. No es un promedio inventado para pasar e
   SSW de surf-forecast)
 - `swell.ventana`: [210, 270]. `ideal ± 45` daría [180, 270]; se recorta a 210 porque
   `costa_mira ± 90` = [204, 24] y porque el DEM muestra el sector 180-200 obstruido.
-- `min_altura` 1.0 / `max_altura` 2.0 -> R=1.0 -> `rango_ideal` [1.3, 1.8]
-- `temporada`: [3, 4, 5]
+- `min_altura` 1.0 / `max_altura` **3.0** (corregido, ver abajo) -> R=2.0
+  -> `rango_ideal` [1.7, 2.6]
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]** (corregido, ver abajo)
 
-**Confianza: baja.** Contradicción de 113 grados dentro de la fuente primaria, y el techo
-de 2.0 m sale de un único campo de Wannasurf que parece bajo para una ola descrita como
-"World Class". Spot prioritario para el backtest histórico.
+**Corrección aplicada (revisión, fix 1/5): `max_altura` 2.0 -> 3.0**
+
+En la primera pasada se tomó el *"holds up to 2m+ / 6ft+"* de Wannasurf al pie de la letra.
+Se había marcado como sospechoso, pero con el argumento débil ("parece bajo para una ola
+World Class"). El argumento fuerte es la **inconsistencia interna del propio `spots.yaml`**:
+
+`chicama` está en la misma costa norte peruana, a ~400 km, es la misma izquierda larga
+alimentada por el mismo groundswell del sur, y tiene `max_altura: 4.0` documentado. Que
+Lobitos aguante la mitad que Chicama no es plausible físicamente.
+
+Y el efecto es grave porque `max_altura` **es gate duro**: con 2.0, todo swell por encima de
+2 m —justo el que hace funcionar el reef— quedaba mudo. El perfil silenciaba exactamente la
+temporada que lo justifica.
+
+Se subió a **3.0**, no a 4.0: Lobitos es un reef más corto y menos expuesto que el point de
+arena y roca de Chicama, así que se tomó el extremo conservador del rango. **Es un valor a
+calibrar en el backtest**, no una medición.
+
+**Corrección aplicada (revisión, fix 1/5): `temporada` [3,4,5] -> [4,5,6,7,8,9,10]**
+
+La primera pasada tomó *"Autumn, month of March"* de surf-forecast y **no chequeó el
+documento de diseño del proyecto**, que en
+`docs/superpowers/specs/2026-08-13-sistema-alertas-swell-design.md:322` dice textualmente:
+"Lobitos | PE | Izquierdas de clase mundial, ventana **Abr-Oct**". Esa contradicción tendría
+que haber estado registrada en la primera pasada y no lo estuvo.
+
+El spec tiene razón y surf-forecast no: la ventana de Lobitos es el groundswell del Pacífico
+sur, de abril a octubre, igual que la de Chicama (ver la corrección análoga en ese bloque).
+El *marzo* de surf-forecast sale de su estadística de "swell surfeable con viento flojo",
+que premia los días chicos y vidriados, no los meses en que el spot rompe.
+
+**Confianza: baja.** Contradicción de 113 grados dentro de la fuente primaria, y un
+`max_altura` que ahora es una inferencia por analogía con Chicama en vez de un dato.
+Spot prioritario para el backtest histórico.
 
 ---
 
@@ -774,7 +852,7 @@ mar adentro.**
 |---|---|---|---|---|
 | `praia_do_rosa` | Praia do Rosa | BR | **alta** | Las tres fuentes coinciden |
 | `punta_de_lobos` | Punta de Lobos | CL | **alta** | Las tres fuentes coinciden |
-| `chicama` | Chicama (El Point) | PE | **alta** | Las tres fuentes coinciden |
+| `chicama` | Chicama (El Point) | PE | media | `temporada` corregida contra surf-forecast |
 | `la_barra` | La Barra | UY | media | Wannasurf sin dirección de swell ni de viento |
 | `chapadmalal` | Chapadmalal | AR | media | Campo de swell de Wannasurf incoherente |
 | `buchupureo` | Buchupureo | CL | media | Viento SE (surf-forecast) vs E (Wannasurf) |
@@ -782,12 +860,31 @@ mar adentro.**
 | `huanchaco` | Punta Huanchaco | PE | media | Wannasurf sin direcciones; dos vientos en surf-forecast |
 | `saquarema` | Saquarema (Itaúna) | BR | media | Campos direccionales de Wannasurf duplicados |
 | `joaquina` | Praia da Joaquina | BR | media | Campo de swell de Wannasurf incoherente |
-| `santa_teresa` | Playa Santa Teresa | CR | **baja** | Swell ideal de surf-forecast a 68 grados de la costa medida |
-| `lobitos` | Lobitos | PE | **baja** | surf-forecast se contradice 113 grados a sí misma |
+| `santa_teresa` | Playa Santa Teresa | CR | **baja** | `ideal` y `ventana` reorientados contra surf-forecast, según la geometría medida |
+| `lobitos` | Lobitos | PE | **baja** | surf-forecast se contradice 113 grados a sí misma; `max_altura` por analogía |
 | `punta_del_diablo` | Punta del Diablo | UY | **baja** | `max_altura` estimado: Wannasurf no lo documenta |
 
-Tres `alta`, siete `media`, tres `baja`. Ningún perfil se infló: los `media` lo son porque
-una de las tres fuentes falló en un campo concreto, y los `baja` porque el dato central
-está en disputa o es una estimación. Los tres `baja` son los que el backtest histórico
-debería revisar primero.
+Dos `alta`, ocho `media`, tres `baja`. Ningún perfil se infló: los `media` lo son porque una
+de las tres fuentes falló en un campo concreto, y los `baja` porque el dato central está en
+disputa o es una estimación. Los tres `baja` son los que el backtest histórico debería
+revisar primero.
+
+## Lección de la revisión 1/5: campos gate vs campos informativos
+
+Los tres defectos que encontró la revisión salieron de contradicciones que este mismo
+documento ya tenía registradas. El problema no fue detectarlas sino **cómo se resolvieron**.
+El criterio que faltaba:
+
+- **Campo informativo** (`swell.ideal` como semilla de puntaje, `rango_ideal`, `temporada`):
+  ante la duda, se respeta lo que dice la fuente y se baja la confianza. Si queda corrido,
+  degrada un puntaje y el backtest lo corrige con dato histórico.
+- **Campo gate** (`swell.ventana`, `min_altura`, `max_altura`, y `swell.ideal` en la medida
+  en que ancla la ventana): ante la duda, **se corrige el número**. Lo que cae afuera de un
+  gate no genera alerta nunca, y el backtest no puede corregir lo que jamás se evaluó. Un
+  perfil honestamente marcado como `baja` no compensa un gate mal puesto.
+
+Corolario que costó `chicama`: un campo no-gate mal cargado puede provocar que alguien
+rompa un campo gate que estaba bien, si el diagnóstico automático de la Tarea 12 lo lee como
+síntoma de otra cosa. Una `temporada` incorrecta no pierde alertas por sí misma, pero manda
+al backtest a reorientar una `swell.ventana` correcta.
 
