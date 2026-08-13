@@ -9,8 +9,9 @@ Este modulo es puro: no hace red, ni archivos, ni consulta la hora actual.
 Es lo que permite que el backtest corra exactamente el mismo codigo que
 produccion.
 """
+from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 from surf.geo import angular_diff, clasificar_viento, en_ventana
 from surf.spots import Spot
@@ -35,6 +36,8 @@ FACTOR_ONSHORE = 0.5
 # las opciones que compara son surfeables.
 PESOS = {"altura": 0.35, "periodo": 0.30, "direccion": 0.15, "viento": 0.20}
 
+HORAS_MINIMAS_CONSECUTIVAS = 3
+
 
 @dataclass(frozen=True)
 class Hora:
@@ -54,6 +57,18 @@ class HoraEvaluada:
     motivo_rechazo: str | None
     score: float
     clase_viento: str
+
+
+@dataclass(frozen=True)
+class DiaEvaluado:
+    fecha: date
+    spot_id: str
+    es_bueno: bool
+    score: float
+    horas_buenas: int
+    bloque: tuple[datetime, datetime] | None
+    resumen: dict[str, float] | None
+    motivo_principal: str | None
 
 
 def _interpolar(x: float, x0: float, x1: float, y0: float, y1: float) -> float:
@@ -167,3 +182,81 @@ def evaluar_hora(hora: Hora, spot: Spot) -> HoraEvaluada:
     )
     return HoraEvaluada(hora=hora, pasa=True, motivo_rechazo=None,
                         score=score, clase_viento=clase)
+
+
+def _bloques_consecutivos(evaluadas: list[HoraEvaluada]) -> list[list[HoraEvaluada]]:
+    """Agrupa las horas que pasaron en rachas consecutivas."""
+    bloques: list[list[HoraEvaluada]] = []
+    actual: list[HoraEvaluada] = []
+    for ev in evaluadas:
+        if ev.pasa:
+            actual.append(ev)
+        else:
+            if actual:
+                bloques.append(actual)
+            actual = []
+    if actual:
+        bloques.append(actual)
+    return bloques
+
+
+def _resumir(bloque: list[HoraEvaluada]) -> dict[str, float]:
+    """Condiciones representativas del bloque.
+
+    Las direcciones se toman del punto medio en vez de promediarse: promediar
+    angulos da resultados sin sentido cuando cruzan el 0 (350 y 10 promedian 180).
+    """
+    n = len(bloque)
+    medio = bloque[n // 2].hora
+    return {
+        "altura": sum(e.hora.swell_altura for e in bloque) / n,
+        "periodo": sum(e.hora.swell_periodo for e in bloque) / n,
+        "viento_kmh": sum(e.hora.viento_kmh for e in bloque) / n,
+        "direccion": medio.swell_direccion,
+        "viento_direccion": medio.viento_direccion,
+    }
+
+
+def evaluar_dia(horas: list[Hora], spot: Spot, fecha: date) -> DiaEvaluado:
+    """Agrega horas en un veredicto diario.
+
+    Un dia es bueno si tiene al menos HORAS_MINIMAS_CONSECUTIVAS horas de luz
+    seguidas que pasan el gate. Una hora aislada es una casualidad del modelo,
+    no una sesion.
+    """
+    vacio = DiaEvaluado(fecha=fecha, spot_id=spot.id, es_bueno=False, score=0.0,
+                        horas_buenas=0, bloque=None, resumen=None,
+                        motivo_principal=None)
+    if not horas:
+        return vacio
+
+    evaluadas = [evaluar_hora(h, spot) for h in sorted(horas, key=lambda x: x.t)]
+    bloques = [b for b in _bloques_consecutivos(evaluadas)
+               if len(b) >= HORAS_MINIMAS_CONSECUTIVAS]
+
+    if not bloques:
+        motivos = Counter(e.motivo_rechazo for e in evaluadas if e.motivo_rechazo)
+        return DiaEvaluado(
+            fecha=fecha, spot_id=spot.id, es_bueno=False, score=0.0,
+            horas_buenas=sum(1 for e in evaluadas if e.pasa), bloque=None,
+            resumen=None,
+            motivo_principal=motivos.most_common(1)[0][0] if motivos else None,
+        )
+
+    # De cada bloque, la mejor ventana de HORAS_MINIMAS_CONSECUTIVAS seguidas.
+    mejor: list[HoraEvaluada] | None = None
+    mejor_score = -1.0
+    for bloque in bloques:
+        for i in range(len(bloque) - HORAS_MINIMAS_CONSECUTIVAS + 1):
+            ventana = bloque[i:i + HORAS_MINIMAS_CONSECUTIVAS]
+            s = sum(e.score for e in ventana) / len(ventana)
+            if s > mejor_score:
+                mejor_score, mejor = s, ventana
+
+    assert mejor is not None
+    return DiaEvaluado(
+        fecha=fecha, spot_id=spot.id, es_bueno=True, score=mejor_score,
+        horas_buenas=sum(1 for e in evaluadas if e.pasa),
+        bloque=(mejor[0].hora.t, mejor[-1].hora.t),
+        resumen=_resumir(mejor), motivo_principal=None,
+    )
