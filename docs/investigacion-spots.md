@@ -19,14 +19,23 @@ significa cosas diferentes según la fila es inutilizable.
 
 Aplicada de forma uniforme a los 13, la definición da:
 
-| Sector que ve la `ventana` | Motor | Meses |
+| Sector que ve la `ventana` | Motor | Meses de generación |
 |---|---|---|
-| Sur (S, SSW, SW, SSE, SE) | Océano Austral, invierno del hemisferio sur | **[4, 5, 6, 7, 8, 9, 10]** |
-| Norte (N, NW, NNW, NE) | Pacífico / Atlántico norte, invierno boreal | [11, 12, 1, 2, 3] |
+| Sur (S, SSW, SW, SSE, SE) | Océano Austral, invierno del hemisferio sur | **abril a octubre** = [4, 5, 6, 7, 8, 9, 10] |
+| Norte (N, NW, NNW, NE) | Pacífico / Atlántico norte, invierno boreal | noviembre a marzo = [11, 12, 1, 2, 3] |
+
+**Criterio de redacción, para que las dos ventanas del motor austral no se contradigan entre
+bloques:** el motor austral **se genera de abril a octubre**, y esa es la frase que se usa en
+todo este documento. La `temporada` de un spot es esa ventana **desplazada por el tiempo de
+viaje del swell hasta ese spot**. Para los 12 spots sudamericanos el viaje es de días y no
+mueve el borde, así que su `temporada` es exactamente [4..10]. `santa_teresa` es la única que
+suma un mes —llega hasta noviembre— porque está a 9.65 N, mucho más lejos de la zona de
+generación, y la cola de la temporada austral le aterriza recién el mes siguiente.
 
 **Los 13 spots de este archivo tienen ventanas que ven únicamente sector sur** (verificado con
-`en_ventana` contra los rumbos 290-360 y 0-70), así que a los 13 les corresponde [4..10]. La
-única fila distinta es `santa_teresa`, por la razón que se documenta en su bloque.
+`en_ventana` contra los rumbos 290-360 y 0-70), así que a los 13 les corresponde el motor
+austral. La única fila distinta es `santa_teresa`, con [4..11] por la demora de propagación
+que se documenta en su bloque.
 
 ### Origen del dato: mes citado vs mes derivado
 
@@ -125,8 +134,9 @@ Pregunta aplicada a cada perfil: *¿la `ventana` mira al sector desde donde lleg
 groundswell estacional, y la `temporada` coincide con la estación en que ese groundswell se
 genera?* `solape` = meses de la `temporada` que caen dentro de abril-octubre.
 
-Estado **final** tras aplicar la definición de forma uniforme en la revisión 3/5. `solape` =
-meses de la `temporada` que caen dentro de abril-octubre.
+Estado **final** tras aplicar la definición de forma uniforme en la revisión 3/5 y cerrar la
+última fila incoherente (`santa_teresa`) en la 4/5. `solape` = meses de la `temporada` que
+caen dentro de abril-octubre.
 
 | id | ventana | ¿ve sector norte? | temporada | origen | solape | qué decía surf-forecast |
 |---|---|---|---|---|---|---|
@@ -136,7 +146,7 @@ meses de la `temporada` que caen dentro de abril-octubre.
 | `buchupureo` | 197-270 | no | [4..10] | derivado | 7/7 | invierno / mayo |
 | `asia` | 180-270 | no | [4..10] | derivado | 7/7 | **verano / febrero** |
 | `huanchaco` | 157-247 | no | [4..10] | derivado | 7/7 | otoño / marzo |
-| `santa_teresa` | 180-280 | no | **[1..12]** | derivado (2 motores) | 7/7 | todo el año |
+| `santa_teresa` | 180-280 | no | **[4..11]** | derivado (motor austral + demora) | 7/7 | todo el año |
 | `saquarema` | 135-225 | no | [4..10] | derivado | 7/7 | otoño / junio |
 | `punta_de_lobos` | 191-270 | no | [4..10] | derivado | 7/7 | invierno / julio |
 | `chicama` | 173-247 | no | [4..10] | derivado | 7/7 | **verano / febrero** |
@@ -144,9 +154,11 @@ meses de la `temporada` que caen dentro de abril-octubre.
 | `punta_del_diablo` | 90-180 | no | [4..10] | derivado | 7/7 | otoño e invierno |
 | `joaquina` | 90-180 | no | [4..10] | derivado | 7/7 | invierno / junio |
 
-**Los 13 quedan con solape 7/7 y una sola semántica.** Doce filas dicen [4..10] porque tienen
-un solo motor; `santa_teresa` dice [1..12] porque tiene dos, y la excepción está justificada
-en su bloque por el régimen físico, no heredada de la fuente.
+**Los 13 quedan con solape 7/7 y una sola semántica.** Doce filas dicen [4..10]; `santa_teresa`
+dice [4..11] —el mismo motor austral, con un mes más de cola por la distancia hasta la zona de
+generación— y la diferencia está justificada en su bloque por el régimen físico, no heredada
+de la fuente. **Ninguna fila declara meses que su propia `ventana` no pueda ver**, que es la
+condición para que `coincide_la_temporada` discrimine algo en la Tarea 12.
 
 **Ningún valor de `temporada` es una cita textual.** La columna "qué decía surf-forecast"
 muestra por qué: de las 13 filas, ninguna coincide con lo que declara la fuente, y dos
@@ -159,7 +171,9 @@ pasada las 13 filas salieron de la estadística de surf-forecast, con cuatro inv
 (`punta_de_lobos`, `joaquina`, `buchupureo`). Se corrigieron dos en la revisión 1/5 y dos en
 la 2/5, spot por spot, sin tocar la causa. La causa era que **el campo nunca había sido
 definido**, así que cada fila se pobló con lo que pareciera razonable en ese momento. La
-revisión 3/5 definió la semántica y la aplicó a las 13 de una sola vez.
+revisión 3/5 definió la semántica y la aplicó a las 13 de una sola vez. La 4/5 cerró la única
+fila que seguía contradiciéndola: `santa_teresa` declaraba doce meses con una `ventana` que
+solo ve siete, y pasó a [4..11].
 
 ---
 
@@ -578,7 +592,8 @@ acá**, y la distinción importa para el resto del proyecto:
   cae afuera no genera alerta nunca, y el backtest no puede corregir lo que jamás se evaluó.
 
 Con `ventana: [225, 305]` quedaba excluido todo el sector 180-224. El groundswell del
-Pacífico sur llega a la península de Nicoya desde ~190-215 (SSW-SW) de abril a noviembre y
+Pacífico sur **se genera de abril a octubre** y llega a la península de Nicoya desde ~190-215
+(SSW-SW) entre abril y noviembre —un mes más tarde en la cola, por el tiempo de viaje— y
 **es el swell principal de Santa Teresa**: la ventana anterior dejaba afuera la temporada
 principal entera, sin una sola alerta posible. Y como `factor_dir` valía 1.0 en 292, hasta
 un SW de 225 entrando de frente puntuaba la mitad.
@@ -603,46 +618,59 @@ el backtest histórico tiene que revisarlo igual.
   llega hasta el W para los swells de invierno boreal que documentan las dos fuentes.
   Contenida en `costa_mira ± 90` = [134, 314] y dentro del sector de mar del DEM (160-300).
 - `min_altura` 1.0 / `max_altura` 2.0 -> R=1.0 -> `rango_ideal` [1.3, 1.7]
-- `temporada`: **[1..12]**. Es la **única fila de las 13 que no es [4..10]**, y la excepción
-  está justificada por el motor, no heredada de la fuente. Ver abajo.
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10, 11]**. Es la **única fila de las 13 que no es
+  [4..10]**: mismo motor austral que las otras doce, con noviembre de más por la demora de
+  propagación hasta 9.65 N. Ver abajo.
 
-**`temporada`: la única excepción a la regla de [4..10] (revisión 3/5)**
+**`temporada`: por qué [4..11] y no [1..12] (revisión 4/5)**
 
-La definición de `temporada` es "los meses en que se genera el groundswell que la `ventana`
-del spot puede recibir". Aplicada a los otros 12 spots da [4..10], porque todos son
-alimentados por un solo motor: el Océano Austral en invierno del hemisferio sur.
+Santa Teresa **sí tiene dos motores de swell reales**, y ese conocimiento del spot no se
+pierde acá:
 
-**Santa Teresa es el único spot alimentado por dos motores.** Está a 9.65 N, en el Pacífico
-oriental tropical, y recibe:
+- groundswell del **Océano Austral**, generado de abril a octubre, que llega desde ~190-215
+  (SSW-SW) entre abril y **noviembre**: es el swell principal del spot;
+- groundswell del **Pacífico norte**, de noviembre a marzo, que llega **del NW (~315)**.
 
-- groundswell del **Océano Austral** de abril a noviembre (el principal, ~190-215), y
-- groundswell del **Pacífico norte** de noviembre a marzo (del NW).
+Por eso surf-forecast la describe como spot de todo el año. Pero `temporada` no es una
+descripción del spot: es lo que este perfil puede llegar a detectar, y **la `ventana` de este
+perfil es [180, 280], que no alcanza el 315 del motor del norte**. Verificable en una línea:
 
-Los dos motores se turnan y entre ambos cubren el año. Por eso surf-forecast la describe como
-spot de todo el año y no declara un mes óptimo: en este caso la fuente y la definición
-**coinciden**, y [1..12] es la respuesta correcta de la definición, no un residuo de la
-estadística defectuosa.
+```
+.venv/bin/python -c "from surf.geo import en_ventana; print(en_ventana(315, (180, 280)))"
+# False
+```
 
-**Inconsistencia conocida y deliberada.** La `ventana` de este perfil es [180, 280]: admite el
-motor austral pero **no** el del Pacífico norte, cuyo swell llega desde ~315. O sea que el
-perfil declara doce meses de temporada pero solo puede ver el swell de siete de ellos. Se dejó
-así a propósito: la ventana se corrigió en la revisión 1/5 precisamente porque la versión
-anterior, orientada al NW, dejaba afuera el groundswell austral que es el principal, y
-ensancharla ahora hasta 315 para recuperar el swell del norte volvería a diluir el sector que
-importa. Queda registrado como algo a resolver con dato histórico, no a ojo.
+Con esa ventana, **ningún swell del Pacífico norte pasa el gate direccional**, así que los
+meses de noviembre a marzo no pueden producir una sola alerta en este spot. Declararlos en
+`temporada` era declarar meses que el perfil nunca iba a poblar. En la revisión 3/5 estaban
+cargados igual, con la contradicción anotada como deliberada; la 4/5 la resuelve: `temporada`
+declara **solo el motor que la ventana ve**.
 
-> **⚠️ Para la Tarea 12 — no perder esto al cambiar de tarea.**
-> Con los doce meses cargados, **`coincide_la_temporada` devuelve `True` incondicionalmente
-> para `santa_teresa`**: el chequeo no discrimina nada en este spot. Eso **no significa que el
-> spot pase el chequeo**, significa que el chequeo no se aplicó. La Tarea 12 tiene que
-> **excluir explícitamente a `santa_teresa` de la validación de temporada y reportarla como
-> "no evaluada"**, no contarla como aprobada. Si se la cuenta como aprobada, el backtest va a
-> mostrar un spot sano donde en realidad hay un campo que no dice nada.
+De ahí [4, 5, 6, 7, 8, 9, 10, 11]: la ventana de generación austral (abril a octubre) más
+noviembre, porque a 9.65 N —mucho más lejos de la zona de generación que los otros 12— la cola
+de la temporada le llega un mes más tarde. Es la única fila del archivo que no es [4..10], y
+la diferencia es distancia de propagación, no otro motor.
+
+**El motor del norte queda como conocimiento registrado, no como campo.** El orden correcto
+para incorporarlo, si el backtest muestra que vale la pena, es: **primero ensanchar la
+`ventana`** hasta cubrir el NW, y **recién después** ampliar `temporada` a [1..12]. Al revés
+no sirve de nada: ampliar `temporada` sin tocar la `ventana` agrega meses que el gate
+direccional sigue bloqueando. No se ensanchó ahora porque la ventana se corrigió en la
+revisión 1/5 justamente para dejar de diluir el sector austral, que es el principal; abrirla
+hasta 315 sin dato histórico volvería a ese problema.
+
+> **Nota para la Tarea 12 — punto resuelto en la revisión 4/5.**
+> La versión anterior de este bloque pedía **excluir a `santa_teresa` del chequeo de
+> estacionalidad**, porque con doce meses cargados `coincide_la_temporada` devolvía `True`
+> incondicionalmente y el chequeo no se aplicaba. **Esa excepción ya no hace falta**: con
+> `temporada: [4..11]` el campo vuelve a discriminar —una ventana detectada en enero o en
+> febrero ahora cae afuera y se reporta— así que `santa_teresa` entra en la validación de
+> temporada como los otros 12, sin trato especial.
 >
 > Lo que el backtest sí tiene que responder acá: de los días con buen swell registrado en
-> `santa_teresa`, ¿cuántos vinieron del sector 180-280 y cuántos del NW? Si la cola del NW es
-> significativa, la `ventana` hay que ensancharla y `temporada` se queda en [1..12]; si es
-> marginal, la temporada baja a [4..10] como el resto y la ventana queda como está.
+> `santa_teresa`, ¿cuántos vinieron del sector 180-280 y cuántos del NW? Si la cola del NW
+> resulta significativa, el cambio es **ensanchar la `ventana` primero** y ampliar `temporada`
+> después. Si es marginal, el perfil queda como está.
 
 **Confianza: baja.**
 
