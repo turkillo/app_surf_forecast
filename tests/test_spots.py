@@ -133,3 +133,74 @@ costa_mira: 140
 """
     with pytest.raises(ValueError, match="lista"):
         cargar_spots(_escribir(tmp_path, mapping_yaml))
+
+
+# Fix Round 2: Important 2 - Numeric field validation at start of _validar
+def test_rechaza_costa_mira_no_numerico(tmp_path):
+    # costa_mira con valor no numérico debe lanzar ValueError identificando el campo
+    roto = FIXTURE.replace("costa_mira: 140", "costa_mira: bad_value")
+    with pytest.raises(ValueError, match="costa_mira"):
+        cargar_spots(_escribir(tmp_path, roto))
+
+
+def test_rechaza_viento_ideal_no_numerico(tmp_path):
+    # viento_ideal con valor no numérico debe lanzar ValueError
+    roto = FIXTURE.replace("viento_ideal: 315", "viento_ideal: bad_value")
+    with pytest.raises(ValueError, match="viento_ideal"):
+        cargar_spots(_escribir(tmp_path, roto))
+
+
+def test_rechaza_max_altura_no_numerico(tmp_path):
+    # max_altura con valor no numérico debe lanzar ValueError
+    roto = FIXTURE.replace("max_altura: 3.5", "max_altura: bad_value")
+    with pytest.raises(ValueError, match="max_altura"):
+        cargar_spots(_escribir(tmp_path, roto))
+
+
+def test_rechaza_min_altura_no_numerico(tmp_path):
+    # min_altura con valor no numérico debe lanzar ValueError
+    roto = FIXTURE.replace("min_altura: 1.0", "min_altura: bad_value")
+    with pytest.raises(ValueError, match="min_altura"):
+        cargar_spots(_escribir(tmp_path, roto))
+
+
+def test_rechaza_ideal_no_numerico(tmp_path):
+    # ideal con valor no numérico debe lanzar ValueError
+    roto = FIXTURE.replace("ideal: 157", "ideal: bad_value")
+    with pytest.raises(ValueError, match="ideal"):
+        cargar_spots(_escribir(tmp_path, roto))
+
+
+def test_rechaza_min_periodo_no_numerico(tmp_path):
+    # min_periodo con valor no numérico debe lanzar ValueError
+    roto = FIXTURE.replace("min_periodo: 9", "min_periodo: bad_value")
+    with pytest.raises(ValueError, match="min_periodo"):
+        cargar_spots(_escribir(tmp_path, roto))
+
+
+def test_rechaza_ventana_primer_elemento_no_numerico(tmp_path):
+    # ventana[0] con valor no numérico debe lanzar ValueError
+    roto = FIXTURE.replace("ventana: [110, 200]", "ventana: [bad_value, 200]")
+    with pytest.raises(ValueError, match="ventana"):
+        cargar_spots(_escribir(tmp_path, roto))
+
+
+def test_rechaza_ventana_segundo_elemento_no_numerico(tmp_path):
+    # ventana[1] con valor no numérico debe lanzar ValueError
+    roto = FIXTURE.replace("ventana: [110, 200]", "ventana: [110, bad_value]")
+    with pytest.raises(ValueError, match="ventana"):
+        cargar_spots(_escribir(tmp_path, roto))
+
+
+def test_rechaza_rango_ideal_primer_elemento_no_numerico(tmp_path):
+    # rango_ideal[0] con valor no numérico debe lanzar ValueError
+    roto = FIXTURE.replace("rango_ideal: [1.5, 2.5]", "rango_ideal: [bad_value, 2.5]")
+    with pytest.raises(ValueError, match="rango_ideal"):
+        cargar_spots(_escribir(tmp_path, roto))
+
+
+def test_rechaza_rango_ideal_segundo_elemento_no_numerico(tmp_path):
+    # rango_ideal[1] con valor no numérico debe lanzar ValueError
+    roto = FIXTURE.replace("rango_ideal: [1.5, 2.5]", "rango_ideal: [1.5, bad_value]")
+    with pytest.raises(ValueError, match="rango_ideal"):
+        cargar_spots(_escribir(tmp_path, roto))

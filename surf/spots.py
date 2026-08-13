@@ -55,6 +55,50 @@ class Spot:
     confianza: str
 
 
+def _num(
+    contenedor: dict[str, Any],
+    campo: str,
+    ident: str,
+    prefijo: str = "",
+) -> float:
+    """Valida y convierte un campo numerico. Lanza ValueError con contexto."""
+    campo_full = f"{prefijo}{campo}" if prefijo else campo
+    if campo not in contenedor:
+        raise ValueError(f"[{ident}] falta el campo obligatorio '{campo_full}'")
+    valor = contenedor[campo]
+    if valor is None:
+        raise ValueError(f"[{ident}] el campo '{campo_full}' no puede estar vacio")
+    try:
+        return float(valor)
+    except (ValueError, TypeError):
+        raise ValueError(
+            f"[{ident}] el campo '{campo_full}' debe ser numerico, se recibio: {valor}"
+        )
+
+
+def _num_list_item(
+    contenedor: dict[str, Any],
+    lista_campo: str,
+    indice: int,
+    ident: str,
+) -> float:
+    """Valida y convierte un elemento numerico dentro de una lista."""
+    if lista_campo not in contenedor:
+        raise ValueError(f"[{ident}] falta el campo obligatorio '{lista_campo}'")
+    lista = contenedor[lista_campo]
+    if not isinstance(lista, list) or len(lista) <= indice:
+        raise ValueError(
+            f"[{ident}] {lista_campo} debe ser una lista con al menos {indice + 1} elementos"
+        )
+    valor = lista[indice]
+    try:
+        return float(valor)
+    except (ValueError, TypeError):
+        raise ValueError(
+            f"[{ident}] el elemento [{indice}] de {lista_campo} debe ser numerico, se recibio: {valor}"
+        )
+
+
 def _validar(crudo: dict[str, Any]) -> None:
     ident = crudo.get("id", "<sin id>")
 
@@ -73,6 +117,22 @@ def _validar(crudo: dict[str, Any]) -> None:
         if sw[campo] is None:
             raise ValueError(f"[{ident}] el campo 'swell.{campo}' no puede estar vacio")
 
+    # Validar y convertir todos los campos numericos AL INICIO, antes de usarlos
+    lat = _num(crudo, "lat", ident)
+    lon = _num(crudo, "lon", ident)
+    costa_mira = _num(crudo, "costa_mira", ident)
+    viento_ideal = _num(crudo, "viento_ideal", ident)
+
+    # Validar y convertir campos numericos de swell
+    swell_vent_0 = _num_list_item(sw, "ventana", 0, ident)
+    swell_vent_1 = _num_list_item(sw, "ventana", 1, ident)
+    swell_ideal = _num(sw, "ideal", ident, "swell.")
+    swell_min_altura = _num(sw, "min_altura", ident, "swell.")
+    swell_max_altura = _num(sw, "max_altura", ident, "swell.")
+    swell_rango_0 = _num_list_item(sw, "rango_ideal", 0, ident)
+    swell_rango_1 = _num_list_item(sw, "rango_ideal", 1, ident)
+    swell_min_periodo = _num(sw, "min_periodo", ident, "swell.")
+
     if crudo["tipo"] not in _TIPOS:
         raise ValueError(f"[{ident}] tipo invalido '{crudo['tipo']}', debe ser uno de {_TIPOS}")
 
@@ -81,36 +141,35 @@ def _validar(crudo: dict[str, Any]) -> None:
             f"[{ident}] confianza invalida '{crudo['confianza']}', debe ser una de {_CONFIANZAS}"
         )
 
-    if sw["max_altura"] <= sw["min_altura"]:
+    if swell_max_altura <= swell_min_altura:
         raise ValueError(
-            f"[{ident}] max_altura ({sw['max_altura']}) debe ser mayor "
-            f"que min_altura ({sw['min_altura']})"
+            f"[{ident}] max_altura ({swell_max_altura}) debe ser mayor "
+            f"que min_altura ({swell_min_altura})"
         )
 
-    ri_min, ri_max = sw["rango_ideal"]
-    if ri_min < sw["min_altura"] or ri_max > sw["max_altura"] or ri_min > ri_max:
+    if swell_rango_0 < swell_min_altura or swell_rango_1 > swell_max_altura or swell_rango_0 > swell_rango_1:
         raise ValueError(
-            f"[{ident}] rango_ideal {sw['rango_ideal']} debe estar contenido "
-            f"entre min_altura ({sw['min_altura']}) y max_altura ({sw['max_altura']})"
+            f"[{ident}] rango_ideal ({swell_rango_0}, {swell_rango_1}) debe estar contenido "
+            f"entre min_altura ({swell_min_altura}) y max_altura ({swell_max_altura})"
         )
 
-    if not en_ventana(sw["ideal"], tuple(sw["ventana"])):
+    if not en_ventana(swell_ideal, (swell_vent_0, swell_vent_1)):
         raise ValueError(
-            f"[{ident}] la direccion ideal ({sw['ideal']}) cae fuera de "
-            f"la ventana {sw['ventana']}"
+            f"[{ident}] la direccion ideal ({swell_ideal}) cae fuera de "
+            f"la ventana ({swell_vent_0}, {swell_vent_1})"
         )
 
-    if sw["min_periodo"] <= 0:
+    if swell_min_periodo <= 0:
         raise ValueError(f"[{ident}] min_periodo debe ser positivo")
 
     # El offshore sopla desde el rumbo opuesto al que mira la playa. Si el
     # viento ideal documentado no coincide, uno de los dos esta mal.
-    offshore_esperado = (crudo["costa_mira"] + 180) % 360
-    desvio = angular_diff(crudo["viento_ideal"], offshore_esperado)
+    offshore_esperado = (costa_mira + 180) % 360
+    desvio = angular_diff(viento_ideal, offshore_esperado)
     if desvio > TOLERANCIA_COSTA_GRADOS:
         raise ValueError(
-            f"[{ident}] costa_mira ({crudo['costa_mira']}) implica offshore desde "
-            f"{offshore_esperado:.0f}, pero viento_ideal es {crudo['viento_ideal']} "
+            f"[{ident}] costa_mira ({costa_mira}) implica offshore desde "
+            f"{offshore_esperado:.0f}, pero viento_ideal es {viento_ideal} "
             f"({desvio:.0f} grados de desvio, maximo {TOLERANCIA_COSTA_GRADOS}). "
             f"Revisar la investigacion de este spot."
         )
@@ -141,58 +200,25 @@ def cargar_spots(path: Path) -> list[Spot]:
         vistos.add(crudo["id"])
 
         sw = crudo["swell"]
-        ident = crudo.get("id", "<sin id>")
-
-        try:
-            lat = float(crudo["lat"])
-        except (ValueError, TypeError):
-            raise ValueError(f"[{ident}] lat debe ser un numero, se recibio: {crudo['lat']}")
-
-        try:
-            lon = float(crudo["lon"])
-        except (ValueError, TypeError):
-            raise ValueError(f"[{ident}] lon debe ser un numero, se recibio: {crudo['lon']}")
-
-        try:
-            costa_mira = float(crudo["costa_mira"])
-        except (ValueError, TypeError):
-            raise ValueError(f"[{ident}] costa_mira debe ser un numero, se recibio: {crudo['costa_mira']}")
-
-        try:
-            viento_ideal = float(crudo["viento_ideal"])
-        except (ValueError, TypeError):
-            raise ValueError(f"[{ident}] viento_ideal debe ser un numero, se recibio: {crudo['viento_ideal']}")
-
-        try:
-            swell_ventana_0 = float(sw["ventana"][0])
-            swell_ventana_1 = float(sw["ventana"][1])
-            swell_ideal = float(sw["ideal"])
-            swell_min_altura = float(sw["min_altura"])
-            swell_max_altura = float(sw["max_altura"])
-            swell_rango_ideal_0 = float(sw["rango_ideal"][0])
-            swell_rango_ideal_1 = float(sw["rango_ideal"][1])
-            swell_min_periodo = float(sw["min_periodo"])
-        except (ValueError, TypeError) as e:
-            raise ValueError(f"[{ident}] error al parsear valores numericos de swell: {e}")
-
+        # Tras _validar, todos los campos numericos estan garantizados como convertibles a float
         spots.append(
             Spot(
                 id=crudo["id"],
                 nombre=crudo["nombre"],
                 pais=crudo["pais"],
-                lat=lat,
-                lon=lon,
+                lat=float(crudo["lat"]),
+                lon=float(crudo["lon"]),
                 tipo=crudo["tipo"],
-                costa_mira=costa_mira,
+                costa_mira=float(crudo["costa_mira"]),
                 swell=Swell(
-                    ventana=(swell_ventana_0, swell_ventana_1),
-                    ideal=swell_ideal,
-                    min_altura=swell_min_altura,
-                    max_altura=swell_max_altura,
-                    rango_ideal=(swell_rango_ideal_0, swell_rango_ideal_1),
-                    min_periodo=swell_min_periodo,
+                    ventana=(float(sw["ventana"][0]), float(sw["ventana"][1])),
+                    ideal=float(sw["ideal"]),
+                    min_altura=float(sw["min_altura"]),
+                    max_altura=float(sw["max_altura"]),
+                    rango_ideal=(float(sw["rango_ideal"][0]), float(sw["rango_ideal"][1])),
+                    min_periodo=float(sw["min_periodo"]),
                 ),
-                viento_ideal=viento_ideal,
+                viento_ideal=float(crudo["viento_ideal"]),
                 temporada=list(crudo["temporada"]),
                 url_surfforecast=crudo["url_surfforecast"],
                 fuentes=list(crudo["fuentes"]),
