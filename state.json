@@ -1,5 +1,36 @@
 {
-  "ultima_corrida": null,
-  "observadas": [],
+  "ultima_corrida": "2026-08-13",
+  "observadas": [
+    {
+      "spot_id": "asia",
+      "desde": "2026-08-14",
+      "hasta": "2026-08-17",
+      "score": 71.74444444444445
+    },
+    {
+      "spot_id": "buchupureo",
+      "desde": "2026-08-18",
+      "hasta": "2026-08-19",
+      "score": 63.371111111111105
+    },
+    {
+      "spot_id": "chicama",
+      "desde": "2026-08-14",
+      "hasta": "2026-08-16",
+      "score": 61.22666666666667
+    },
+    {
+      "spot_id": "santa_teresa",
+      "desde": "2026-08-15",
+      "hasta": "2026-08-17",
+      "score": 77.46428571428571
+    },
+    {
+      "spot_id": "saquarema",
+      "desde": "2026-08-13",
+      "hasta": "2026-08-15",
+      "score": 76.44444444444444
+    }
+  ],
   "alertadas": []
 }
