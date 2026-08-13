@@ -5,7 +5,7 @@
 
 - id: chapadmalal
   nombre: "Chapadmalal, Argentina"
-  pais: AR
+  pais: "AR"
   lat: -38.15
   lon: -57.68
   tipo: point_break

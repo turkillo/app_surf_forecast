@@ -5,7 +5,7 @@ from surf.spots import cargar_spots, Spot, Swell
 FIXTURE = """
 - id: test_spot
   nombre: "Spot de Prueba"
-  pais: AR
+  pais: "AR"
   lat: -38.15
   lon: -57.68
   tipo: point_break
@@ -88,3 +88,48 @@ def test_rechaza_costa_mira_incoherente_con_viento_ideal(tmp_path):
 def test_rechaza_ids_duplicados(tmp_path):
     with pytest.raises(ValueError, match="duplicado"):
         cargar_spots(_escribir(tmp_path, FIXTURE + FIXTURE))
+
+
+def test_swell_es_inmutable(tmp_path):
+    s = cargar_spots(_escribir(tmp_path, FIXTURE))[0]
+    with pytest.raises(Exception):
+        s.swell.min_periodo = 12
+
+
+def test_rechaza_campo_numerico_con_valor_null(tmp_path):
+    # Important 1: costa_mira con valor null debe lanzar ValueError accionable
+    roto = FIXTURE.replace("costa_mira: 140", "costa_mira:")
+    with pytest.raises(ValueError, match="costa_mira"):
+        cargar_spots(_escribir(tmp_path, roto))
+
+
+def test_rechaza_swell_null(tmp_path):
+    # Important 1: swell con valor null debe lanzar ValueError accionable
+    roto = FIXTURE.replace(
+        "  swell:\n    ventana: [110, 200]\n    ideal: 157\n    min_altura: 1.0\n    max_altura: 3.5\n    rango_ideal: [1.5, 2.5]\n    min_periodo: 9\n",
+        "  swell:\n"
+    )
+    with pytest.raises(ValueError, match="swell"):
+        cargar_spots(_escribir(tmp_path, roto))
+
+
+def test_rechaza_tipo_invalido_en_campo_numerico(tmp_path):
+    # Important 2: error en float(lat) debe decir de qué spot y campo
+    roto = FIXTURE.replace("lat: -38.15", "lat: not_a_number")
+    with pytest.raises(ValueError, match="lat"):
+        cargar_spots(_escribir(tmp_path, roto))
+
+
+def test_rechaza_yaml_con_mapping_en_raiz(tmp_path):
+    # Important 3: YAML que es un mapping (dict) en vez de lista debe lanzar ValueError
+    mapping_yaml = """
+id: test_spot
+nombre: "Spot de Prueba"
+pais: "AR"
+lat: -38.15
+lon: -57.68
+tipo: point_break
+costa_mira: 140
+"""
+    with pytest.raises(ValueError, match="lista"):
+        cargar_spots(_escribir(tmp_path, mapping_yaml))

@@ -61,11 +61,17 @@ def _validar(crudo: dict[str, Any]) -> None:
     for campo in _CAMPOS_SPOT:
         if campo not in crudo:
             raise ValueError(f"[{ident}] falta el campo obligatorio '{campo}'")
+        if crudo[campo] is None:
+            raise ValueError(f"[{ident}] el campo '{campo}' no puede estar vacio")
 
     sw = crudo["swell"]
+    if sw is None or not isinstance(sw, dict):
+        raise ValueError(f"[{ident}] swell debe ser un diccionario con campos obligatorios")
     for campo in _CAMPOS_SWELL:
         if campo not in sw:
             raise ValueError(f"[{ident}] falta el campo obligatorio 'swell.{campo}'")
+        if sw[campo] is None:
+            raise ValueError(f"[{ident}] el campo 'swell.{campo}' no puede estar vacio")
 
     if crudo["tipo"] not in _TIPOS:
         raise ValueError(f"[{ident}] tipo invalido '{crudo['tipo']}', debe ser uno de {_TIPOS}")
@@ -122,6 +128,8 @@ def cargar_spots(path: Path) -> list[Spot]:
     crudos = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     if not crudos:
         raise ValueError(f"{path} esta vacio")
+    if not isinstance(crudos, list):
+        raise ValueError(f"{path} debe contener una lista de spots, no un mapping")
 
     vistos: set[str] = set()
     spots: list[Spot] = []
@@ -133,24 +141,58 @@ def cargar_spots(path: Path) -> list[Spot]:
         vistos.add(crudo["id"])
 
         sw = crudo["swell"]
+        ident = crudo.get("id", "<sin id>")
+
+        try:
+            lat = float(crudo["lat"])
+        except (ValueError, TypeError):
+            raise ValueError(f"[{ident}] lat debe ser un numero, se recibio: {crudo['lat']}")
+
+        try:
+            lon = float(crudo["lon"])
+        except (ValueError, TypeError):
+            raise ValueError(f"[{ident}] lon debe ser un numero, se recibio: {crudo['lon']}")
+
+        try:
+            costa_mira = float(crudo["costa_mira"])
+        except (ValueError, TypeError):
+            raise ValueError(f"[{ident}] costa_mira debe ser un numero, se recibio: {crudo['costa_mira']}")
+
+        try:
+            viento_ideal = float(crudo["viento_ideal"])
+        except (ValueError, TypeError):
+            raise ValueError(f"[{ident}] viento_ideal debe ser un numero, se recibio: {crudo['viento_ideal']}")
+
+        try:
+            swell_ventana_0 = float(sw["ventana"][0])
+            swell_ventana_1 = float(sw["ventana"][1])
+            swell_ideal = float(sw["ideal"])
+            swell_min_altura = float(sw["min_altura"])
+            swell_max_altura = float(sw["max_altura"])
+            swell_rango_ideal_0 = float(sw["rango_ideal"][0])
+            swell_rango_ideal_1 = float(sw["rango_ideal"][1])
+            swell_min_periodo = float(sw["min_periodo"])
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"[{ident}] error al parsear valores numericos de swell: {e}")
+
         spots.append(
             Spot(
                 id=crudo["id"],
                 nombre=crudo["nombre"],
                 pais=crudo["pais"],
-                lat=float(crudo["lat"]),
-                lon=float(crudo["lon"]),
+                lat=lat,
+                lon=lon,
                 tipo=crudo["tipo"],
-                costa_mira=float(crudo["costa_mira"]),
+                costa_mira=costa_mira,
                 swell=Swell(
-                    ventana=(float(sw["ventana"][0]), float(sw["ventana"][1])),
-                    ideal=float(sw["ideal"]),
-                    min_altura=float(sw["min_altura"]),
-                    max_altura=float(sw["max_altura"]),
-                    rango_ideal=(float(sw["rango_ideal"][0]), float(sw["rango_ideal"][1])),
-                    min_periodo=float(sw["min_periodo"]),
+                    ventana=(swell_ventana_0, swell_ventana_1),
+                    ideal=swell_ideal,
+                    min_altura=swell_min_altura,
+                    max_altura=swell_max_altura,
+                    rango_ideal=(swell_rango_ideal_0, swell_rango_ideal_1),
+                    min_periodo=swell_min_periodo,
                 ),
-                viento_ideal=float(crudo["viento_ideal"]),
+                viento_ideal=viento_ideal,
                 temporada=list(crudo["temporada"]),
                 url_surfforecast=crudo["url_surfforecast"],
                 fuentes=list(crudo["fuentes"]),
