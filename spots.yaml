@@ -2,6 +2,30 @@
 # Fuentes: surf-forecast.com, wannasurf.com, geometria de costa.
 # El campo `confianza` indica que tan solido es el perfil: cuando es `baja`,
 # el backtest historico tiene prioridad sobre el dato documentado.
+#
+# El dato crudo de cada fuente, y la conversion de cada numero, estan en
+# docs/investigacion-spots.md. No cambiar un umbral aca sin actualizar ese
+# archivo: sin el registro de la fuente, el numero no es auditable.
+
+- id: la_barra
+  nombre: "La Barra, Punta del Este"
+  pais: "UY"
+  lat: -34.92
+  lon: -54.85
+  tipo: point_break
+  costa_mira: 165
+  swell:
+    ventana: [135, 225]
+    ideal: 180
+    min_altura: 1.0
+    max_altura: 3.0
+    rango_ideal: [1.7, 2.6]
+    min_periodo: 10
+  viento_ideal: 337
+  temporada: [3, 4, 5, 6, 7, 8]
+  url_surfforecast: "https://es.surf-forecast.com/breaks/La-Barra_2"
+  fuentes: [surf-forecast, wannasurf, geometria-costa]
+  confianza: media
 
 - id: chapadmalal
   nombre: "Chapadmalal, Argentina"
@@ -9,16 +33,236 @@
   lat: -38.15
   lon: -57.68
   tipo: point_break
-  costa_mira: 140
+  costa_mira: 135
   swell:
-    ventana: [110, 200]
+    ventana: [112, 202]
     ideal: 157
     min_altura: 1.0
-    max_altura: 3.5
-    rango_ideal: [1.5, 2.5]
+    max_altura: 2.5
+    rango_ideal: [1.5, 2.2]
+    min_periodo: 10
+  viento_ideal: 315
+  temporada: [3, 4, 5, 6, 7, 8]
+  url_surfforecast: "https://www.surf-forecast.com/breaks/Chapadmalal"
+  fuentes: [surf-forecast, wannasurf, geometria-costa]
+  confianza: media
+
+- id: praia_do_rosa
+  nombre: "Praia do Rosa, Santa Catarina"
+  pais: "BR"
+  lat: -28.13
+  lon: -48.63
+  tipo: beach_break
+  costa_mira: 114
+  swell:
+    ventana: [90, 180]
+    ideal: 135
+    min_altura: 1.0
+    max_altura: 2.5
+    rango_ideal: [1.5, 2.0]
+    min_periodo: 9
+  viento_ideal: 270
+  temporada: [3, 4, 5, 6, 7, 8]
+  url_surfforecast: "https://www.surf-forecast.com/breaks/Rosa"
+  fuentes: [surf-forecast, wannasurf, geometria-costa]
+  confianza: alta
+
+- id: buchupureo
+  nombre: "Buchupureo, Ñuble"
+  pais: "CL"
+  lat: -36.08
+  lon: -72.79
+  tipo: point_break
+  costa_mira: 287
+  swell:
+    ventana: [197, 270]
+    ideal: 225
+    min_altura: 1.0
+    max_altura: 4.0
+    rango_ideal: [2.0, 3.4]
+    min_periodo: 10
+  viento_ideal: 135
+  temporada: [5, 6, 7, 8]
+  url_surfforecast: "https://www.surf-forecast.com/breaks/Buchupureo"
+  fuentes: [surf-forecast, wannasurf, geometria-costa]
+  confianza: media
+
+- id: asia
+  nombre: "Asia (Mar Azul), Lima"
+  pais: "PE"
+  lat: -12.78
+  lon: -76.63
+  tipo: beach_break
+  costa_mira: 239
+  swell:
+    ventana: [180, 270]
+    ideal: 225
+    min_altura: 1.0
+    max_altura: 3.0
+    rango_ideal: [1.7, 2.3]
+    min_periodo: 9
+  viento_ideal: 45
+  temporada: [12, 1, 2]
+  url_surfforecast: "https://www.surf-forecast.com/breaks/Mar-Azul-1"
+  fuentes: [surf-forecast, wannasurf, geometria-costa]
+  confianza: media
+
+- id: huanchaco
+  nombre: "Punta Huanchaco, La Libertad"
+  pais: "PE"
+  lat: -8.08
+  lon: -79.12
+  tipo: point_break
+  costa_mira: 234
+  swell:
+    ventana: [157, 247]
+    ideal: 202
+    min_altura: 1.0
+    max_altura: 2.5
+    rango_ideal: [1.5, 2.2]
+    min_periodo: 10
+  viento_ideal: 45
+  temporada: [3, 4, 5]
+  url_surfforecast: "https://www.surf-forecast.com/breaks/Punta-Huanchaco"
+  fuentes: [surf-forecast, wannasurf, geometria-costa]
+  confianza: media
+
+- id: santa_teresa
+  nombre: "Playa Santa Teresa, Guanacaste"
+  pais: "CR"
+  lat: 9.65
+  lon: -85.17
+  tipo: beach_break
+  costa_mira: 224
+  swell:
+    ventana: [225, 305]
+    ideal: 292
+    min_altura: 1.0
+    max_altura: 2.0
+    rango_ideal: [1.3, 1.7]
+    min_periodo: 9
+  viento_ideal: 45
+  temporada: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  url_surfforecast: "https://es.surf-forecast.com/breaks/Playa-Santa-Teresa"
+  fuentes: [surf-forecast, wannasurf, geometria-costa]
+  confianza: baja
+
+- id: saquarema
+  nombre: "Saquarema (Itaúna), Rio de Janeiro"
+  pais: "BR"
+  lat: -22.94
+  lon: -42.48
+  tipo: beach_break
+  costa_mira: 187
+  swell:
+    ventana: [135, 225]
+    ideal: 180
+    min_altura: 1.0
+    max_altura: 5.0
+    rango_ideal: [2.3, 3.7]
+    min_periodo: 9
+  viento_ideal: 0
+  temporada: [3, 4, 5, 6, 7, 8]
+  url_surfforecast: "https://www.surf-forecast.com/breaks/Saquarema"
+  fuentes: [surf-forecast, wannasurf, geometria-costa]
+  confianza: media
+
+- id: punta_de_lobos
+  nombre: "Punta de Lobos, Pichilemu"
+  pais: "CL"
+  lat: -34.42
+  lon: -72.05
+  tipo: point_break
+  costa_mira: 281
+  swell:
+    ventana: [191, 270]
+    ideal: 225
+    min_altura: 1.0
+    max_altura: 5.0
+    rango_ideal: [2.3, 4.2]
+    min_periodo: 10
+  viento_ideal: 112
+  temporada: [6, 7, 8]
+  url_surfforecast: "https://www.surf-forecast.com/breaks/Puntade-Lobos"
+  fuentes: [surf-forecast, wannasurf, geometria-costa]
+  confianza: alta
+
+- id: chicama
+  nombre: "Chicama (El Point), La Libertad"
+  pais: "PE"
+  lat: -7.71
+  lon: -79.45
+  tipo: point_break
+  costa_mira: 263
+  swell:
+    ventana: [173, 247]
+    ideal: 202
+    min_altura: 1.0
+    max_altura: 4.0
+    rango_ideal: [2.0, 3.4]
+    min_periodo: 10
+  viento_ideal: 67
+  temporada: [12, 1, 2]
+  url_surfforecast: "https://www.surf-forecast.com/breaks/Chicama"
+  fuentes: [surf-forecast, wannasurf, geometria-costa]
+  confianza: alta
+
+- id: lobitos
+  nombre: "Lobitos, Piura"
+  pais: "PE"
+  lat: -4.45
+  lon: -81.29
+  tipo: reef
+  costa_mira: 294
+  swell:
+    ventana: [210, 270]
+    ideal: 225
+    min_altura: 1.0
+    max_altura: 2.0
+    rango_ideal: [1.3, 1.8]
+    min_periodo: 10
+  viento_ideal: 112
+  temporada: [3, 4, 5]
+  url_surfforecast: "https://www.surf-forecast.com/breaks/Lobitos"
+  fuentes: [surf-forecast, wannasurf, geometria-costa]
+  confianza: baja
+
+- id: punta_del_diablo
+  nombre: "Punta del Diablo, Rocha"
+  pais: "UY"
+  lat: -34.04
+  lon: -53.53
+  tipo: beach_break
+  costa_mira: 111
+  swell:
+    ventana: [90, 180]
+    ideal: 135
+    min_altura: 1.0
+    max_altura: 2.5
+    rango_ideal: [1.5, 2.0]
     min_periodo: 9
   viento_ideal: 315
   temporada: [3, 4, 5, 6, 7, 8]
-  url_surfforecast: "https://es.surf-forecast.com/breaks/Chapadmalal/forecasts/latest/six_day"
-  fuentes: [surf-forecast, wannasurf]
-  confianza: alta
+  url_surfforecast: "https://www.surf-forecast.com/breaks/Puntadel-Diablo"
+  fuentes: [surf-forecast, geometria-costa]
+  confianza: baja
+
+- id: joaquina
+  nombre: "Praia da Joaquina, Florianópolis"
+  pais: "BR"
+  lat: -27.63
+  lon: -48.45
+  tipo: beach_break
+  costa_mira: 121
+  swell:
+    ventana: [90, 180]
+    ideal: 135
+    min_altura: 1.0
+    max_altura: 3.0
+    rango_ideal: [1.7, 2.3]
+    min_periodo: 9
+  viento_ideal: 315
+  temporada: [6, 7, 8]
+  url_surfforecast: "https://www.surf-forecast.com/breaks/Joaquina"
+  fuentes: [surf-forecast, wannasurf, geometria-costa]
+  confianza: media
