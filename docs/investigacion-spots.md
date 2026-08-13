@@ -54,6 +54,75 @@ saltó una diferencia, se volvió a la fuente.
 
 ---
 
+## ⚠️ LA TRAMPA DE `temporada` EN SURF-FORECAST — LEER ANTES DE TOCAR ESTE CAMPO
+
+**La causa raíz, en una frase:** surf-forecast define "mejor época del año" como *swell
+surfeable con viento flojo u offshore*, o sea que mide **días agradables, no días con olas**,
+y por eso premia los meses chicos y vidriados — que en los 13 spots de este archivo son
+justo los opuestos a los meses en que el spot rompe.
+
+Copiar ese campo tal cual **invierte el signo de la temporada** en cualquier spot cuya
+`ventana` de swell mire al sector sur. Pasó en cuatro de los 13 (`chicama`, `lobitos`,
+`huanchaco`, `asia`) y se corrigió en las revisiones 1/5 y 2/5.
+
+**La regla correcta.** `temporada` son los meses en que **se genera** el groundswell que la
+`ventana` del spot puede ver:
+
+| Sector que ve la `ventana` | Motor | Meses |
+|---|---|---|
+| Sur (S, SSW, SW, SSE, SE) | Océano Austral, invierno del hemisferio sur | **abril a octubre** |
+| Norte (N, NW, NNW, NE) | Pacífico / Atlántico norte, invierno boreal | noviembre a marzo |
+
+**Los 13 spots de este archivo ven únicamente sector sur.** Ninguna `ventana` alcanza un solo
+rumbo del norte — verificado con `en_ventana` contra los rumbos 290-360 y 0-70. Incluye a
+`santa_teresa`, que está en el hemisferio norte pero cuya ventana [180, 280] tampoco llega al
+NW. En consecuencia: **en este archivo, una `temporada` centrada en diciembre-febrero está
+mal por construcción.**
+
+**Cómo auditarlo sin reintroducir el error.** La verificación válida es contra el régimen
+físico y contra la propia `ventana` del perfil, que son independientes de surf-forecast.
+**No** sirve comparar la `temporada` de un spot contra la de un vecino: si los dos salieron
+de la misma estadística, la comparación detecta que hay una incoherencia pero no dice cuál de
+los dos lados está mal. Ese error de método se cometió al corregir `chicama` en la revisión
+1/5 y está anotado en ese bloque.
+
+### Barrido de los 13 (revisión 2/5)
+
+Pregunta aplicada a cada perfil: *¿la `ventana` mira al sector desde donde llega el
+groundswell estacional, y la `temporada` coincide con la estación en que ese groundswell se
+genera?* `solape` = meses de la `temporada` que caen dentro de abril-octubre.
+
+| id | ventana | ¿ve sector norte? | temporada | solape | veredicto |
+|---|---|---|---|---|---|
+| `la_barra` | 135-225 | no | [3,4,5,6,7,8] | 5/7 | coherente |
+| `chapadmalal` | 112-202 | no | [3,4,5,6,7,8] | 5/7 | coherente |
+| `praia_do_rosa` | 90-180 | no | [3,4,5,6,7,8] | 5/7 | coherente |
+| `buchupureo` | 197-270 | no | [5,6,7,8] | 4/7 | coherente, angosta |
+| `asia` | 180-270 | no | [4,5,6,7,8,9,10] | 7/7 | **corregido en 2/5** (era 0/7) |
+| `huanchaco` | 157-247 | no | [4,5,6,7,8,9,10] | 7/7 | **corregido en 2/5** (era 2/7) |
+| `santa_teresa` | 180-280 | no | [1..12] | 7/7 | no discrimina (dictaminado: se arregla en Tarea 12) |
+| `saquarema` | 135-225 | no | [3,4,5,6,7,8] | 5/7 | coherente |
+| `punta_de_lobos` | 191-270 | no | [6,7,8] | 3/7 | coherente, **angosta** |
+| `chicama` | 173-247 | no | [4,5,6,7,8,9,10] | 7/7 | corregido en 1/5 |
+| `lobitos` | 210-270 | no | [4,5,6,7,8,9,10] | 7/7 | corregido en 1/5 |
+| `punta_del_diablo` | 90-180 | no | [3,4,5,6,7,8] | 5/7 | coherente |
+| `joaquina` | 90-180 | no | [6,7,8] | 3/7 | coherente, **angosta** |
+
+Ningún perfil queda con el signo invertido. **Los cuatro que lo tenían eran exactamente los
+cuatro que copiaron la estadística de surf-forecast sin contrastarla contra el régimen
+físico.**
+
+**Hallazgo residual: tres temporadas angostas.** `punta_de_lobos` [6,7,8], `joaquina` [6,7,8]
+y `buchupureo` [5,6,7,8] tienen el signo correcto pero cubren solo el núcleo del invierno
+austral y dejan afuera los meses de hombro (abril-mayo y septiembre-octubre), en los que el
+Océano Austral sigue generando groundswell. **No se modificaron**: no están invertidos, salen
+literalmente de la temporada que declara surf-forecast ("Winter" / "Winter, May"), y
+corregirlos excede lo que pidió la revisión. Pero comparten el mismo mecanismo de daño en la
+Tarea 12 —un swell real de abril en Punta de Lobos daría `NO COINCIDE`— en una versión más
+leve. Queda registrado para que el coordinador decida.
+
+---
+
 ## la_barra — La Barra, Punta del Este, Uruguay
 
 **surf-forecast** — `https://es.surf-forecast.com/breaks/La-Barra_2`
@@ -303,9 +372,29 @@ offshore que predice la geometría; el de Wannasurf caería a 59.
 - `swell.ventana`: [180, 270]. Contenida en `costa_mira ± 90` = [149, 329]. OK, y coincide
   con el sector SE-S-SW de Wannasurf.
 - `min_altura` 1.0 / `max_altura` 3.0 -> R=2.0 -> `rango_ideal` [1.7, 2.3]
-- `temporada`: [12, 1, 2]
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]** (corregido, ver abajo)
 
-**Confianza: media.** Discrepancia menor de viento y Wannasurf sin GPS cargado.
+**Corrección aplicada (revisión 2/5): `temporada` [12,1,2] -> [4,5,6,7,8,9,10]**
+
+El [12,1,2] salía del *"Summer, most often February"* de surf-forecast: la misma estadística
+defectuosa que ya se corrigió en `chicama`, `lobitos` y `huanchaco`.
+
+Se evaluó y se descartó el argumento de que Lima recibe swell del W/NW en verano. **No se
+sostiene contra el propio perfil de este spot:** la `ventana` de `asia` es [180, 270], de S a
+W. Un swell del NW llega desde ~315 y **cae fuera de esa ventana**, así que el detector no lo
+vería aunque existiera. El perfil, tal como está construido, solo puede ver groundswell del
+Océano Austral, que se genera de abril a octubre. Con `temporada: [12,1,2]` el solape con la
+única fuente de swell que la ventana admite era de **0 meses sobre 7**: el peor de los 13.
+
+Que Asia sea culturalmente un balneario de verano limeño no cambia cuándo rompe.
+
+**Confianza: media** (sin cambio). La discrepancia menor de viento (NE vs N) y el GPS
+faltante de Wannasurf siguen ahí y siguen siendo la razón de que no sea `alta`. La
+corrección de temporada **aumenta** la solidez del perfil en vez de reducirla: reemplaza un
+campo copiado de una estadística que mide otra cosa por uno derivado del régimen de swell
+que la propia ventana del spot admite. No se baja a `baja` porque el dato no está en disputa
+ni es una estimación: el sector de swell está medido y el régimen estacional que le
+corresponde es inequívoco.
 
 ---
 
@@ -348,7 +437,27 @@ offshore que predice la geometría; el de Wannasurf caería a 59.
   Wannasurf ("wraps around from the south") confirma que el sector sur es el que alimenta
   la izquierda.
 - `min_altura` 1.0 / `max_altura` 2.5 -> R=1.5 -> `rango_ideal` [1.5, 2.2]
-- `temporada`: [3, 4, 5]
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]** (corregido, ver abajo)
+
+**Corrección aplicada (revisión 2/5): `temporada` [3,4,5] -> [4,5,6,7,8,9,10]**
+
+Mismo defecto de origen que `chicama` y `lobitos`: el [3,4,5] salía del *"Autumn, month of
+March"* de surf-forecast, que es su estadística de "swell surfeable con viento flojo" y
+premia los días chicos y vidriados, no los meses en que el spot rompe.
+
+La evidencia acá es **más fuerte que la de `chicama` y no depende de ningún vecino**. El
+perfil está construido enteramente sobre swell del sur y no tiene ninguna componente del
+norte: `ideal: 202` (SSW), `ventana: [157, 247]`, `costa_mira: 234`, y la nota de la propia
+Wannasurf, *"a long irregular point which wraps around from the south"*. Cortar la temporada
+en mayo excluía junio-octubre, o sea **la mitad más fuerte de la única fuente de swell que
+la ventana del spot puede ver**.
+
+**Por qué [4..10] y no [3,4,5,9,10].** La segunda opción reflejaría que con `max_altura: 2.5`
+los swells grandes de junio-agosto se le pasan de rosca al spot. Se descartó porque
+`max_altura` **ya es gate duro y rechaza esos días por su cuenta**: codificar la misma
+restricción en dos campos la aplicaría dos veces y, peor, dejaría a la Tarea 12 sin poder
+distinguir si un `NO COINCIDE` viene de la estación o del tamaño. Cada campo restringe una
+sola cosa.
 
 **Confianza: media.** Wannasurf tiene `Swell direction` y `Wind direction` sin cargar, y
 surf-forecast da dos vientos distintos (NE en la guía, ESE en la estadística). El techo de
@@ -590,14 +699,24 @@ Registrarla no alcanzaba: el número estaba mal y había que corregirlo.
 El diagnóstico original era correcto. surf-forecast define "mejor época" como *swell
 surfeable con viento flojo u offshore*, o sea que premia los días chicos y vidriados, no los
 meses en que el spot rompe. El groundswell del Pacífico sur que hace a Chicama entra de
-**abril a octubre**. Dos verificaciones independientes lo confirman:
+**abril a octubre**.
 
-1. **`huanchaco` está a 42 km sobre la misma costa, con la misma exposición, y tiene
-   `[3, 4, 5]`.** Dos spots vecinos no pueden tener temporadas disjuntas: `[12,1,2]` y
-   `[3,4,5]` no se solapan en un solo mes. Esa sola incoherencia dentro del propio
-   `spots.yaml` ya bastaba para descartar el dato.
-2. El groundswell del Pacífico sur es estacional y llega a la costa peruana de abril a
-   octubre; es el mismo motor que alimenta a `lobitos` (ver la corrección análoga ahí).
+**El argumento que sostiene la corrección es el régimen físico, no la comparación con el
+vecino.** La ventana de `chicama` es [173, 247]: ve solo el sector sur, no alcanza ningún
+rumbo del norte. Su única fuente de swell es el Océano Austral, que genera groundswell
+durante el invierno del hemisferio sur, de abril a octubre. Una `temporada` de [12, 1, 2]
+declaraba que el spot funciona justo en los meses en que su única fuente de swell está
+apagada. Eso se decide con el régimen estacional y con la propia ventana del perfil, sin
+mirar ningún otro spot.
+
+> **Corrección de método (revisión 2/5).** La primera versión de este bloque apoyaba la
+> conclusión en un segundo argumento: "`huanchaco` está a 42 km con la misma exposición y
+> tiene [3,4,5], y dos vecinos no pueden tener temporadas disjuntas". **Ese argumento era
+> circular y quedó retirado.** La `temporada` de `huanchaco` salía de la misma estadística
+> defectuosa de surf-forecast, así que comparar contra ella detecta que hay una
+> incoherencia pero no dice cuál de los dos lados está mal — de hecho estaban mal los dos, y
+> `huanchaco` se corrigió en la revisión 2/5. Una verificación cruzada solo vale si la
+> fuente con la que se cruza es independiente de la que se está auditando.
 
 **Por qué importaba aunque `temporada` no sea gate.** No se pierden alertas: el daño es en
 la Tarea 12. `coincide_la_temporada` habría dado `NO COINCIDE`, y la tabla de remediación
