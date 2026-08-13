@@ -1,0 +1,43 @@
+name: Chequeo diario de swell
+
+on:
+  schedule:
+    # 10:00 UTC = 07:00 hora Argentina (UTC-3)
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  chequear:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      - run: pytest tests/ -q
+
+      - name: Chequear los spots
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python run.py
+
+      - name: Guardar el estado
+        # Este commit no es cosmetico: GitHub desactiva automaticamente los
+        # workflows programados (cron) despues de 60 dias sin actividad de
+        # commits en el repositorio. Si se saca este paso porque "no hace
+        # nada util", el chequeo diario deja de correr en silencio -- nadie
+        # se entera hasta que se nota que las alertas dejaron de llegar.
+        run: |
+          git config user.name "surf-forecast-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add state.json
+          git diff --staged --quiet || git commit -m "chore: estado del $(date -u +%Y-%m-%d)"
+          git push
