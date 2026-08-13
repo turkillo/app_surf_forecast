@@ -5,6 +5,39 @@ seis meses alguien pregunta de dónde salió un número, la respuesta está acá
 
 Fecha de consulta de todas las fuentes: **2026-08-13**.
 
+## Definición de `temporada` (leer antes de tocar ese campo)
+
+> **`temporada` son los meses en que SE GENERA el groundswell que la `ventana` de ese spot
+> puede recibir.** No son los meses de mejor viento, ni los de temporada turística, ni los de
+> agua más cálida, ni los que una fuente llame "mejor época del año".
+
+Esta definición faltaba en las primeras versiones de este archivo, y esa ausencia es la causa
+raíz de un defecto que hubo que corregir en tres revisiones seguidas: sin una definición, el
+campo se pobló con **dos cosas distintas en filas distintas** —en unos spots "los meses que
+la fuente llama mejor época", en otros "los meses en que se genera el swell"— y un campo que
+significa cosas diferentes según la fila es inutilizable.
+
+Aplicada de forma uniforme a los 13, la definición da:
+
+| Sector que ve la `ventana` | Motor | Meses |
+|---|---|---|
+| Sur (S, SSW, SW, SSE, SE) | Océano Austral, invierno del hemisferio sur | **[4, 5, 6, 7, 8, 9, 10]** |
+| Norte (N, NW, NNW, NE) | Pacífico / Atlántico norte, invierno boreal | [11, 12, 1, 2, 3] |
+
+**Los 13 spots de este archivo tienen ventanas que ven únicamente sector sur** (verificado con
+`en_ventana` contra los rumbos 290-360 y 0-70), así que a los 13 les corresponde [4..10]. La
+única fila distinta es `santa_teresa`, por la razón que se documenta en su bloque.
+
+### Origen del dato: mes citado vs mes derivado
+
+Ningún valor de `temporada` en este archivo es una cita textual de una fuente. **Los 13 son
+derivados** de la definición de arriba. Eso es distinto de una estimación a ciegas: la
+derivación se apoya en el sector de la `ventana`, que está medido, y en el régimen estacional
+del motor correspondiente, que es inequívoco. Por eso **no baja la `confianza` de ningún
+perfil**: la confianza sigue reflejando la solidez de los campos de swell y viento.
+
+Lo que sí queda registrado, spot por spot, es qué decía la fuente y por qué se descartó.
+
 ## Método
 
 **Fuente 1 — surf-forecast.com.** Página del break (`/breaks/<Break>`, sin el sufijo
@@ -92,34 +125,41 @@ Pregunta aplicada a cada perfil: *¿la `ventana` mira al sector desde donde lleg
 groundswell estacional, y la `temporada` coincide con la estación en que ese groundswell se
 genera?* `solape` = meses de la `temporada` que caen dentro de abril-octubre.
 
-| id | ventana | ¿ve sector norte? | temporada | solape | veredicto |
-|---|---|---|---|---|---|
-| `la_barra` | 135-225 | no | [3,4,5,6,7,8] | 5/7 | coherente |
-| `chapadmalal` | 112-202 | no | [3,4,5,6,7,8] | 5/7 | coherente |
-| `praia_do_rosa` | 90-180 | no | [3,4,5,6,7,8] | 5/7 | coherente |
-| `buchupureo` | 197-270 | no | [5,6,7,8] | 4/7 | coherente, angosta |
-| `asia` | 180-270 | no | [4,5,6,7,8,9,10] | 7/7 | **corregido en 2/5** (era 0/7) |
-| `huanchaco` | 157-247 | no | [4,5,6,7,8,9,10] | 7/7 | **corregido en 2/5** (era 2/7) |
-| `santa_teresa` | 180-280 | no | [1..12] | 7/7 | no discrimina (dictaminado: se arregla en Tarea 12) |
-| `saquarema` | 135-225 | no | [3,4,5,6,7,8] | 5/7 | coherente |
-| `punta_de_lobos` | 191-270 | no | [6,7,8] | 3/7 | coherente, **angosta** |
-| `chicama` | 173-247 | no | [4,5,6,7,8,9,10] | 7/7 | corregido en 1/5 |
-| `lobitos` | 210-270 | no | [4,5,6,7,8,9,10] | 7/7 | corregido en 1/5 |
-| `punta_del_diablo` | 90-180 | no | [3,4,5,6,7,8] | 5/7 | coherente |
-| `joaquina` | 90-180 | no | [6,7,8] | 3/7 | coherente, **angosta** |
+Estado **final** tras aplicar la definición de forma uniforme en la revisión 3/5. `solape` =
+meses de la `temporada` que caen dentro de abril-octubre.
 
-Ningún perfil queda con el signo invertido. **Los cuatro que lo tenían eran exactamente los
-cuatro que copiaron la estadística de surf-forecast sin contrastarla contra el régimen
-físico.**
+| id | ventana | ¿ve sector norte? | temporada | origen | solape | qué decía surf-forecast |
+|---|---|---|---|---|---|---|
+| `la_barra` | 135-225 | no | [4..10] | derivado | 7/7 | otoño e invierno |
+| `chapadmalal` | 112-202 | no | [4..10] | derivado | 7/7 | otoño e invierno |
+| `praia_do_rosa` | 90-180 | no | [4..10] | derivado | 7/7 | otoño e invierno |
+| `buchupureo` | 197-270 | no | [4..10] | derivado | 7/7 | invierno / mayo |
+| `asia` | 180-270 | no | [4..10] | derivado | 7/7 | **verano / febrero** |
+| `huanchaco` | 157-247 | no | [4..10] | derivado | 7/7 | otoño / marzo |
+| `santa_teresa` | 180-280 | no | **[1..12]** | derivado (2 motores) | 7/7 | todo el año |
+| `saquarema` | 135-225 | no | [4..10] | derivado | 7/7 | otoño / junio |
+| `punta_de_lobos` | 191-270 | no | [4..10] | derivado | 7/7 | invierno / julio |
+| `chicama` | 173-247 | no | [4..10] | derivado | 7/7 | **verano / febrero** |
+| `lobitos` | 210-270 | no | [4..10] | derivado | 7/7 | otoño / marzo |
+| `punta_del_diablo` | 90-180 | no | [4..10] | derivado | 7/7 | otoño e invierno |
+| `joaquina` | 90-180 | no | [4..10] | derivado | 7/7 | invierno / junio |
 
-**Hallazgo residual: tres temporadas angostas.** `punta_de_lobos` [6,7,8], `joaquina` [6,7,8]
-y `buchupureo` [5,6,7,8] tienen el signo correcto pero cubren solo el núcleo del invierno
-austral y dejan afuera los meses de hombro (abril-mayo y septiembre-octubre), en los que el
-Océano Austral sigue generando groundswell. **No se modificaron**: no están invertidos, salen
-literalmente de la temporada que declara surf-forecast ("Winter" / "Winter, May"), y
-corregirlos excede lo que pidió la revisión. Pero comparten el mismo mecanismo de daño en la
-Tarea 12 —un swell real de abril en Punta de Lobos daría `NO COINCIDE`— en una versión más
-leve. Queda registrado para que el coordinador decida.
+**Los 13 quedan con solape 7/7 y una sola semántica.** Doce filas dicen [4..10] porque tienen
+un solo motor; `santa_teresa` dice [1..12] porque tiene dos, y la excepción está justificada
+en su bloque por el régimen físico, no heredada de la fuente.
+
+**Ningún valor de `temporada` es una cita textual.** La columna "qué decía surf-forecast"
+muestra por qué: de las 13 filas, ninguna coincide con lo que declara la fuente, y dos
+(`asia` y `chicama`) tenían directamente el signo invertido. El campo quedó **derivado** de la
+definición en los 13 casos, que es lo que lo vuelve comparable entre filas.
+
+**Historia del defecto**, para que se entienda por qué costó tres revisiones: en la primera
+pasada las 13 filas salieron de la estadística de surf-forecast, con cuatro invertidas
+(`asia`, `chicama`, `lobitos`, `huanchaco`) y tres recortadas al núcleo del invierno
+(`punta_de_lobos`, `joaquina`, `buchupureo`). Se corrigieron dos en la revisión 1/5 y dos en
+la 2/5, spot por spot, sin tocar la causa. La causa era que **el campo nunca había sido
+definido**, así que cada fila se pobló con lo que pareciera razonable en ese momento. La
+revisión 3/5 definió la semántica y la aplicó a las 13 de una sola vez.
 
 ---
 
@@ -161,7 +201,12 @@ leve. Queda registrado para que el coordinador decida.
 - `swell.ideal`: 180 (South)
 - `swell.ventana`: [135, 225]. Contenida en `costa_mira ± 90` = [75, 255]. OK
 - `min_altura` 1.0 / `max_altura` 3.0 -> R=3.0-1.0=2.0 -> `rango_ideal` [1.7, 2.6]
-- `temporada`: [3, 4, 5, 6, 7, 8] (otoño e invierno austral)
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]** (derivado de la definición, revisión 3/5; ver nota abajo)
+> **Origen del dato (revisión 3/5):** surf-forecast declaraba `otoño e invierno`. Ese campo mide días de
+> viento flojo, no meses de swell (ver la sección de la trampa). La ventana de este spot ve
+> únicamente sector sur, así que por la definición de `temporada` le corresponde el invierno
+> austral completo, [4..10]. Valor **derivado**, no citado; la `confianza` del perfil no cambia
+> por esto.
 
 **Confianza: media.** Las tres fuentes son coherentes y la geometría cierra con 8 grados
 de desvío, pero Wannasurf tiene los campos `Swell direction`, `Wind direction` y
@@ -211,7 +256,12 @@ de Wannasurf se toma **solo el tamaño**, que es el campo para el que se la cons
 - `swell.ventana`: [112, 202]. Contenida en `costa_mira ± 90` = [45, 225]. OK
 - `min_altura` 1.0 (Wannasurf dice "less than 1m", aplica el piso del usuario)
 - `max_altura` 2.5 -> R=1.5 -> `rango_ideal` [1.5, 2.2]
-- `temporada`: [3, 4, 5, 6, 7, 8]
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]** (derivado de la definición, revisión 3/5; ver nota abajo)
+> **Origen del dato (revisión 3/5):** surf-forecast declaraba `otoño e invierno`. Ese campo mide días de
+> viento flojo, no meses de swell (ver la sección de la trampa). La ventana de este spot ve
+> únicamente sector sur, así que por la definición de `temporada` le corresponde el invierno
+> austral completo, [4..10]. Valor **derivado**, no citado; la `confianza` del perfil no cambia
+> por esto.
 
 > **Cambios respecto del perfil de ejemplo que venía en `spots.yaml`.** Ese perfil era un
 > placeholder de la fase de diseño y no había pasado por Wannasurf. Se corrigieron tres
@@ -266,7 +316,12 @@ de olas más rápidas y potentes)
 - `swell.ventana`: [90, 180]. Contenida en `costa_mira ± 90` = [24, 204]. OK, y coincide
   con el sector E-SE-S que Wannasurf marca como sector de swell útil.
 - `min_altura` 1.0 / `max_altura` 2.5 -> R=1.5 -> `rango_ideal` [1.5, 2.0]
-- `temporada`: [3, 4, 5, 6, 7, 8]
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]** (derivado de la definición, revisión 3/5; ver nota abajo)
+> **Origen del dato (revisión 3/5):** surf-forecast declaraba `otoño e invierno`. Ese campo mide días de
+> viento flojo, no meses de swell (ver la sección de la trampa). La ventana de este spot ve
+> únicamente sector sur, así que por la definición de `temporada` le corresponde el invierno
+> austral completo, [4..10]. Valor **derivado**, no citado; la `confianza` del perfil no cambia
+> por esto.
 
 **Confianza: alta.** Las tres fuentes coinciden: SE es la dirección ideal, el sector de
 swell de Wannasurf la contiene, y el offshore documentado cae a 24 grados del que predice
@@ -326,7 +381,12 @@ se clasificó `point_break`, que es lo que determina el `min_periodo` de 10 s.
   sur a 197. El sector [197, 270] coincide además con el rango *"West, South"* de
   Wannasurf una vez descontada la obstrucción.
 - `min_altura` 1.0 / `max_altura` 4.0 -> R=3.0 -> `rango_ideal` [2.0, 3.4]
-- `temporada`: [5, 6, 7, 8]
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]** (derivado de la definición, revisión 3/5; ver nota abajo)
+> **Origen del dato (revisión 3/5):** surf-forecast declaraba `invierno / mayo`. Ese campo mide días de
+> viento flojo, no meses de swell (ver la sección de la trampa). La ventana de este spot ve
+> únicamente sector sur, así que por la definición de `temporada` le corresponde el invierno
+> austral completo, [4..10]. Valor **derivado**, no citado; la `confianza` del perfil no cambia
+> por esto.
 
 **Confianza: media.**
 
@@ -543,9 +603,46 @@ el backtest histórico tiene que revisarlo igual.
   llega hasta el W para los swells de invierno boreal que documentan las dos fuentes.
   Contenida en `costa_mira ± 90` = [134, 314] y dentro del sector de mar del DEM (160-300).
 - `min_altura` 1.0 / `max_altura` 2.0 -> R=1.0 -> `rango_ideal` [1.3, 1.7]
-- `temporada`: [1..12]. surf-forecast la documenta explícitamente como spot de todo el año
-  y no declara un mes óptimo. El campo no discrimina nada en este spot; queda registrado
-  para que nadie lo lea como "investigado y acotado".
+- `temporada`: **[1..12]**. Es la **única fila de las 13 que no es [4..10]**, y la excepción
+  está justificada por el motor, no heredada de la fuente. Ver abajo.
+
+**`temporada`: la única excepción a la regla de [4..10] (revisión 3/5)**
+
+La definición de `temporada` es "los meses en que se genera el groundswell que la `ventana`
+del spot puede recibir". Aplicada a los otros 12 spots da [4..10], porque todos son
+alimentados por un solo motor: el Océano Austral en invierno del hemisferio sur.
+
+**Santa Teresa es el único spot alimentado por dos motores.** Está a 9.65 N, en el Pacífico
+oriental tropical, y recibe:
+
+- groundswell del **Océano Austral** de abril a noviembre (el principal, ~190-215), y
+- groundswell del **Pacífico norte** de noviembre a marzo (del NW).
+
+Los dos motores se turnan y entre ambos cubren el año. Por eso surf-forecast la describe como
+spot de todo el año y no declara un mes óptimo: en este caso la fuente y la definición
+**coinciden**, y [1..12] es la respuesta correcta de la definición, no un residuo de la
+estadística defectuosa.
+
+**Inconsistencia conocida y deliberada.** La `ventana` de este perfil es [180, 280]: admite el
+motor austral pero **no** el del Pacífico norte, cuyo swell llega desde ~315. O sea que el
+perfil declara doce meses de temporada pero solo puede ver el swell de siete de ellos. Se dejó
+así a propósito: la ventana se corrigió en la revisión 1/5 precisamente porque la versión
+anterior, orientada al NW, dejaba afuera el groundswell austral que es el principal, y
+ensancharla ahora hasta 315 para recuperar el swell del norte volvería a diluir el sector que
+importa. Queda registrado como algo a resolver con dato histórico, no a ojo.
+
+> **⚠️ Para la Tarea 12 — no perder esto al cambiar de tarea.**
+> Con los doce meses cargados, **`coincide_la_temporada` devuelve `True` incondicionalmente
+> para `santa_teresa`**: el chequeo no discrimina nada en este spot. Eso **no significa que el
+> spot pase el chequeo**, significa que el chequeo no se aplicó. La Tarea 12 tiene que
+> **excluir explícitamente a `santa_teresa` de la validación de temporada y reportarla como
+> "no evaluada"**, no contarla como aprobada. Si se la cuenta como aprobada, el backtest va a
+> mostrar un spot sano donde en realidad hay un campo que no dice nada.
+>
+> Lo que el backtest sí tiene que responder acá: de los días con buen swell registrado en
+> `santa_teresa`, ¿cuántos vinieron del sector 180-280 y cuántos del NW? Si la cola del NW es
+> significativa, la `ventana` hay que ensancharla y `temporada` se queda en [1..12]; si es
+> marginal, la temporada baja a [4..10] como el resto y la ventana queda como está.
 
 **Confianza: baja.**
 
@@ -597,7 +694,12 @@ surf-forecast y de la geometría.
 - `swell.ideal`: 180 (S)
 - `swell.ventana`: [135, 225]. Contenida en `costa_mira ± 90` = [97, 277]. OK
 - `min_altura` 1.0 / `max_altura` 5.0 -> R=4.0 -> `rango_ideal` [2.3, 3.7]
-- `temporada`: [3, 4, 5, 6, 7, 8]
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]** (derivado de la definición, revisión 3/5; ver nota abajo)
+> **Origen del dato (revisión 3/5):** surf-forecast declaraba `otoño / junio`. Ese campo mide días de
+> viento flojo, no meses de swell (ver la sección de la trampa). La ventana de este spot ve
+> únicamente sector sur, así que por la definición de `temporada` le corresponde el invierno
+> austral completo, [4..10]. Valor **derivado**, no citado; la `confianza` del perfil no cambia
+> por esto.
 
 **Confianza: media.** Techo de 5 m bien documentado y geometría limpia, pero los campos
 direccionales de Wannasurf son inutilizables.
@@ -642,7 +744,12 @@ direccionales de Wannasurf son inutilizables.
   a 191 por el tope de `costa_mira ± 90` = [191, 11]. El rango de Wannasurf (S a N por el
   oeste) es más ancho pero no se usa para ensanchar más allá de ese tope.
 - `min_altura` 1.0 / `max_altura` 5.0 -> R=4.0 -> `rango_ideal` [2.3, 4.2]
-- `temporada`: [6, 7, 8]
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]** (derivado de la definición, revisión 3/5; ver nota abajo)
+> **Origen del dato (revisión 3/5):** surf-forecast declaraba `invierno / julio`. Ese campo mide días de
+> viento flojo, no meses de swell (ver la sección de la trampa). La ventana de este spot ve
+> únicamente sector sur, así que por la definición de `temporada` le corresponde el invierno
+> austral completo, [4..10]. Valor **derivado**, no citado; la `confianza` del perfil no cambia
+> por esto.
 
 **Confianza: alta.** Las tres fuentes coinciden: SW de swell, viento del sector E/SE,
 point break, y el techo de 5 m está documentado en Wannasurf.
@@ -881,7 +988,12 @@ Wannasurf). Queda explícito que es una analogía y no una medición.
 - `swell.ventana`: [90, 180]. Contenida en `costa_mira ± 90` = [21, 201]. OK
 - `min_altura` 1.0 (piso del usuario, sin dato de origen) / `max_altura` 2.5 **estimado**
   -> R=1.5 -> `rango_ideal` [1.5, 2.0]
-- `temporada`: [3, 4, 5, 6, 7, 8]
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]** (derivado de la definición, revisión 3/5; ver nota abajo)
+> **Origen del dato (revisión 3/5):** surf-forecast declaraba `otoño e invierno`. Ese campo mide días de
+> viento flojo, no meses de swell (ver la sección de la trampa). La ventana de este spot ve
+> únicamente sector sur, así que por la definición de `temporada` le corresponde el invierno
+> austral completo, [4..10]. Valor **derivado**, no citado; la `confianza` del perfil no cambia
+> por esto.
 
 **Confianza: baja.** Regla explícita del brief: si hubo que estimar `max_altura`, es baja.
 
@@ -929,7 +1041,12 @@ vientos, y NW es justo el offshore que predice la geometría).
 - `swell.ideal`: 135 (SE)
 - `swell.ventana`: [90, 180]. Contenida en `costa_mira ± 90` = [31, 211]. OK
 - `min_altura` 1.0 / `max_altura` 3.0 -> R=2.0 -> `rango_ideal` [1.7, 2.3]
-- `temporada`: [6, 7, 8]
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]** (derivado de la definición, revisión 3/5; ver nota abajo)
+> **Origen del dato (revisión 3/5):** surf-forecast declaraba `invierno / junio`. Ese campo mide días de
+> viento flojo, no meses de swell (ver la sección de la trampa). La ventana de este spot ve
+> únicamente sector sur, así que por la definición de `temporada` le corresponde el invierno
+> austral completo, [4..10]. Valor **derivado**, no citado; la `confianza` del perfil no cambia
+> por esto.
 
 **Confianza: media.** El campo direccional de swell de Wannasurf es inutilizable, pero el
 tamaño y el viento cierran con surf-forecast y con la geometría.

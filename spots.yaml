@@ -6,6 +6,17 @@
 # El dato crudo de cada fuente, y la conversion de cada numero, estan en
 # docs/investigacion-spots.md. No cambiar un umbral aca sin actualizar ese
 # archivo: sin el registro de la fuente, el numero no es auditable.
+#
+# SEMANTICA DE `temporada`: son los meses en que SE GENERA el groundswell que
+# la `ventana` de ese spot puede recibir. No son los meses de mejor viento, ni
+# los de temporada turistica, ni los de agua mas calida. Los 13 spots de este
+# archivo tienen ventanas que solo ven sector sur, asi que a todos les
+# corresponde el invierno del hemisferio sur: [4..10]. La unica excepcion es
+# santa_teresa, alimentada por dos motores; su bloque en el doc explica por que.
+#
+# NO copiar este campo de la "mejor epoca del ano" de surf-forecast: esa
+# estadistica mide dias de viento flojo, no meses de swell, y tiene el signo
+# invertido en este archivo. Ver la seccion de la trampa en el doc.
 
 - id: la_barra
   nombre: "La Barra, Punta del Este"
@@ -22,7 +33,7 @@
     rango_ideal: [1.7, 2.6]
     min_periodo: 10
   viento_ideal: 337
-  temporada: [3, 4, 5, 6, 7, 8]
+  temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://es.surf-forecast.com/breaks/La-Barra_2"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
@@ -42,7 +53,7 @@
     rango_ideal: [1.5, 2.2]
     min_periodo: 10
   viento_ideal: 315
-  temporada: [3, 4, 5, 6, 7, 8]
+  temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://www.surf-forecast.com/breaks/Chapadmalal"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
@@ -62,7 +73,7 @@
     rango_ideal: [1.5, 2.0]
     min_periodo: 9
   viento_ideal: 270
-  temporada: [3, 4, 5, 6, 7, 8]
+  temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://www.surf-forecast.com/breaks/Rosa"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: alta
@@ -82,7 +93,7 @@
     rango_ideal: [2.0, 3.4]
     min_periodo: 10
   viento_ideal: 135
-  temporada: [5, 6, 7, 8]
+  temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://www.surf-forecast.com/breaks/Buchupureo"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
@@ -162,7 +173,7 @@
     rango_ideal: [2.3, 3.7]
     min_periodo: 9
   viento_ideal: 0
-  temporada: [3, 4, 5, 6, 7, 8]
+  temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://www.surf-forecast.com/breaks/Saquarema"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
@@ -182,7 +193,7 @@
     rango_ideal: [2.3, 4.2]
     min_periodo: 10
   viento_ideal: 112
-  temporada: [6, 7, 8]
+  temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://www.surf-forecast.com/breaks/Puntade-Lobos"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: alta
@@ -242,7 +253,7 @@
     rango_ideal: [1.5, 2.0]
     min_periodo: 9
   viento_ideal: 315
-  temporada: [3, 4, 5, 6, 7, 8]
+  temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://www.surf-forecast.com/breaks/Puntadel-Diablo"
   fuentes: [surf-forecast, geometria-costa]
   confianza: baja
@@ -262,7 +273,7 @@
     rango_ideal: [1.7, 2.3]
     min_periodo: 9
   viento_ideal: 315
-  temporada: [6, 7, 8]
+  temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://www.surf-forecast.com/breaks/Joaquina"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
