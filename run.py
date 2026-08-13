@@ -94,6 +94,47 @@ def correr(spots: list[Spot], hoy: date,
     return estado_nuevo, enviados
 
 
+def _mensaje_de_prueba(spots: list[Spot]) -> str:
+    """Arma un mensaje que confirma la conexion y muestra que el detector vive.
+
+    No toca el estado ni cuenta como corrida: sirve para verificar el bot
+    sin esperar a que haya un swell.
+    """
+    dias: list[DiaEvaluado] = []
+    fallaron = 0
+    for spot in spots:
+        try:
+            por_dia = obtener_horas_multimodelo(spot)
+        except ErrorDatos:
+            fallaron += 1
+            continue
+        for fecha, horas in por_dia.items():
+            dias.append(evaluar_dia_multimodelo(horas, spot, fecha))
+
+    ventanas = detectar_ventanas(dias)
+    partes = [
+        "✅ Prueba del sistema de alertas de swell",
+        "",
+        "Conexión con Telegram: OK",
+        f"Spots consultados: {len(spots) - fallaron} de {len(spots)}",
+        f"Ventanas detectadas ahora mismo: {len(ventanas)}",
+    ]
+    if ventanas:
+        partes.append("")
+        por_id = {s.id: s for s in spots}
+        for v in sorted(ventanas, key=lambda x: -x.score)[:6]:
+            partes.append(
+                f"· {por_id[v.spot_id].nombre} — {v.desde.day}/{v.desde.month} "
+                f"al {v.hasta.day}/{v.hasta.month} ({v.score:.0f}/100)"
+            )
+    partes += [
+        "",
+        "Esto es solo una prueba: no modifica el estado ni cuenta como corrida.",
+        "Las alertas reales llegan cuando una ventana se confirma en dos días seguidos.",
+    ]
+    return "\n".join(partes)
+
+
 def main() -> int:
     token = os.environ.get("TELEGRAM_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
@@ -102,6 +143,16 @@ def main() -> int:
         return 2
 
     spots = cargar_spots(RUTA_SPOTS)
+
+    if os.environ.get("MENSAJE_PRUEBA", "").lower() == "true":
+        try:
+            enviar(_mensaje_de_prueba(spots), token, chat_id)
+        except ErrorEnvio as e:
+            print(f"[ERROR] no se pudo enviar el mensaje de prueba: {e}", file=sys.stderr)
+            return 1
+        print("[OK] mensaje de prueba enviado; el estado no se modifico")
+        return 0
+
     estado = json.loads(RUTA_ESTADO.read_text()) if RUTA_ESTADO.exists() else estado_vacio()
 
     try:

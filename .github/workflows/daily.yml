@@ -5,6 +5,11 @@ on:
     # 10:00 UTC = 07:00 hora Argentina (UTC-3)
     - cron: "0 10 * * *"
   workflow_dispatch:
+    inputs:
+      mensaje_prueba:
+        description: "Mandar solo un mensaje de prueba a Telegram (no toca el estado)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -27,6 +32,9 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Solo se pone en true cuando se dispara a mano tildando la casilla.
+          # En la corrida programada queda vacio y el flujo es el normal.
+          MENSAJE_PRUEBA: ${{ inputs.mensaje_prueba }}
         run: python run.py
 
       - name: Guardar el estado
