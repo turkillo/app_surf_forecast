@@ -96,11 +96,15 @@ def test_enviar_no_filtra_el_token_en_error():
     mock_response.status_code = 401
     mock_response.reason = "Unauthorized"
 
-    error_http = requests.exceptions.HTTPError()
+    token_secreto = "123456789:AAHsecretTokenValueXYZ"
+    url_con_token = f"https://api.telegram.org/bot{token_secreto}/sendMessage"
+
+    # HTTPError realista con el token en el mensaje (como produce requests de verdad)
+    error_http = requests.exceptions.HTTPError(
+        f"401 Client Error: Unauthorized for url: {url_con_token}"
+    )
     error_http.response = mock_response
     mock_sesion.post.side_effect = error_http
-
-    token_secreto = "123456789:AAHsecretTokenValueXYZ"
 
     with pytest.raises(ErrorEnvio) as exc_info:
         enviar("test", token_secreto, "12345", sesion=mock_sesion)
@@ -109,9 +113,13 @@ def test_enviar_no_filtra_el_token_en_error():
     assert token_secreto not in str(exc_info.value)
     assert "401" in str(exc_info.value)
 
-    # El token no debe aparecer tampoco en el traceback completo (que es lo que se loguea)
+    # El token no debe aparecer en el traceback completo
     tb = traceback.format_exc()
     assert token_secreto not in tb
+
+    # El token no debe estar en __cause__ ni __context__ de la excepcion
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
 
 
 def test_ventana_que_cruza_mes_muestra_ambos_meses():

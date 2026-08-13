@@ -97,6 +97,7 @@ def formatear_digest(cercanos: list[tuple[DiaEvaluado, Spot]],
 def enviar(mensaje: str, token: str, chat_id: str, sesion=None) -> None:
     """Manda un mensaje. Lanza ErrorEnvio si no se pudo entregar."""
     cliente = sesion or requests
+    error_msg = None
     try:
         r = cliente.post(
             URL_TELEGRAM.format(token=token),
@@ -105,11 +106,15 @@ def enviar(mensaje: str, token: str, chat_id: str, sesion=None) -> None:
         )
         r.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        msg = f"no se pudo enviar a Telegram ({e.response.status_code} {e.response.reason})"
-        raise ErrorEnvio(msg) from None
+        status = getattr(getattr(e, 'response', None), 'status_code', '?')
+        reason = getattr(getattr(e, 'response', None), 'reason', '?')
+        error_msg = f"no se pudo enviar a Telegram ({status} {reason})"
     except requests.exceptions.Timeout:
-        raise ErrorEnvio("no se pudo enviar a Telegram: timeout") from None
-    except requests.exceptions.RequestException as e:
-        raise ErrorEnvio(f"no se pudo enviar a Telegram: error de conexión") from None
-    except Exception as e:  # noqa: BLE001
-        raise ErrorEnvio(f"no se pudo enviar a Telegram: error inesperado") from None
+        error_msg = "no se pudo enviar a Telegram: timeout"
+    except requests.exceptions.RequestException:
+        error_msg = "no se pudo enviar a Telegram: error de conexión"
+    except Exception:  # noqa: BLE001
+        error_msg = "no se pudo enviar a Telegram: error inesperado"
+
+    if error_msg is not None:
+        raise ErrorEnvio(error_msg)
