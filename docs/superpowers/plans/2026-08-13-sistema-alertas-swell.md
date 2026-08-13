@@ -752,7 +752,7 @@ git commit -m "feat: investigacion y perfiles de los 13 spots"
   - `Hora` — dataclass frozen: `t: datetime`, `swell_altura: float`, `swell_periodo: float`, `swell_direccion: float`, `viento_kmh: float`, `viento_direccion: float`, `es_de_dia: bool`
   - `HoraEvaluada` — dataclass frozen: `hora: Hora`, `pasa: bool`, `motivo_rechazo: str | None`, `score: float`, `clase_viento: str`
   - `evaluar_hora(hora: Hora, spot: Spot) -> HoraEvaluada`
-  - `LIMITES_VIENTO` — dict con los umbrales de la tabla de viento
+  - Constantes de umbral de viento a nivel de modulo: `VIENTO_GLASSY_KMH`, `OFFSHORE_IDEAL_KMH`, `OFFSHORE_MAX_KMH`, `CROSS_IDEAL_KMH`, `CROSS_MAX_KMH`, `ONSHORE_MAX_KMH`. Las `*_IDEAL_*` las consume `factor_viento` en la Task 5.
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
