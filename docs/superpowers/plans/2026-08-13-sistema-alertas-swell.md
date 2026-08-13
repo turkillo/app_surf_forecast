@@ -1157,8 +1157,15 @@ def factor_direccion(direccion: float, spot: Spot) -> float:
     """1.0 en la direccion ideal, 0.5 en los bordes de la ventana."""
     sw = spot.swell
     desvio = angular_diff(direccion, sw.ideal)
-    borde = max(angular_diff(sw.ventana[0], sw.ideal),
-                angular_diff(sw.ventana[1], sw.ideal))
+    # Cada lado interpola contra SU propia distancia al ideal. Un max() global
+    # haria que en una ventana asimetrica el lado angosto nunca llegue a 0.5 en
+    # su propio borde, inflando el score justo en condiciones al limite.
+    # 5 de los 13 spots reales tienen ventana asimetrica.
+    delta = ((direccion - sw.ideal + 180) % 360) - 180
+    if delta <= 0:
+        borde = angular_diff(sw.ventana[0], sw.ideal)
+    else:
+        borde = angular_diff(sw.ventana[1], sw.ideal)
     if borde == 0:
         return 1.0
     f = _interpolar(desvio, 0.0, borde, 1.0, PISO_FACTOR_DIRECCION)
