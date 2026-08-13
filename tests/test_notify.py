@@ -163,6 +163,51 @@ def test_la_alerta_reporta_la_concordancia_entre_modelos():
     assert "Concordancia entre modelos" in formatear_alerta(v, SPOT)
 
 
+def _dia_con_modelos(d, concordancia, modelos, de_acuerdo, score=87.0):
+    from dataclasses import replace
+    return replace(dia(d, score=score), concordancia=concordancia,
+                   modelos=tuple(modelos), modelos_de_acuerdo=de_acuerdo)
+
+
+def test_la_etiqueta_no_inventa_modelos_que_no_respondieron():
+    """Important de la Tarea 11: con dos modelos el mensaje decia literalmente
+    'GFS, ICON y ECMWF coinciden' aunque a uno nunca se lo consulto."""
+    from surf.alert import Ventana
+
+    d1 = _dia_con_modelos(21, "media", ["gwam+gfs_seamless", "meteofrance_wave+icon_seamless"], 2)
+    d2 = _dia_con_modelos(22, "media", ["gwam+gfs_seamless", "meteofrance_wave+icon_seamless"], 2)
+    v = Ventana(spot_id=SPOT.id, desde=date(2026, 8, 21), hasta=date(2026, 8, 22),
+                dias=(d1, d2), score=87.0)
+    m = formatear_alerta(v, SPOT)
+    assert "ECMWF" not in m
+    assert "2 de 2" in m
+
+
+def test_la_etiqueta_alta_nombra_los_modelos_que_respondieron():
+    from surf.alert import Ventana
+
+    modelos = ["gwam+gfs_seamless", "meteofrance_wave+icon_seamless",
+               "ncep_gfswave025+ecmwf_ifs025"]
+    d1 = _dia_con_modelos(21, "alta", modelos, 3)
+    d2 = _dia_con_modelos(22, "alta", modelos, 3)
+    v = Ventana(spot_id=SPOT.id, desde=date(2026, 8, 21), hasta=date(2026, 8, 22),
+                dias=(d1, d2), score=87.0)
+    m = formatear_alerta(v, SPOT)
+    assert "GWAM" in m
+    assert "ECMWF" in m
+    assert "3 de 3" in m
+
+
+def test_la_etiqueta_avisa_cuando_faltan_fuentes():
+    from surf.alert import Ventana
+
+    d1 = _dia_con_modelos(21, "media", ["gwam+gfs_seamless", "meteofrance_wave+icon_seamless"], 2)
+    v = Ventana(spot_id=SPOT.id, desde=date(2026, 8, 21), hasta=date(2026, 8, 21),
+                dias=(d1,), score=87.0)
+    m = formatear_alerta(v, SPOT)
+    assert "solo 2" in m.lower()
+
+
 def test_ventana_de_un_dia_usa_singular():
     from surf.alert import Ventana
 

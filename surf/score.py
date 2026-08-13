@@ -70,6 +70,13 @@ class DiaEvaluado:
     resumen: dict[str, float] | None
     motivo_principal: str | None
     concordancia: str = "alta"
+    # Modelos que efectivamente respondieron en la hora que define la
+    # concordancia del dia, y cuantos de ellos pasaron el gate. Se guardan
+    # para que el mensaje pueda nombrar las fuentes reales en vez de un
+    # trio hardcodeado (Tarea 11: el texto decia "GFS, ICON y ECMWF
+    # coinciden" aun cuando a uno nunca se lo habia consultado).
+    modelos: tuple[str, ...] = ()
+    modelos_de_acuerdo: int = 0
 
 
 def _interpolar(x: float, x0: float, x1: float, y0: float, y1: float) -> float:

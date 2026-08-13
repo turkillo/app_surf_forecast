@@ -193,6 +193,88 @@ def test_combinar_multimodelo_falla_si_no_hay_ningun_modelo():
         _combinar_multimodelo(marine, clima, ["best_match"], ["gfs_seamless"])
 
 
+def _marine_multi(series: dict) -> dict:
+    """Arma una respuesta marine con una columna por modelo.
+
+    `series` es {modelo: [(altura, periodo, direccion), ...]}.
+    """
+    n = len(next(iter(series.values())))
+    hourly = {"time": [f"2026-08-21T{9 + i:02d}:00" for i in range(n)]}
+    for modelo, filas in series.items():
+        hourly[f"swell_wave_height_{modelo}"] = [f[0] for f in filas]
+        hourly[f"swell_wave_period_{modelo}"] = [f[1] for f in filas]
+        hourly[f"swell_wave_direction_{modelo}"] = [f[2] for f in filas]
+    return {"hourly": hourly}
+
+
+def _clima_multi(modelos: list[str], n: int) -> dict:
+    hourly = {"time": [f"2026-08-21T{9 + i:02d}:00" for i in range(n)]}
+    for m in modelos:
+        hourly[f"wind_speed_10m_{m}"] = [7.0] * n
+        hourly[f"wind_direction_10m_{m}"] = [320.0] * n
+    return {"hourly": hourly,
+            "daily": {"time": ["2026-08-21"], "sunrise": ["2026-08-21T06:45"],
+                      "sunset": ["2026-08-21T18:20"]}}
+
+
+def test_dos_modelos_de_olas_identicos_cuentan_como_una_sola_fuente():
+    """Critical de la Tarea 11: best_match de la Marine API ES
+    meteofrance_wave. Dos series identicas no pueden ser dos votos, o el
+    consenso de '2 de 3' se convierte en una sola fuente votando dos veces."""
+    from surf.fetch import _combinar_multimodelo
+
+    filas = [(1.8, 14.0, 200.0), (1.9, 14.2, 202.0)]
+    marine = _marine_multi({"clonado": list(filas), "gwam": [(1.2, 9.0, 190.0),
+                                                            (1.3, 9.2, 191.0)],
+                            "original": list(filas)})
+    clima = _clima_multi(["gfs_seamless", "icon_seamless", "ecmwf_ifs025"], 2)
+
+    por_dia = _combinar_multimodelo(
+        marine, clima, ["clonado", "gwam", "original"],
+        ["gfs_seamless", "icon_seamless", "ecmwf_ifs025"])
+    hmm = por_dia[date(2026, 8, 21)][0]
+    assert len(hmm.por_modelo) == 2, (
+        f"series duplicadas contadas dos veces: {sorted(hmm.por_modelo)}")
+    assert not any(n.startswith("original") for n in hmm.por_modelo)
+
+
+def test_altura_cero_se_trata_como_hueco_de_cobertura():
+    """ncep_gfswave025 devuelve 0.0/0.0/0 en 5 de los 13 spots: es una celda
+    de grilla enmascarada como tierra, no mar planchado. Verificado contra la
+    API real. Un 0.0 no puede votar como si fuera un dato."""
+    from surf.fetch import _combinar_multimodelo
+
+    marine = _marine_multi({
+        "gwam": [(1.8, 14.0, 200.0), (1.9, 14.2, 202.0)],
+        "ncep_gfswave025": [(0.0, 0.0, 0.0), (0.0, 0.0, 0.0)],
+    })
+    clima = _clima_multi(["gfs_seamless", "icon_seamless"], 2)
+
+    por_dia = _combinar_multimodelo(
+        marine, clima, ["gwam", "ncep_gfswave025"],
+        ["gfs_seamless", "icon_seamless"])
+    hmm = por_dia[date(2026, 8, 21)][0]
+    assert len(hmm.por_modelo) == 1
+    assert not any("ncep" in n for n in hmm.por_modelo)
+
+
+def test_altura_cero_no_descarta_las_horas_con_dato_real_del_mismo_modelo():
+    from surf.fetch import _combinar_multimodelo
+
+    marine = _marine_multi({
+        "gwam": [(1.8, 14.0, 200.0), (1.9, 14.2, 202.0)],
+        "ncep_gfswave025": [(0.0, 0.0, 0.0), (1.5, 13.0, 198.0)],
+    })
+    clima = _clima_multi(["gfs_seamless", "icon_seamless"], 2)
+
+    por_dia = _combinar_multimodelo(
+        marine, clima, ["gwam", "ncep_gfswave025"],
+        ["gfs_seamless", "icon_seamless"])
+    horas = por_dia[date(2026, 8, 21)]
+    assert len(horas[0].por_modelo) == 1
+    assert len(horas[1].por_modelo) == 2
+
+
 def test_combinar_multimodelo_usa_sunrise_sufijado_por_modelo():
     # Open-Meteo tambien sufija sunrise/sunset por modelo cuando se pide
     # "models" en la Forecast API (no solo las columnas horarias).

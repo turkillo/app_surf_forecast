@@ -23,11 +23,18 @@ RUTA_ESTADO = Path("state.json")
 DIA_DEL_DIGEST = 6  # domingo
 
 
+# Los motivos de rechazo son texto de cara al usuario y van acentuados, asi
+# que buscar solo la forma sin acento no matcheaba nunca y el digest dominical
+# no podia listar una sola ventana cerca del umbral. Se aceptan las dos formas
+# para que un cambio de redaccion no vuelva a dejarlo ciego.
+_MOTIVOS_CERCA = ("período", "periodo", "onshore", "cross", "dirección", "direccion")
+
+
 def _cerca_del_umbral(dia: DiaEvaluado) -> bool:
     """Fallo por un solo criterio y no por falta de olas."""
     if dia.es_bueno or not dia.motivo_principal:
         return False
-    return any(k in dia.motivo_principal for k in ("periodo", "onshore", "cross", "direccion"))
+    return any(k in dia.motivo_principal for k in _MOTIVOS_CERCA)
 
 
 def _enviar_seguro(mensaje: str, enviar_fn: Callable[[str], None], spot_id: str) -> bool:

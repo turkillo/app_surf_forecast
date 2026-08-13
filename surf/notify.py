@@ -15,11 +15,62 @@ _MESES = ["", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
           "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 _DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
-_ETIQUETA_CONCORDANCIA = {
-    "alta": "Concordancia entre modelos: alta (GFS, ICON y ECMWF coinciden) ✓",
-    "media": "Concordancia entre modelos: media (2 de 3 coinciden)",
-    "baja": "Concordancia entre modelos: baja",
+_ORDEN_CONCORDANCIA = {"alta": 2, "media": 1, "baja": 0}
+
+# Nombre corto y legible de cada modelo de Open-Meteo. Lo que llega en
+# DiaEvaluado.modelos son pares "modelo_de_olas+modelo_de_viento".
+_NOMBRES_MODELOS = {
+    "gwam": "GWAM",
+    "meteofrance_wave": "MFWAM",
+    "ncep_gfswave025": "GFS-Wave",
+    "best_match": "Open-Meteo",
+    "gfs_seamless": "GFS",
+    "icon_seamless": "ICON",
+    "ecmwf_ifs025": "ECMWF",
 }
+
+
+def _nombre_legible(par: str) -> str:
+    return "/".join(_NOMBRES_MODELOS.get(p, p) for p in par.split("+"))
+
+
+def _listar(nombres: list[str]) -> str:
+    if len(nombres) == 1:
+        return nombres[0]
+    return f"{', '.join(nombres[:-1])} y {nombres[-1]}"
+
+
+def etiqueta_concordancia(nivel: str, modelos: tuple[str, ...],
+                          de_acuerdo: int) -> str:
+    """Arma la linea de concordancia con los modelos que REALMENTE respondieron.
+
+    Antes esta linea era un texto fijo que decia "GFS, ICON y ECMWF coinciden"
+    aunque el pronostico se hubiera calculado con dos modelos: si Open-Meteo
+    dejaba de servir uno en un spot, el usuario leia que los tres coincidian
+    sobre algo que uno de ellos nunca vio.
+    """
+    base = "Concordancia entre modelos"
+    total = len(modelos)
+    if not total:
+        # Dia armado por una via que no registra modelos (p.ej. evaluar_dia
+        # de un solo modelo). No se inventan nombres ni cantidades.
+        if nivel == "alta":
+            return f"{base}: alta (los modelos coinciden) ✓"
+        return f"{base}: {nivel}"
+
+    nombres = [_nombre_legible(m) for m in modelos]
+    if nivel == "alta":
+        return f"{base}: alta ({de_acuerdo} de {total} coinciden: {_listar(nombres)}) ✓"
+
+    cola = ""
+    if total < 3:
+        cola = (f" — solo {total} de 3 fuentes disponibles en este spot"
+                if total > 1 else " — una sola fuente disponible en este spot")
+    # En media y baja NO coincidieron todos, asi que los nombres se listan como
+    # "consultados" y no como "coinciden": decir lo contrario seria repetir el
+    # error que este arreglo corrige.
+    return (f"{base}: {nivel} ({de_acuerdo} de {total} coinciden — "
+            f"consultados: {_listar(nombres)}){cola}")
 
 
 class ErrorEnvio(Exception):
@@ -70,9 +121,14 @@ def formatear_alerta(ventana: Ventana, spot: Spot) -> str:
         )
     partes.append("Confirmado en 2 corridas consecutivas ✓")
 
-    peor = min((d.concordancia for d in ventana.dias),
-               key=lambda n: {"alta": 2, "media": 1, "baja": 0}[n])
-    partes.append(_ETIQUETA_CONCORDANCIA[peor])
+    # El dia con peor concordancia manda: es el dato conservador. Se toman de
+    # ese mismo dia los modelos y el conteo, para que la linea describa la
+    # situacion real y no una mezcla de dias distintos.
+    peor_dia = min(ventana.dias,
+                   key=lambda d: (_ORDEN_CONCORDANCIA[d.concordancia],
+                                  len(d.modelos), d.modelos_de_acuerdo))
+    partes.append(etiqueta_concordancia(peor_dia.concordancia, peor_dia.modelos,
+                                        peor_dia.modelos_de_acuerdo))
 
     if spot.confianza == "baja":
         partes.append("⚠️ perfil poco validado — chequear en surf-forecast antes de viajar")

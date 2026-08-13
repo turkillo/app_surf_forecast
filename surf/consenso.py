@@ -21,8 +21,25 @@ from surf.score import (HORAS_MINIMAS_CONSECUTIVAS, DiaEvaluado, Hora,
 from surf.spots import Spot
 
 MODELOS_VIENTO = ["gfs_seamless", "icon_seamless", "ecmwf_ifs025"]
-MODELOS_OLAS = ["best_match", "gwam", "meteofrance_wave"]
+
+# Fuentes de olas GENUINAMENTE distintas. best_match de la Marine API no es
+# una fuente propia: es meteofrance_wave con otro nombre (verificado contra la
+# API real: identicos en altura, periodo y direccion en 72/72 horas y en los
+# 13 spots). Tenerlo aca hacia que una sola fuente votara dos veces y que gwam
+# --el unico que realmente difiere-- quedara en minoria permanente.
+#
+# ncep_gfswave025 si es independiente, pero su grilla de 0.25 grados deja 5 de
+# los 13 spots en una celda enmascarada como tierra y devuelve 0.0/0.0/0 las
+# 72 horas. Ese 0.0 se descarta como dato faltante en fetch, no se toma como
+# mar planchado. En esos spots el consenso queda con dos fuentes y el sistema
+# lo dice: nunca reporta concordancia alta.
+MODELOS_OLAS = ["gwam", "meteofrance_wave", "ncep_gfswave025"]
+
 MINIMO_MODELOS_DE_ACUERDO = 2
+# "Alta" es la etiqueta que le dice al usuario que puede manejar cuatro horas
+# sin chequear nada mas. No se puede afirmar con menos de tres fuentes: si un
+# modelo no respondio, no hay tres opiniones, hay dos.
+MINIMO_MODELOS_PARA_ALTA = 3
 
 _ORDEN_CONCORDANCIA = {"alta": 2, "media": 1, "baja": 0}
 
@@ -50,13 +67,14 @@ def consensuar(hmm: HoraMultiModelo, spot: Spot) -> tuple[Hora, str, int]:
     pasaron = sum(1 for h in horas if evaluar_hora(h, spot).pasa)
 
     total = len(horas)
-    if pasaron == total and total >= MINIMO_MODELOS_DE_ACUERDO:
+    if pasaron == total and total >= MINIMO_MODELOS_PARA_ALTA:
         nivel = "alta"
     elif pasaron >= MINIMO_MODELOS_DE_ACUERDO:
         nivel = "media"
-    elif total == 1 and pasaron == 1:
-        nivel = "alta"  # con un solo modelo no hay desacuerdo posible
     else:
+        # Incluye el caso de un solo modelo: que no haya desacuerdo posible
+        # no es lo mismo que haya acuerdo. Una sola fuente es el escenario
+        # de falso positivo que este modulo existe para evitar.
         nivel = "baja"
 
     mediana = Hora(
@@ -71,6 +89,69 @@ def consensuar(hmm: HoraMultiModelo, spot: Spot) -> tuple[Hora, str, int]:
     return mediana, nivel, pasaron
 
 
+def _categoria(motivo: str | None) -> str | None:
+    """Motivo sin los valores medidos.
+
+    Los motivos son texto de cara al usuario y llevan el numero adentro
+    ("periodo corto (6.0s, minimo 9.0s)"), asi que tres modelos que rechazan
+    por lo mismo producen tres strings distintos. Comparar el string completo
+    haria pasar por desacuerdo lo que es coincidencia.
+    """
+    if motivo is None:
+        return None
+    return motivo.split("(")[0].strip()
+
+
+def _motivo_de_rechazo(hmm: HoraMultiModelo, mediana: Hora, spot: Spot,
+                       pasaron: int) -> str:
+    """Por que se rechaza una hora que no junto los votos necesarios.
+
+    Si TODOS los modelos rechazan la hora por el mismo motivo, ese es el
+    motivo real y hay que conservarlo: a las 3 AM los tres modelos coinciden
+    perfectamente en que es de noche, decir "los modelos no coinciden" es
+    falso y ademas tapa el motivo que el digest necesita leer.
+    """
+    motivos = [evaluar_hora(h, spot).motivo_rechazo
+               for h in hmm.por_modelo.values()]
+    categorias = {_categoria(m) for m in motivos}
+    if len(categorias) == 1 and None not in categorias:
+        # Se prefiere el motivo de la hora mediana, que es la que el resto del
+        # sistema reporta; si la mediana no cae en la misma categoria, sirve
+        # cualquiera de los modelos porque todos dicen lo mismo.
+        de_mediana = evaluar_hora(mediana, spot).motivo_rechazo
+        if _categoria(de_mediana) in categorias:
+            return de_mediana
+        return motivos[0]
+    return f"los modelos no coinciden ({pasaron} de {len(hmm.por_modelo)})"
+
+
+def _motivo_principal(evaluadas: list[HoraEvaluada],
+                      de_dia: dict[datetime, bool]) -> str | None:
+    """Motivo dominante del dia, contado SOLO sobre las horas de luz.
+
+    Hay ~12 horas de noche por dia y todas se rechazan por la misma razon, asi
+    que si entraran en la cuenta ganarian siempre y el motivo del dia seria
+    "fuera de horas de luz" para todos los dias del ano. Eso deja ciego al
+    digest dominical, que es la red contra los falsos negativos.
+    """
+    def contar(horas: list[HoraEvaluada]) -> str | None:
+        # Se cuenta por categoria, no por string completo: si no, "periodo
+        # corto (6.0s...)" y "periodo corto (6.5s...)" se reparten los votos
+        # y puede ganar un motivo que aparecio una sola vez.
+        con_motivo = [e for e in horas if e.motivo_rechazo]
+        if not con_motivo:
+            return None
+        categorias = Counter(_categoria(e.motivo_rechazo) for e in con_motivo)
+        gana = categorias.most_common(1)[0][0]
+        return next(e.motivo_rechazo for e in con_motivo
+                    if _categoria(e.motivo_rechazo) == gana)
+
+    luz = [e for e in evaluadas if de_dia.get(e.hora.t, e.hora.es_de_dia)]
+    # Si el dia no tiene ninguna hora de luz (o ninguna con motivo), se cae al
+    # conjunto completo antes que devolver None.
+    return contar(luz) or contar(evaluadas)
+
+
 def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
                             fecha: date) -> DiaEvaluado:
     """Igual que evaluar_dia, pero exigiendo acuerdo entre modelos."""
@@ -82,14 +163,20 @@ def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
 
     evaluadas: list[HoraEvaluada] = []
     niveles: dict[datetime, str] = {}
+    modelos: dict[datetime, tuple[str, ...]] = {}
+    acuerdos: dict[datetime, int] = {}
+    de_dia: dict[datetime, bool] = {}
 
     for hmm in sorted(hmms, key=lambda x: x.t):
         mediana, nivel, pasaron = consensuar(hmm, spot)
         niveles[hmm.t] = nivel
+        modelos[hmm.t] = tuple(hmm.por_modelo)
+        acuerdos[hmm.t] = pasaron
+        de_dia[hmm.t] = hmm.es_de_dia
         if pasaron < min(MINIMO_MODELOS_DE_ACUERDO, len(hmm.por_modelo)):
             evaluadas.append(HoraEvaluada(
                 hora=mediana, pasa=False,
-                motivo_rechazo=f"los modelos no coinciden ({pasaron} de {len(hmm.por_modelo)})",
+                motivo_rechazo=_motivo_de_rechazo(hmm, mediana, spot, pasaron),
                 score=0.0, clase_viento="",
             ))
         else:
@@ -99,12 +186,11 @@ def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
                if len(b) >= HORAS_MINIMAS_CONSECUTIVAS]
 
     if not bloques:
-        motivos = Counter(e.motivo_rechazo for e in evaluadas if e.motivo_rechazo)
         return DiaEvaluado(
             fecha=fecha, spot_id=spot.id, es_bueno=False, score=0.0,
             horas_buenas=sum(1 for e in evaluadas if e.pasa), bloque=None,
             resumen=None,
-            motivo_principal=motivos.most_common(1)[0][0] if motivos else None,
+            motivo_principal=_motivo_principal(evaluadas, de_dia),
             concordancia="baja",
         )
 
@@ -119,13 +205,17 @@ def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
 
     assert mejor is not None
     # El dia hereda la PEOR concordancia de su mejor bloque: es el dato
-    # conservador, que es el que corresponde para decidir un viaje.
-    peor = min((niveles[e.hora.t] for e in mejor),
-               key=lambda n: _ORDEN_CONCORDANCIA[n])
+    # conservador, que es el que corresponde para decidir un viaje. Los
+    # nombres de los modelos y cuantos coincidieron salen de esa misma hora,
+    # para que el mensaje describa exactamente la hora que define la etiqueta.
+    t_peor = min((e.hora.t for e in mejor),
+                 key=lambda t: (_ORDEN_CONCORDANCIA[niveles[t]], acuerdos[t]))
 
     return DiaEvaluado(
         fecha=fecha, spot_id=spot.id, es_bueno=True, score=mejor_score,
         horas_buenas=sum(1 for e in evaluadas if e.pasa),
         bloque=(mejor[0].hora.t, mejor[-1].hora.t),
-        resumen=_resumir(mejor), motivo_principal=None, concordancia=peor,
+        resumen=_resumir(mejor), motivo_principal=None,
+        concordancia=niveles[t_peor], modelos=modelos[t_peor],
+        modelos_de_acuerdo=acuerdos[t_peor],
     )

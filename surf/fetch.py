@@ -24,6 +24,10 @@ TIMEOUT_S = 30
 _CAMPOS_MARINE = ["swell_wave_height", "swell_wave_period", "swell_wave_direction"]
 _CAMPOS_CLIMA = ["wind_speed_10m", "wind_direction_10m"]
 
+# Altura de swell que Open-Meteo devuelve cuando la celda de grilla del modelo
+# esta enmascarada como tierra. No es un dato, es un hueco de cobertura.
+ALTURA_HUECO_M = 0.0
+
 
 class ErrorDatos(Exception):
     """Los datos recibidos no sirven para evaluar."""
@@ -191,10 +195,23 @@ def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
 
     # Emparejar modelos de olas con modelos de viento por posicion.
     pares = []
+    series_vistas: dict[tuple, str] = {}
     for i, mo in enumerate(modelos_olas):
         cols_olas = {c: _sufijo(c, mo, hm) for c in _CAMPOS_MARINE}
         if any(v is None for v in cols_olas.values()):
             continue
+
+        # Dos modelos que devuelven la MISMA serie son una sola fuente, no dos
+        # votos. Es exactamente lo que pasaba con best_match y meteofrance_wave
+        # (identicos en 72/72 horas y en los 13 spots): el consenso "2 de 3"
+        # se satisfacia con una sola fuente de olas votando dos veces. Se
+        # descarta aca, en el origen, para que el bug no pueda reintroducirse
+        # agregando un modelo redundante a la lista.
+        huella = tuple(tuple(hm[cols_olas[c]]) for c in _CAMPOS_MARINE)
+        if huella in series_vistas:
+            continue
+        series_vistas[huella] = mo
+
         mv = modelos_viento[min(i, len(modelos_viento) - 1)]
         cols_viento = {c: _sufijo(c, mv, hc) for c in _CAMPOS_CLIMA}
         if any(v is None for v in cols_viento.values()):
@@ -221,6 +238,14 @@ def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
             vals = ([hm[c][i] for c in cols_olas.values()]
                     + [hc[c][i] for c in cols_viento.values()])
             if any(v is None for v in vals):
+                continue
+            if float(hm[cols_olas["swell_wave_height"]][i]) == ALTURA_HUECO_M:
+                # Un 0.0 exacto donde otros modelos ven mas de un metro no es
+                # mar planchado: es una celda de grilla enmascarada como
+                # tierra. ncep_gfswave025 devuelve 0.0/0.0/0 las 72 horas en 5
+                # de los 13 spots (verificado contra la API real). Tomarlo
+                # como cero real haria que ese modelo votara siempre que no,
+                # y arrastraria la mediana de altura hacia abajo.
                 continue
             por_modelo[nombre] = Hora(
                 t=t,
