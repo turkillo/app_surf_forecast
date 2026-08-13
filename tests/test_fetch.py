@@ -1,8 +1,9 @@
 from datetime import date
 
 import pytest
+import requests
 
-from surf.fetch import ErrorDatos, _combinar
+from surf.fetch import ErrorDatos, _combinar, _pedir
 
 MARINE = {
     "hourly": {
@@ -68,3 +69,59 @@ def test_falla_si_no_hay_datos_diarios_de_sol():
     clima = {"hourly": CLIMA["hourly"], "daily": {"time": [], "sunrise": [], "sunset": []}}
     with pytest.raises(ErrorDatos, match="sol"):
         _combinar(MARINE, clima)
+
+
+class _RespuestaFalsa:
+    """Simula una requests.Response con el subset que usa _pedir."""
+
+    def __init__(self, payload):
+        self._payload = payload
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return self._payload
+
+
+class _SesionErrorSemantico:
+    """Open-Meteo responde 200 pero con {'error': true}, siempre."""
+
+    def __init__(self, payload):
+        self.payload = payload
+        self.llamadas = 0
+
+    def get(self, url, params=None, timeout=None):
+        self.llamadas += 1
+        return _RespuestaFalsa(self.payload)
+
+
+class _SesionFlaky:
+    """Falla con un error de red las primeras `fallos` veces, despues responde bien."""
+
+    def __init__(self, fallos, payload):
+        self.fallos = fallos
+        self.payload = payload
+        self.llamadas = 0
+
+    def get(self, url, params=None, timeout=None):
+        self.llamadas += 1
+        if self.llamadas <= self.fallos:
+            raise requests.exceptions.ConnectionError("no hay red")
+        return _RespuestaFalsa(self.payload)
+
+
+def test_error_semantico_no_reintenta(monkeypatch):
+    monkeypatch.setattr("surf.fetch.time.sleep", lambda s: None)
+    sesion = _SesionErrorSemantico({"error": True, "reason": "coordenadas invalidas"})
+    with pytest.raises(ErrorDatos, match="devolvio error"):
+        _pedir("http://x", {}, sesion=sesion)
+    assert sesion.llamadas == 1
+
+
+def test_fallo_de_red_reintenta_y_se_recupera(monkeypatch):
+    monkeypatch.setattr("surf.fetch.time.sleep", lambda s: None)
+    sesion = _SesionFlaky(fallos=2, payload={"ok": True})
+    datos = _pedir("http://x", {}, sesion=sesion)
+    assert datos == {"ok": True}
+    assert sesion.llamadas == 3

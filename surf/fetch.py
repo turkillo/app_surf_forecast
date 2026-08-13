@@ -41,7 +41,11 @@ def _pedir(url: str, params: dict, sesion=None) -> dict:
             if datos.get("error"):
                 raise ErrorDatos(f"Open-Meteo devolvio error: {datos.get('reason')}")
             return datos
-        except Exception as e:  # noqa: BLE001 - reintentamos ante cualquier fallo de red
+        except requests.exceptions.RequestException as e:
+            # Solo fallos de red/HTTP se reintentan. Un ErrorDatos semantico
+            # (Open-Meteo respondio pero con {"error": true}) no es RequestException
+            # y se propaga de inmediato: reintentar no arregla una coordenada
+            # invalida ni un parametro mal formado.
             ultimo = e
             if intento < REINTENTOS - 1:
                 time.sleep(ESPERA_BASE_S * (2 ** intento))
