@@ -12,6 +12,7 @@ import json
 from datetime import date, datetime
 
 import run as run_module
+from surf.consenso import HoraMultiModelo
 from surf.fetch import ErrorDatos
 from surf.score import Hora
 
@@ -45,10 +46,17 @@ def _preparar_spots_yaml(tmp_path):
 
 
 def _horas_buenas(fecha):
-    return [Hora(t=datetime(fecha.year, fecha.month, fecha.day, x),
-                 swell_altura=2.0, swell_periodo=14.0, swell_direccion=157.0,
-                 viento_kmh=5.0, viento_direccion=320.0, es_de_dia=True)
-            for x in range(7, 13)]
+    horas = []
+    for x in range(7, 13):
+        t = datetime(fecha.year, fecha.month, fecha.day, x)
+        hora = Hora(t=t, swell_altura=2.0, swell_periodo=14.0,
+                    swell_direccion=157.0, viento_kmh=5.0,
+                    viento_direccion=320.0, es_de_dia=True)
+        horas.append(HoraMultiModelo(
+            t=t, es_de_dia=True,
+            por_modelo={"a": hora, "b": hora, "c": hora},
+        ))
+    return horas
 
 
 def _obtener_horas_buenas(spot, dias=7, sesion=None):
@@ -80,7 +88,7 @@ def test_main_todos_los_spots_fallan_no_escribe_estado_y_sale_1(monkeypatch, tmp
     monkeypatch.setattr(run_module, "RUTA_SPOTS", _preparar_spots_yaml(tmp_path))
     ruta_estado = tmp_path / "state.json"
     monkeypatch.setattr(run_module, "RUTA_ESTADO", ruta_estado)
-    monkeypatch.setattr(run_module, "obtener_horas", _obtener_horas_rota)
+    monkeypatch.setattr(run_module, "obtener_horas_multimodelo", _obtener_horas_rota)
     avisos = []
     monkeypatch.setattr(run_module, "enviar",
                         lambda m, token, chat_id: avisos.append(m))
@@ -98,7 +106,7 @@ def test_main_corrida_normal_escribe_estado_valido(monkeypatch, tmp_path):
     monkeypatch.setattr(run_module, "RUTA_SPOTS", _preparar_spots_yaml(tmp_path))
     ruta_estado = tmp_path / "state.json"
     monkeypatch.setattr(run_module, "RUTA_ESTADO", ruta_estado)
-    monkeypatch.setattr(run_module, "obtener_horas", _obtener_horas_buenas)
+    monkeypatch.setattr(run_module, "obtener_horas_multimodelo", _obtener_horas_buenas)
     monkeypatch.setattr(run_module, "enviar", lambda m, token, chat_id: None)
 
     codigo = run_module.main()
@@ -118,7 +126,7 @@ def test_main_no_pisa_state_json_preexistente_si_la_corrida_falla(monkeypatch, t
     contenido_previo = {"ultima_corrida": "2026-01-01", "observadas": [], "alertadas": []}
     ruta_estado.write_text(json.dumps(contenido_previo))
     monkeypatch.setattr(run_module, "RUTA_ESTADO", ruta_estado)
-    monkeypatch.setattr(run_module, "obtener_horas", _obtener_horas_rota)
+    monkeypatch.setattr(run_module, "obtener_horas_multimodelo", _obtener_horas_rota)
     monkeypatch.setattr(run_module, "enviar", lambda m, token, chat_id: None)
 
     codigo = run_module.main()

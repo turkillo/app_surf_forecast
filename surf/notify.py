@@ -15,6 +15,12 @@ _MESES = ["", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
           "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 _DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
+_ETIQUETA_CONCORDANCIA = {
+    "alta": "Concordancia entre modelos: alta (GFS, ICON y ECMWF coinciden) ✓",
+    "media": "Concordancia entre modelos: media (2 de 3 coinciden)",
+    "baja": "Concordancia entre modelos: baja",
+}
+
 
 class ErrorEnvio(Exception):
     """No se pudo entregar el mensaje."""
@@ -63,6 +69,10 @@ def formatear_alerta(ventana: Ventana, spot: Spot) -> str:
             f"{mejor.bloque[0].hour}-{mejor.bloque[1].hour} hs"
         )
     partes.append("Confirmado en 2 corridas consecutivas ✓")
+
+    peor = min((d.concordancia for d in ventana.dias),
+               key=lambda n: {"alta": 2, "media": 1, "baja": 0}[n])
+    partes.append(_ETIQUETA_CONCORDANCIA[peor])
 
     if spot.confianza == "baja":
         partes.append("⚠️ perfil poco validado — chequear en surf-forecast antes de viajar")

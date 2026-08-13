@@ -124,3 +124,117 @@ def obtener_horas(spot: Spot, dias: int = 7, sesion=None) -> dict[date, list[Hor
         sesion,
     )
     return _combinar(marine, clima)
+
+
+def obtener_horas_multimodelo(spot: Spot, dias: int = 7,
+                              sesion=None) -> dict[date, list["HoraMultiModelo"]]:
+    """Trae el pronostico de varios modelos y los devuelve agrupados por hora.
+
+    Los modelos de olas y de viento se emparejan por posicion. Si un modelo no
+    tiene cobertura en el spot, Open-Meteo no devuelve su columna y ese modelo
+    se omite; el consenso se calcula con los que si respondieron.
+    """
+    from surf.consenso import MODELOS_OLAS, MODELOS_VIENTO, HoraMultiModelo
+
+    base = {"latitude": spot.lat, "longitude": spot.lon,
+            "timezone": "auto", "forecast_days": dias}
+
+    marine = _pedir(URL_MARINE, {**base, "hourly": ",".join(_CAMPOS_MARINE),
+                                 "models": ",".join(MODELOS_OLAS)}, sesion)
+    clima = _pedir(URL_CLIMA, {**base, "hourly": ",".join(_CAMPOS_CLIMA),
+                               "models": ",".join(MODELOS_VIENTO),
+                               "daily": "sunrise,sunset",
+                               "wind_speed_unit": "kmh"}, sesion)
+
+    return _combinar_multimodelo(marine, clima, MODELOS_OLAS, MODELOS_VIENTO)
+
+
+def _sufijo(campo: str, modelo: str, disponibles: dict) -> str | None:
+    """Open-Meteo sufija cada columna con el nombre del modelo.
+
+    La Marine API antepone 'marine_' a best_match; por eso se prueban las
+    dos formas en vez de asumir una.
+    """
+    for candidato in (f"{campo}_{modelo}", f"{campo}_marine_{modelo}"):
+        if candidato in disponibles:
+            return candidato
+    return None
+
+
+def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
+                          modelos_viento: list[str]) -> dict:
+    """Une las respuestas multi-modelo. Funcion pura."""
+    from surf.consenso import HoraMultiModelo
+
+    hm, hc, dc = marine.get("hourly", {}), clima.get("hourly", {}), clima.get("daily", {})
+
+    if "time" not in hm or "time" not in hc:
+        raise ErrorDatos("falta la serie 'time' en alguna respuesta")
+    if hm["time"] != hc["time"]:
+        raise ErrorDatos("las series horarias de marine y clima no alinean")
+
+    # Open-Meteo sufija sunrise/sunset por modelo igual que las columnas
+    # horarias cuando se pide "models" en la Forecast API, asi que "sunrise"
+    # a secas no esta presente. Se usa el primer modelo de viento disponible
+    # como referencia (el amanecer/ocaso no varia de forma relevante entre
+    # modelos).
+    col_sunrise = _sufijo("sunrise", modelos_viento[0], dc) if modelos_viento else None
+    col_sunset = _sufijo("sunset", modelos_viento[0], dc) if modelos_viento else None
+    if col_sunrise is None or col_sunset is None:
+        for candidato in dc:
+            if candidato.startswith("sunrise") and dc.get(candidato):
+                col_sunrise = candidato
+            if candidato.startswith("sunset") and dc.get(candidato):
+                col_sunset = candidato
+    if not col_sunrise or not col_sunset or not dc.get(col_sunrise) or not dc.get(col_sunset):
+        raise ErrorDatos("faltan los datos de salida y puesta del sol")
+
+    # Emparejar modelos de olas con modelos de viento por posicion.
+    pares = []
+    for i, mo in enumerate(modelos_olas):
+        cols_olas = {c: _sufijo(c, mo, hm) for c in _CAMPOS_MARINE}
+        if any(v is None for v in cols_olas.values()):
+            continue
+        mv = modelos_viento[min(i, len(modelos_viento) - 1)]
+        cols_viento = {c: _sufijo(c, mv, hc) for c in _CAMPOS_CLIMA}
+        if any(v is None for v in cols_viento.values()):
+            continue
+        pares.append((f"{mo}+{mv}", cols_olas, cols_viento))
+
+    if not pares:
+        raise ErrorDatos("ningun modelo devolvio las columnas esperadas")
+
+    sol = {date.fromisoformat(d): (datetime.fromisoformat(dc[col_sunrise][i]),
+                                   datetime.fromisoformat(dc[col_sunset][i]))
+           for i, d in enumerate(dc["time"])}
+
+    por_dia: dict = {}
+    for i, t_str in enumerate(hm["time"]):
+        t = datetime.fromisoformat(t_str)
+        if t.date() not in sol:
+            continue
+        amanecer, ocaso = sol[t.date()]
+        es_de_dia = amanecer <= t <= ocaso
+
+        por_modelo = {}
+        for nombre, cols_olas, cols_viento in pares:
+            vals = ([hm[c][i] for c in cols_olas.values()]
+                    + [hc[c][i] for c in cols_viento.values()])
+            if any(v is None for v in vals):
+                continue
+            por_modelo[nombre] = Hora(
+                t=t,
+                swell_altura=float(hm[cols_olas["swell_wave_height"]][i]),
+                swell_periodo=float(hm[cols_olas["swell_wave_period"]][i]),
+                swell_direccion=float(hm[cols_olas["swell_wave_direction"]][i]),
+                viento_kmh=float(hc[cols_viento["wind_speed_10m"]][i]),
+                viento_direccion=float(hc[cols_viento["wind_direction_10m"]][i]),
+                es_de_dia=es_de_dia,
+            )
+
+        if por_modelo:
+            por_dia.setdefault(t.date(), []).append(
+                HoraMultiModelo(t=t, es_de_dia=es_de_dia, por_modelo=por_modelo)
+            )
+
+    return por_dia

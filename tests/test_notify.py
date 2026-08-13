@@ -158,6 +158,11 @@ def test_alerta_con_resumen_none_marca_datos_faltantes():
     assert "sin datos de pronóstico" in m
 
 
+def test_la_alerta_reporta_la_concordancia_entre_modelos():
+    v = detectar_ventanas([dia(21), dia(22)])[0]
+    assert "Concordancia entre modelos" in formatear_alerta(v, SPOT)
+
+
 def test_ventana_de_un_dia_usa_singular():
     from surf.alert import Ventana
 

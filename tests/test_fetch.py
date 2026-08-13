@@ -152,3 +152,70 @@ def test_json_malformado_reintenta_y_termina_en_error_datos(monkeypatch):
     with pytest.raises(ErrorDatos, match="fallaron"):
         _pedir("http://x", {}, sesion=sesion)
     assert sesion.llamadas == 3
+
+
+def test_combinar_multimodelo_arma_una_hora_por_modelo():
+    from surf.fetch import _combinar_multimodelo
+
+    marine = {"hourly": {
+        "time": ["2026-08-21T09:00"],
+        "swell_wave_height_marine_best_match": [1.8],
+        "swell_wave_period_marine_best_match": [14.0],
+        "swell_wave_direction_marine_best_match": [200.0],
+        "swell_wave_height_gwam": [1.6],
+        "swell_wave_period_gwam": [13.5],
+        "swell_wave_direction_gwam": [198.0],
+    }}
+    clima = {"hourly": {
+        "time": ["2026-08-21T09:00"],
+        "wind_speed_10m_gfs_seamless": [14.9],
+        "wind_direction_10m_gfs_seamless": [95.0],
+        "wind_speed_10m_icon_seamless": [7.0],
+        "wind_direction_10m_icon_seamless": [97.0],
+    }, "daily": {"time": ["2026-08-21"], "sunrise": ["2026-08-21T06:45"],
+                 "sunset": ["2026-08-21T18:20"]}}
+
+    por_dia = _combinar_multimodelo(
+        marine, clima, ["best_match", "gwam"], ["gfs_seamless", "icon_seamless"])
+    hmm = por_dia[date(2026, 8, 21)][0]
+    assert len(hmm.por_modelo) == 2
+    assert hmm.es_de_dia is True
+
+
+def test_combinar_multimodelo_falla_si_no_hay_ningun_modelo():
+    from surf.fetch import _combinar_multimodelo
+
+    marine = {"hourly": {"time": ["2026-08-21T09:00"]}}
+    clima = {"hourly": {"time": ["2026-08-21T09:00"]},
+             "daily": {"time": ["2026-08-21"], "sunrise": ["2026-08-21T06:45"],
+                       "sunset": ["2026-08-21T18:20"]}}
+    with pytest.raises(ErrorDatos, match="ningun modelo"):
+        _combinar_multimodelo(marine, clima, ["best_match"], ["gfs_seamless"])
+
+
+def test_combinar_multimodelo_usa_sunrise_sufijado_por_modelo():
+    # Open-Meteo tambien sufija sunrise/sunset por modelo cuando se pide
+    # "models" en la Forecast API (no solo las columnas horarias).
+    from surf.fetch import _combinar_multimodelo
+
+    marine = {"hourly": {
+        "time": ["2026-08-21T09:00"],
+        "swell_wave_height_marine_best_match": [1.8],
+        "swell_wave_period_marine_best_match": [14.0],
+        "swell_wave_direction_marine_best_match": [200.0],
+    }}
+    clima = {"hourly": {
+        "time": ["2026-08-21T09:00"],
+        "wind_speed_10m_gfs_seamless": [14.9],
+        "wind_direction_10m_gfs_seamless": [95.0],
+    }, "daily": {
+        "time": ["2026-08-21"],
+        "sunrise_gfs_seamless": ["2026-08-21T06:45"],
+        "sunset_gfs_seamless": ["2026-08-21T18:20"],
+    }}
+
+    por_dia = _combinar_multimodelo(
+        marine, clima, ["best_match"], ["gfs_seamless"])
+    hmm = por_dia[date(2026, 8, 21)][0]
+    assert len(hmm.por_modelo) == 1
+    assert hmm.es_de_dia is True

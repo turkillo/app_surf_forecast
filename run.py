@@ -12,9 +12,10 @@ from typing import Callable
 
 from surf.alert import (Ventana, decidir_alertas, detectar_ventanas,
                         estado_vacio, registrar_corrida)
-from surf.fetch import ErrorDatos, obtener_horas
+from surf.consenso import evaluar_dia_multimodelo
+from surf.fetch import ErrorDatos, obtener_horas_multimodelo
 from surf.notify import ErrorEnvio, enviar, formatear_alerta, formatear_digest
-from surf.score import DiaEvaluado, evaluar_dia
+from surf.score import DiaEvaluado
 from surf.spots import Spot, cargar_spots
 
 RUTA_SPOTS = Path("spots.yaml")
@@ -59,7 +60,7 @@ def correr(spots: list[Spot], hoy: date,
             continue
         exitosos += 1
         for fecha, horas in por_dia.items():
-            d = evaluar_dia(horas, spot, fecha)
+            d = evaluar_dia_multimodelo(horas, spot, fecha)
             todos_los_dias.append(d)
             if _cerca_del_umbral(d):
                 cercanos.append((d, spot))
@@ -105,7 +106,7 @@ def main() -> int:
 
     try:
         estado_nuevo, _ = correr(
-            spots, date.today(), obtener_horas,
+            spots, date.today(), obtener_horas_multimodelo,
             lambda m: enviar(m, token, chat_id), estado,
         )
     except RuntimeError as e:

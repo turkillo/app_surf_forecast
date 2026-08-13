@@ -69,6 +69,7 @@ class DiaEvaluado:
     bloque: tuple[datetime, datetime] | None
     resumen: dict[str, float] | None
     motivo_principal: str | None
+    concordancia: str = "alta"
 
 
 def _interpolar(x: float, x0: float, x1: float, y0: float, y1: float) -> float:

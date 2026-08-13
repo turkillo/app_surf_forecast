@@ -4,6 +4,7 @@ import pytest
 
 from run import correr
 from surf.alert import estado_vacio
+from surf.consenso import HoraMultiModelo
 from surf.fetch import ErrorDatos
 from surf.notify import ErrorEnvio
 from surf.score import Hora
@@ -13,10 +14,17 @@ HOY = date(2026, 8, 13)
 
 
 def _horas_buenas(fecha):
-    return [Hora(t=datetime(fecha.year, fecha.month, fecha.day, x),
-                 swell_altura=2.0, swell_periodo=14.0, swell_direccion=157.0,
-                 viento_kmh=5.0, viento_direccion=320.0, es_de_dia=True)
-            for x in range(7, 13)]
+    horas = []
+    for x in range(7, 13):
+        t = datetime(fecha.year, fecha.month, fecha.day, x)
+        hora = Hora(t=t, swell_altura=2.0, swell_periodo=14.0,
+                    swell_direccion=157.0, viento_kmh=5.0,
+                    viento_direccion=320.0, es_de_dia=True)
+        horas.append(HoraMultiModelo(
+            t=t, es_de_dia=True,
+            por_modelo={"a": hora, "b": hora, "c": hora},
+        ))
+    return horas
 
 
 def _traer_bueno(spot, dias=7):
