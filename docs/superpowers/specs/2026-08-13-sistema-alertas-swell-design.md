@@ -53,6 +53,51 @@ Open-Meteo entrega salida de modelo global en un punto de mar abierto, no un pro
 ajustado a la batimetría del pico. La calibración por spot (ver *Validación*) existe
 justamente para corregir esto.
 
+### Windguru: por qué no, y qué se hace en su lugar
+
+**Windguru queda descartado como fuente.** Sus términos prohíben expresamente usar sus
+datos para software propio, apps o páginas web sin acuerdo expreso, y tipifican el
+crawling automatizado como incumplimiento material.
+
+El valor de Windguru, sin embargo, no es su dato propio: es que muestra **varios modelos
+meteorológicos lado a lado** (GFS, ICON, ECMWF, WRF) para que el usuario juzgue si
+concuerdan. Esos modelos son públicos y Open-Meteo los sirve directamente.
+
+**Se replica la función, no la fuente** — y mejor, porque en vez de comparar columnas a
+ojo el sistema calcula la concordancia. Modelos verificados disponibles el 2026-08-13:
+
+| Variable | Modelos |
+|---|---|
+| Viento | `gfs_seamless`, `icon_seamless`, `ecmwf_ifs025` |
+| Olas | `best_match`, `gwam`, `meteofrance_wave` |
+
+La discrepancia entre modelos es real y significativa. Medición en Chapadmalal, misma
+hora: GFS 14.9 km/h, ICON 7.0 km/h, ECMWF 12.0 km/h. Un modelo indicaba condiciones casi
+glassy y otro el doble de viento.
+
+### Consenso multi-modelo
+
+**El gate debe pasar en al menos 2 de los 3 modelos** para que la hora cuente. Si GFS ve
+una ventana pero ICON y ECMWF no, no hay alerta.
+
+Los valores que se muestran y puntúan son la **mediana** de los modelos, no la de uno
+elegido arbitrariamente: es más robusta ante un modelo que se va de rango.
+
+Cada hora y cada día llevan un nivel de **concordancia**:
+
+| Nivel | Condición |
+|---|---|
+| `alta` | los 3 modelos pasan el gate |
+| `media` | pasan 2 de 3 |
+| `baja` | pasa 1 o ninguno → la hora no cuenta |
+
+La concordancia se incluye en el mensaje de alerta. Es información que el usuario usa
+para decidir cuánta plata pone en un pasaje.
+
+Esto ataca directamente el requisito dominante del proyecto: es el mecanismo más
+efectivo contra el falso positivo, porque un swell fantasma rara vez aparece en tres
+modelos independientes a la vez.
+
 ---
 
 ## El detector

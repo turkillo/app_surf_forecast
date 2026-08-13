@@ -2518,7 +2518,524 @@ git commit -m "feat: entrypoint diario y workflow de GitHub Actions"
 
 ---
 
-### Task 11: Backtest y calibración
+### Task 11: Consenso multi-modelo
+
+Capa aditiva sobre el sistema ya funcionando. Reemplaza la función de Windguru —
+comparar modelos— calculándola en vez de mostrarla.
+
+**Files:**
+- Create: `surf/consenso.py`
+- Modify: `surf/fetch.py` (pasar a multi-modelo)
+- Modify: `surf/score.py` (agregar campo `concordancia` a `DiaEvaluado`)
+- Modify: `surf/notify.py` (mostrar concordancia)
+- Modify: `run.py` (usar `evaluar_dia_multimodelo`)
+- Test: `tests/test_consenso.py`
+
+**Interfaces:**
+- Consumes: `surf.score.Hora`, `surf.score.evaluar_hora`, `surf.score.DiaEvaluado`, `surf.spots.Spot`
+- Produces:
+  - `HoraMultiModelo` — dataclass frozen: `t: datetime`, `es_de_dia: bool`, `por_modelo: dict[str, Hora]`
+  - `consensuar(hmm: HoraMultiModelo, spot: Spot) -> tuple[Hora, str, int]` — devuelve la `Hora` mediana, el nivel de concordancia (`"alta"`/`"media"`/`"baja"`) y cuántos modelos pasaron el gate
+  - `evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot, fecha: date) -> DiaEvaluado`
+  - `MODELOS_VIENTO = ["gfs_seamless", "icon_seamless", "ecmwf_ifs025"]`
+  - `MODELOS_OLAS = ["best_match", "gwam", "meteofrance_wave"]`
+  - `MINIMO_MODELOS_DE_ACUERDO = 2`
+- `DiaEvaluado` gana el campo `concordancia: str = "alta"` (con default, para no romper los tests existentes)
+
+- [ ] **Step 1: Escribir los tests que fallan**
+
+`tests/test_consenso.py`:
+```python
+from datetime import date, datetime
+
+import pytest
+
+from surf.consenso import (HoraMultiModelo, consensuar,
+                           evaluar_dia_multimodelo)
+from surf.score import Hora
+from tests.test_score_gate import SPOT
+
+
+def _hora(altura=2.0, periodo=13.0, viento=5.0, direccion=157.0, viento_dir=320.0):
+    return Hora(t=datetime(2026, 8, 21, 9), swell_altura=altura,
+                swell_periodo=periodo, swell_direccion=direccion,
+                viento_kmh=viento, viento_direccion=viento_dir, es_de_dia=True)
+
+
+def _hmm(modelos, hora=9):
+    return HoraMultiModelo(t=datetime(2026, 8, 21, hora), es_de_dia=True,
+                           por_modelo=modelos)
+
+
+def test_los_tres_de_acuerdo_dan_concordancia_alta():
+    hmm = _hmm({"a": _hora(), "b": _hora(), "c": _hora()})
+    _, nivel, n = consensuar(hmm, SPOT)
+    assert nivel == "alta"
+    assert n == 3
+
+
+def test_dos_de_tres_dan_concordancia_media():
+    # El tercero ve viento onshore fuerte
+    hmm = _hmm({"a": _hora(), "b": _hora(),
+                "c": _hora(viento=30.0, viento_dir=140.0)})
+    _, nivel, n = consensuar(hmm, SPOT)
+    assert nivel == "media"
+    assert n == 2
+
+
+def test_uno_de_tres_da_concordancia_baja():
+    malo = _hora(altura=0.3, periodo=5.0)
+    hmm = _hmm({"a": _hora(), "b": malo, "c": malo})
+    _, nivel, n = consensuar(hmm, SPOT)
+    assert nivel == "baja"
+    assert n == 1
+
+
+def test_la_hora_consensuada_usa_la_mediana():
+    hmm = _hmm({"a": _hora(altura=1.5), "b": _hora(altura=2.0),
+                "c": _hora(altura=3.0)})
+    hora, _, _ = consensuar(hmm, SPOT)
+    assert hora.swell_altura == pytest.approx(2.0)
+
+
+def test_la_mediana_ignora_el_modelo_desviado():
+    # Un modelo dice 30 km/h de viento y los otros dos 5
+    hmm = _hmm({"a": _hora(viento=5.0), "b": _hora(viento=5.0),
+                "c": _hora(viento=30.0)})
+    hora, _, _ = consensuar(hmm, SPOT)
+    assert hora.viento_kmh == pytest.approx(5.0)
+
+
+def test_un_solo_modelo_funciona_igual():
+    hmm = _hmm({"a": _hora()})
+    hora, nivel, n = consensuar(hmm, SPOT)
+    assert n == 1
+    assert hora.swell_altura == pytest.approx(2.0)
+
+
+def test_la_hora_con_concordancia_baja_no_cuenta_para_el_dia():
+    malo = _hora(altura=0.3, periodo=5.0)
+    hmms = [_hmm({"a": _hora(), "b": malo, "c": malo}, hora=h)
+            for h in (8, 9, 10)]
+    d = evaluar_dia_multimodelo(hmms, SPOT, date(2026, 8, 21))
+    assert d.es_bueno is False
+
+
+def test_tres_horas_con_los_modelos_de_acuerdo_hacen_un_dia_bueno():
+    hmms = [_hmm({"a": _hora(), "b": _hora(), "c": _hora()}, hora=h)
+            for h in (8, 9, 10)]
+    d = evaluar_dia_multimodelo(hmms, SPOT, date(2026, 8, 21))
+    assert d.es_bueno is True
+    assert d.concordancia == "alta"
+
+
+def test_el_dia_reporta_la_peor_concordancia_de_su_bloque():
+    disidente = _hora(viento=30.0, viento_dir=140.0)
+    hmms = [
+        _hmm({"a": _hora(), "b": _hora(), "c": _hora()}, hora=8),
+        _hmm({"a": _hora(), "b": _hora(), "c": disidente}, hora=9),
+        _hmm({"a": _hora(), "b": _hora(), "c": _hora()}, hora=10),
+    ]
+    d = evaluar_dia_multimodelo(hmms, SPOT, date(2026, 8, 21))
+    assert d.es_bueno is True
+    assert d.concordancia == "media"
+
+
+def test_el_motivo_de_rechazo_por_desacuerdo_es_explicito():
+    malo = _hora(altura=0.3, periodo=5.0)
+    hmms = [_hmm({"a": _hora(), "b": malo, "c": malo}, hora=h) for h in (8, 9, 10)]
+    d = evaluar_dia_multimodelo(hmms, SPOT, date(2026, 8, 21))
+    assert "modelos" in (d.motivo_principal or "")
+```
+
+- [ ] **Step 2: Correr los tests y verificar que fallan**
+
+Run: `.venv/bin/pytest tests/test_consenso.py -v`
+Expected: FAIL con `ModuleNotFoundError: No module named 'surf.consenso'`
+
+- [ ] **Step 3: Agregar el campo `concordancia` a `DiaEvaluado` en `surf/score.py`**
+
+En la definición de la dataclass, agregar como último campo:
+
+```python
+    concordancia: str = "alta"
+```
+
+Va con default para que las construcciones existentes en `evaluar_dia` sigan funcionando sin cambios.
+
+- [ ] **Step 4: Implementar `surf/consenso.py`**
+
+```python
+"""Consenso entre modelos meteorologicos.
+
+Reemplaza la funcion que cumple Windguru —comparar GFS, ICON y ECMWF lado a
+lado— calculandola en vez de mostrarla. Windguru no se puede usar como fuente:
+sus terminos prohiben el uso de sus datos en software propio. Los modelos que
+muestra son publicos y Open-Meteo los sirve directamente.
+
+Regla: el gate tiene que pasar en al menos MINIMO_MODELOS_DE_ACUERDO modelos.
+Un swell fantasma rara vez aparece en tres modelos independientes a la vez.
+
+Modulo puro: sin red ni reloj.
+"""
+from collections import Counter
+from dataclasses import dataclass
+from datetime import date, datetime
+from statistics import median
+
+from surf.score import (HORAS_MINIMAS_CONSECUTIVAS, DiaEvaluado, Hora,
+                        HoraEvaluada, evaluar_hora, _bloques_consecutivos,
+                        _resumir)
+from surf.spots import Spot
+
+MODELOS_VIENTO = ["gfs_seamless", "icon_seamless", "ecmwf_ifs025"]
+MODELOS_OLAS = ["best_match", "gwam", "meteofrance_wave"]
+MINIMO_MODELOS_DE_ACUERDO = 2
+
+_ORDEN_CONCORDANCIA = {"alta": 2, "media": 1, "baja": 0}
+
+
+@dataclass(frozen=True)
+class HoraMultiModelo:
+    t: datetime
+    es_de_dia: bool
+    por_modelo: dict[str, Hora]
+
+
+def _mediana_angular(angulos: list[float]) -> float:
+    """Mediana de direcciones. Toma el valor central del conjunto ordenado
+    por cercania al primero, para no promediar angulos que cruzan el 0."""
+    if len(angulos) == 1:
+        return angulos[0]
+    ref = angulos[0]
+    ordenados = sorted(angulos, key=lambda a: ((a - ref + 180) % 360) - 180)
+    return ordenados[len(ordenados) // 2]
+
+
+def consensuar(hmm: HoraMultiModelo, spot: Spot) -> tuple[Hora, str, int]:
+    """Devuelve la hora mediana, el nivel de concordancia y cuantos modelos pasaron."""
+    horas = list(hmm.por_modelo.values())
+    pasaron = sum(1 for h in horas if evaluar_hora(h, spot).pasa)
+
+    total = len(horas)
+    if pasaron == total and total >= MINIMO_MODELOS_DE_ACUERDO:
+        nivel = "alta"
+    elif pasaron >= MINIMO_MODELOS_DE_ACUERDO:
+        nivel = "media"
+    elif total == 1 and pasaron == 1:
+        nivel = "alta"  # con un solo modelo no hay desacuerdo posible
+    else:
+        nivel = "baja"
+
+    mediana = Hora(
+        t=hmm.t,
+        swell_altura=median(h.swell_altura for h in horas),
+        swell_periodo=median(h.swell_periodo for h in horas),
+        swell_direccion=_mediana_angular([h.swell_direccion for h in horas]),
+        viento_kmh=median(h.viento_kmh for h in horas),
+        viento_direccion=_mediana_angular([h.viento_direccion for h in horas]),
+        es_de_dia=hmm.es_de_dia,
+    )
+    return mediana, nivel, pasaron
+
+
+def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
+                            fecha: date) -> DiaEvaluado:
+    """Igual que evaluar_dia, pero exigiendo acuerdo entre modelos."""
+    vacio = DiaEvaluado(fecha=fecha, spot_id=spot.id, es_bueno=False, score=0.0,
+                        horas_buenas=0, bloque=None, resumen=None,
+                        motivo_principal=None, concordancia="baja")
+    if not hmms:
+        return vacio
+
+    evaluadas: list[HoraEvaluada] = []
+    niveles: dict[datetime, str] = {}
+
+    for hmm in sorted(hmms, key=lambda x: x.t):
+        mediana, nivel, pasaron = consensuar(hmm, spot)
+        niveles[hmm.t] = nivel
+        if pasaron < min(MINIMO_MODELOS_DE_ACUERDO, len(hmm.por_modelo)):
+            evaluadas.append(HoraEvaluada(
+                hora=mediana, pasa=False,
+                motivo_rechazo=f"los modelos no coinciden ({pasaron} de {len(hmm.por_modelo)})",
+                score=0.0, clase_viento="",
+            ))
+        else:
+            evaluadas.append(evaluar_hora(mediana, spot))
+
+    bloques = [b for b in _bloques_consecutivos(evaluadas)
+               if len(b) >= HORAS_MINIMAS_CONSECUTIVAS]
+
+    if not bloques:
+        motivos = Counter(e.motivo_rechazo for e in evaluadas if e.motivo_rechazo)
+        return DiaEvaluado(
+            fecha=fecha, spot_id=spot.id, es_bueno=False, score=0.0,
+            horas_buenas=sum(1 for e in evaluadas if e.pasa), bloque=None,
+            resumen=None,
+            motivo_principal=motivos.most_common(1)[0][0] if motivos else None,
+            concordancia="baja",
+        )
+
+    mejor: list[HoraEvaluada] | None = None
+    mejor_score = -1.0
+    for bloque in bloques:
+        for i in range(len(bloque) - HORAS_MINIMAS_CONSECUTIVAS + 1):
+            ventana = bloque[i:i + HORAS_MINIMAS_CONSECUTIVAS]
+            s = sum(e.score for e in ventana) / len(ventana)
+            if s > mejor_score:
+                mejor_score, mejor = s, ventana
+
+    assert mejor is not None
+    # El dia hereda la PEOR concordancia de su mejor bloque: es el dato
+    # conservador, que es el que corresponde para decidir un viaje.
+    peor = min((niveles[e.hora.t] for e in mejor),
+               key=lambda n: _ORDEN_CONCORDANCIA[n])
+
+    return DiaEvaluado(
+        fecha=fecha, spot_id=spot.id, es_bueno=True, score=mejor_score,
+        horas_buenas=sum(1 for e in evaluadas if e.pasa),
+        bloque=(mejor[0].hora.t, mejor[-1].hora.t),
+        resumen=_resumir(mejor), motivo_principal=None, concordancia=peor,
+    )
+```
+
+- [ ] **Step 5: Correr los tests y verificar que pasan**
+
+Run: `.venv/bin/pytest tests/test_consenso.py -v`
+Expected: PASS, 10 tests
+
+- [ ] **Step 6: Pasar `fetch.py` a multi-modelo**
+
+Agregar a `surf/fetch.py`, sin borrar `obtener_horas` (el backtest la sigue usando):
+
+```python
+def obtener_horas_multimodelo(spot: Spot, dias: int = 7,
+                              sesion=None) -> dict[date, list["HoraMultiModelo"]]:
+    """Trae el pronostico de varios modelos y los devuelve agrupados por hora.
+
+    Los modelos de olas y de viento se emparejan por posicion. Si un modelo no
+    tiene cobertura en el spot, Open-Meteo no devuelve su columna y ese modelo
+    se omite; el consenso se calcula con los que si respondieron.
+    """
+    from surf.consenso import MODELOS_OLAS, MODELOS_VIENTO, HoraMultiModelo
+
+    base = {"latitude": spot.lat, "longitude": spot.lon,
+            "timezone": "auto", "forecast_days": dias}
+
+    marine = _pedir(URL_MARINE, {**base, "hourly": ",".join(_CAMPOS_MARINE),
+                                 "models": ",".join(MODELOS_OLAS)}, sesion)
+    clima = _pedir(URL_CLIMA, {**base, "hourly": ",".join(_CAMPOS_CLIMA),
+                               "models": ",".join(MODELOS_VIENTO),
+                               "daily": "sunrise,sunset",
+                               "wind_speed_unit": "kmh"}, sesion)
+
+    return _combinar_multimodelo(marine, clima, MODELOS_OLAS, MODELOS_VIENTO)
+```
+
+Y la función pura que las une:
+
+```python
+def _sufijo(campo: str, modelo: str, disponibles: dict) -> str | None:
+    """Open-Meteo sufija cada columna con el nombre del modelo.
+
+    La Marine API antepone 'marine_' a best_match; por eso se prueban las
+    dos formas en vez de asumir una.
+    """
+    for candidato in (f"{campo}_{modelo}", f"{campo}_marine_{modelo}"):
+        if candidato in disponibles:
+            return candidato
+    return None
+
+
+def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
+                          modelos_viento: list[str]) -> dict:
+    """Une las respuestas multi-modelo. Funcion pura."""
+    from surf.consenso import HoraMultiModelo
+
+    hm, hc, dc = marine.get("hourly", {}), clima.get("hourly", {}), clima.get("daily", {})
+
+    if "time" not in hm or "time" not in hc:
+        raise ErrorDatos("falta la serie 'time' en alguna respuesta")
+    if hm["time"] != hc["time"]:
+        raise ErrorDatos("las series horarias de marine y clima no alinean")
+    if not dc.get("sunrise") or not dc.get("sunset"):
+        raise ErrorDatos("faltan los datos de salida y puesta del sol")
+
+    # Emparejar modelos de olas con modelos de viento por posicion.
+    pares = []
+    for i, mo in enumerate(modelos_olas):
+        cols_olas = {c: _sufijo(c, mo, hm) for c in _CAMPOS_MARINE}
+        if any(v is None for v in cols_olas.values()):
+            continue
+        mv = modelos_viento[min(i, len(modelos_viento) - 1)]
+        cols_viento = {c: _sufijo(c, mv, hc) for c in _CAMPOS_CLIMA}
+        if any(v is None for v in cols_viento.values()):
+            continue
+        pares.append((f"{mo}+{mv}", cols_olas, cols_viento))
+
+    if not pares:
+        raise ErrorDatos("ningun modelo devolvio las columnas esperadas")
+
+    sol = {date.fromisoformat(d): (datetime.fromisoformat(dc["sunrise"][i]),
+                                   datetime.fromisoformat(dc["sunset"][i]))
+           for i, d in enumerate(dc["time"])}
+
+    por_dia: dict = {}
+    for i, t_str in enumerate(hm["time"]):
+        t = datetime.fromisoformat(t_str)
+        if t.date() not in sol:
+            continue
+        amanecer, ocaso = sol[t.date()]
+        es_de_dia = amanecer <= t <= ocaso
+
+        por_modelo = {}
+        for nombre, cols_olas, cols_viento in pares:
+            vals = ([hm[c][i] for c in cols_olas.values()]
+                    + [hc[c][i] for c in cols_viento.values()])
+            if any(v is None for v in vals):
+                continue
+            por_modelo[nombre] = Hora(
+                t=t,
+                swell_altura=float(hm[cols_olas["swell_wave_height"]][i]),
+                swell_periodo=float(hm[cols_olas["swell_wave_period"]][i]),
+                swell_direccion=float(hm[cols_olas["swell_wave_direction"]][i]),
+                viento_kmh=float(hc[cols_viento["wind_speed_10m"]][i]),
+                viento_direccion=float(hc[cols_viento["wind_direction_10m"]][i]),
+                es_de_dia=es_de_dia,
+            )
+
+        if por_modelo:
+            por_dia.setdefault(t.date(), []).append(
+                HoraMultiModelo(t=t, es_de_dia=es_de_dia, por_modelo=por_modelo)
+            )
+
+    return por_dia
+```
+
+- [ ] **Step 7: Agregar tests de `_combinar_multimodelo`**
+
+Agregar a `tests/test_fetch.py`:
+
+```python
+def test_combinar_multimodelo_arma_una_hora_por_modelo():
+    from surf.fetch import _combinar_multimodelo
+
+    marine = {"hourly": {
+        "time": ["2026-08-21T09:00"],
+        "swell_wave_height_marine_best_match": [1.8],
+        "swell_wave_period_marine_best_match": [14.0],
+        "swell_wave_direction_marine_best_match": [200.0],
+        "swell_wave_height_gwam": [1.6],
+        "swell_wave_period_gwam": [13.5],
+        "swell_wave_direction_gwam": [198.0],
+    }}
+    clima = {"hourly": {
+        "time": ["2026-08-21T09:00"],
+        "wind_speed_10m_gfs_seamless": [14.9],
+        "wind_direction_10m_gfs_seamless": [95.0],
+        "wind_speed_10m_icon_seamless": [7.0],
+        "wind_direction_10m_icon_seamless": [97.0],
+    }, "daily": {"time": ["2026-08-21"], "sunrise": ["2026-08-21T06:45"],
+                 "sunset": ["2026-08-21T18:20"]}}
+
+    por_dia = _combinar_multimodelo(
+        marine, clima, ["best_match", "gwam"], ["gfs_seamless", "icon_seamless"])
+    hmm = por_dia[date(2026, 8, 21)][0]
+    assert len(hmm.por_modelo) == 2
+    assert hmm.es_de_dia is True
+
+
+def test_combinar_multimodelo_falla_si_no_hay_ningun_modelo():
+    from surf.fetch import _combinar_multimodelo
+
+    marine = {"hourly": {"time": ["2026-08-21T09:00"]}}
+    clima = {"hourly": {"time": ["2026-08-21T09:00"]},
+             "daily": {"time": ["2026-08-21"], "sunrise": ["2026-08-21T06:45"],
+                       "sunset": ["2026-08-21T18:20"]}}
+    with pytest.raises(ErrorDatos, match="ningun modelo"):
+        _combinar_multimodelo(marine, clima, ["best_match"], ["gfs_seamless"])
+```
+
+- [ ] **Step 8: Mostrar la concordancia en el mensaje**
+
+En `surf/notify.py`, dentro de `formatear_alerta`, antes de la línea del link:
+
+```python
+    _ETIQUETA_CONCORDANCIA = {
+        "alta": "Concordancia entre modelos: alta (GFS, ICON y ECMWF coinciden) ✓",
+        "media": "Concordancia entre modelos: media (2 de 3 coinciden)",
+        "baja": "Concordancia entre modelos: baja",
+    }
+```
+
+Definir ese dict a nivel de módulo (no dentro de la función) y agregar en `formatear_alerta`, después de la línea de confirmación:
+
+```python
+    peor = min((d.concordancia for d in ventana.dias),
+               key=lambda n: {"alta": 2, "media": 1, "baja": 0}[n])
+    partes.append(_ETIQUETA_CONCORDANCIA[peor])
+```
+
+Agregar el test correspondiente a `tests/test_notify.py`:
+
+```python
+def test_la_alerta_reporta_la_concordancia_entre_modelos():
+    v = detectar_ventanas([dia(21), dia(22)])[0]
+    assert "Concordancia entre modelos" in formatear_alerta(v, SPOT)
+```
+
+- [ ] **Step 9: Cambiar `run.py` para usar el camino multi-modelo**
+
+En `run.py`, cambiar los imports y la llamada dentro de `correr`:
+
+```python
+from surf.consenso import evaluar_dia_multimodelo
+from surf.fetch import ErrorDatos, obtener_horas_multimodelo
+```
+
+y reemplazar `evaluar_dia(horas, spot, fecha)` por `evaluar_dia_multimodelo(horas, spot, fecha)`.
+En `main`, pasar `obtener_horas_multimodelo` en lugar de `obtener_horas`.
+
+Actualizar el helper `_traer_bueno` de `tests/test_run.py` para que devuelva `HoraMultiModelo` con tres modelos idénticos.
+
+- [ ] **Step 10: Verificar contra la API real**
+
+```bash
+.venv/bin/python - <<'EOF'
+from pathlib import Path
+from surf.consenso import evaluar_dia_multimodelo, consensuar
+from surf.fetch import obtener_horas_multimodelo
+from surf.spots import cargar_spots
+
+spot = [s for s in cargar_spots("spots.yaml") if s.id == "chapadmalal"][0]
+por_dia = obtener_horas_multimodelo(spot, dias=3)
+primera = next(iter(sorted(por_dia.items())))[1][12]
+print("modelos activos:", list(primera.por_modelo.keys()))
+for nombre, h in primera.por_modelo.items():
+    print(f"  {nombre:35} {h.swell_altura:.2f}m @ {h.swell_periodo:.1f}s  viento {h.viento_kmh:.1f}")
+for fecha, hmms in sorted(por_dia.items()):
+    d = evaluar_dia_multimodelo(hmms, spot, fecha)
+    print(f"{fecha}  score {d.score:5.1f}  concordancia {d.concordancia:6}  "
+          f"{'BUENO' if d.es_bueno else d.motivo_principal}")
+EOF
+```
+Expected: al menos 2 modelos activos y la discrepancia visible entre ellos. Si sale un solo modelo, revisar los sufijos de columna en `_sufijo`.
+
+- [ ] **Step 11: Correr la suite completa**
+
+Run: `.venv/bin/pytest tests/ -v`
+Expected: PASS, todo
+
+- [ ] **Step 12: Commit**
+
+```bash
+git add surf/consenso.py surf/fetch.py surf/score.py surf/notify.py run.py tests/
+git commit -m "feat: consenso multi-modelo en reemplazo de Windguru"
+```
+
+---
+
+### Task 12: Backtest y calibración
 
 Esta tarea decide si el detector sirve. **No se despliega nada hasta que el backtest pase sus criterios.**
 
@@ -2773,9 +3290,12 @@ git commit -m "feat: backtest historico y calibracion de los perfiles"
 | Anti-repetición | 8 |
 | Digest semanal, siempre enviado | 9, 10 |
 | Investigación de 3 fuentes cruzadas | 3 |
-| Backtest 2023-2025 con criterios objetivos | 11 |
-| Ground truth del usuario | 11 |
-| Cross-check contra surf-forecast | 11 |
+| Windguru descartado, función replicada vía multi-modelo | 11 |
+| Gate en 2 de 3 modelos, valores por mediana | 11 |
+| Concordancia reportada en la alerta | 11 |
+| Backtest 2023-2025 con criterios objetivos | 12 |
+| Ground truth del usuario | 12 |
+| Cross-check contra surf-forecast | 12 |
 | Tests unitarios de score | 4, 5, 6 |
 | GitHub Actions, 7 AM ARG | 10 |
 | `state.json` versionado | 8, 10 |
