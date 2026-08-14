@@ -43,7 +43,7 @@
     min_altura: 1.0
     max_altura: 3.0
     rango_ideal: [1.7, 2.6]
-    min_periodo: 8
+    min_periodo: 7  # bajado de 8.0 por decision del usuario: spot local, un dia de 1.4m @ 9s con viento flojo es surfeable
   viento_ideal: 337
   temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://es.surf-forecast.com/breaks/La-Barra_2"
@@ -64,7 +64,7 @@
     min_altura: 1.0
     max_altura: 2.5
     rango_ideal: [1.5, 2.2]
-    min_periodo: 8
+    min_periodo: 7  # bajado de 8.0 por decision del usuario: spot local, un dia de 1.4m @ 9s con viento flojo es surfeable
   viento_ideal: 315
   temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://www.surf-forecast.com/breaks/Chapadmalal"
