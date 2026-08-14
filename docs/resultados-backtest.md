@@ -563,3 +563,129 @@ diseño).
 - **Bloqueante conocido:** `huanchaco`, `joaquina` y `lobitos` siguen estrangulados
   por divergencia entre modelos de olas, no por umbrales (sección 5).
 - **Pendiente:** ground truth del usuario sobre los top 10 (sección 6).
+
+---
+
+## 8. Exclusión de modelos por spot (Tarea 14, 2026-08-14)
+
+La sección 5 dejó como pendiente número uno "detectar por spot qué modelo está
+contaminado y excluirlo". El mecanismo existe ahora (`modelos_excluidos` en
+`spots.yaml`), la medición completa de 13 spots × 3 modelos está en
+**`docs/investigacion-spots.md`**, y acá quedan la decisión y su verificación.
+
+**Resultado corto: se excluyó un solo modelo en un solo spot** (`gwam` en
+`lobitos`). `huanchaco` tenía la evidencia más fuerte del archivo y **no se
+excluyó**, porque el backtest mostró qué pasa cuando se lo deja con una sola
+fuente viva.
+
+### 8.1 Criterio, fijado con tres patas
+
+1. cociente contra surf-forecast fuera de `[1/1.5, 1.5]` (error de **factor 1.5**);
+2. **≥ 80 %** de las horas pareadas del mismo lado de 1.0 (sesgo con signo, no
+   dos horas extremas moviendo la mediana);
+3. el mismo sesgo con **factor ≥ 1.3 sobre el archivo 2023-2025** contra los otros
+   modelos del spot (≈13000 horas por celda), que es lo que separa un sesgo del
+   punto de una casualidad de la ventana de 3 días.
+
+Más el límite duro del validador: **nunca menos de 2 fuentes configuradas**.
+La derivación del 1.5, la sensibilidad a otros cortes y la tabla completa de
+ratios están en `docs/investigacion-spots.md`.
+
+### 8.2 Backtest completo 2023-2025 — antes y después
+
+| spot | v/año antes | v/año después | estacionalidad antes | después | concentr. antes | después |
+|---|---|---|---|---|---|---|
+| `la_barra` | 5.3 | 5.3 | ok | ok | 1.29 | 1.29 |
+| `chapadmalal` | 9.0 | 9.0 | ok | ok | 1.33 | 1.33 |
+| `praia_do_rosa` | 16.3 | 16.3 | ok | ok | 1.29 | 1.29 |
+| `buchupureo` | 33.0 | 33.0 | ok | ok | 1.07 | 1.07 |
+| `asia` | 30.3 | 30.3 | ok | ok | 1.07 | 1.07 |
+| `huanchaco` | 20.7 | 20.7 | ok | ok | 1.13 | 1.13 |
+| `santa_teresa` | 12.3 | 12.3 | ok | ok | 1.34 | 1.34 |
+| `saquarema` | 22.3 | 22.3 | ok | ok | 1.20 | 1.20 |
+| `punta_de_lobos` | 26.3 | 26.3 | ok | ok | 1.19 | 1.19 |
+| `chicama` | 31.7 | 31.7 | ok | ok | 1.05 | 1.05 |
+| `lobitos` | 3.0 | 3.0 | ok | ok | 1.71 | 1.71 |
+| `punta_del_diablo` | 14.7 | 14.7 | ok | ok | 1.29 | 1.29 |
+| `joaquina` | 4.0 | 4.0 | ok | ok | 1.43 | 1.43 |
+
+**Control: 12 de los 13 spots dan resultados idénticos campo por campo** —
+ventanas, días buenos, distribución mensual, concentración y top 10. El único
+que se mueve es `lobitos`, que es el único con exclusión. Si se hubiera movido
+otro, el filtro estaría tocando spots que no debía.
+
+`lobitos` mantiene 9 ventanas (3.0/año) pero cambia por dentro: 35 → 42 días
+buenos y otro top 10. En este período el backtest no puede mostrar el efecto
+real, y el motivo es el sesgo ya documentado en la sección 1: en el tramo
+`gwam`+`meteofrance_wave` sacar `gwam` deja **una sola fuente** (más permisivo),
+y en el tramo `meteofrance_wave`+`ncep` `gwam` ni siquiera está. El número que
+importa es el de abajo.
+
+### 8.3 Configuración real de producción (2026-01-01 a 2026-08-10, 3 fuentes)
+
+Es el único período donde el archivo sirve los tres modelos de olas a la vez, o
+sea el único que reproduce lo que corre todos los días:
+
+| spot | v/año antes | v/año después | fuentes antes | después |
+|---|---|---|---|---|
+| `lobitos` | 11.5 | **3.3** | 3.00 | **2.00** |
+| los otros 12 | — | idénticos | — | idénticos |
+
+(`fuentes_promedio` pasa a contar los modelos que **votan**, o sea después de las
+exclusiones. Decir "3 fuentes" sobre un consenso calculado con 2 taparía justo el
+sesgo que esa columna existe para hacer visible.)
+
+**La exclusión le saca alertas a `lobitos`, no se las agrega.** Es la dirección
+correcta: `gwam` leía 1.89 veces la altura de surf-forecast en ese punto, así que
+parte de esas 11.5 ventanas/año eran olas de un tamaño que ningún otro modelo ni
+surf-forecast veían. `lobitos` sigue estrangulado, y ahora se sabe que **no es un
+problema de calidad de fuentes**: con las dos fuentes fieles el spot realmente
+pasa poco el gate.
+
+**Aviso pedido explícitamente: `lobitos` pasa a `NO COINCIDE` en esta ventana**
+(concentración 1.47 → 0.86). No se ajustó nada. Contexto para leerlo: la ventana
+son 222 días y quedan **2 ventanas en total** (una en marzo, una en junio), o sea
+que la fracción "en temporada" se calcula sobre n=2 y vale 50 %. El chequeo
+estacional con autoridad es el de 2023-2025 con 9 ventanas, y ahí `lobitos` sigue
+en **ok con concentración 1.71**, la más alta de los 13. Los otros cuatro
+`NO COINCIDE` de esa ventana (`buchupureo`, `punta_de_lobos`, `chicama`,
+`joaquina`) ya estaban antes del cambio: son de enero a agosto, así que medio año
+de temporada no está en la muestra.
+
+### 8.4 Verificación del emparejamiento olas[i] + viento[i]
+
+La exclusión se aplica en `surf/consenso.py`, **después** de que
+`_combinar_multimodelo` armó los pares, y nunca sacando modelos de la lista que
+se le pide a la API. Es a propósito: la lista es la que define el emparejamiento
+por posición, así que acortarla movería también con qué viento se evalúa el
+modelo que queda, y estaríamos moviendo dos cosas a la vez.
+
+Verificado contra la API real hoy, en `lobitos`:
+
+```
+modelos crudos a una hora: gwam+gfs_seamless, meteofrance_wave+icon_seamless,
+                           ncep_gfswave025+ecmwf_ifs025
+tras filtrar             : meteofrance_wave+icon_seamless,
+                           ncep_gfswave025+ecmwf_ifs025
+```
+
+Cada fuente conserva el viento que le tocaba. Sacar `gwam` no le cambió el viento
+a nadie.
+
+### 8.5 Lo que esta tarea NO arregló
+
+- **`huanchaco` (0.7/año).** Evidencia de sobra contra `gwam` (0.63 contra
+  surf-forecast, 0.50 contra `meteofrance_wave` en 13110 horas) y no se puede
+  aplicar: `ncep` está enmascarado ahí, así que la exclusión deja una sola fuente.
+  Medido: 20.7 → 41.0 ventanas/año y estacionalidad a **NO COINCIDE** con
+  concentración 1.00 (uniforme). El desbloqueo verificado es `ncep_gfswave016`,
+  que sí tiene dato en ese punto (48/48 horas, 1.00-1.06 m contra 1.1 m de
+  surf-forecast) — es un modelo nuevo en la lista y necesita su propia tarea.
+- **`joaquina` (4.9/año).** `gwam` y `meteofrance_wave` discrepan 1.92 en el
+  archivo, pero surf-forecast queda entre los dos (1.34 y 0.79): la medición no
+  señala culpable, y `ncep` también está enmascarado.
+- **`la_barra` (5.5/año).** **No hay ningún modelo midiendo mal ahí**: 0.90, 0.86
+  y 1.00 contra surf-forecast. Su volumen bajo no viene de la calidad de las
+  fuentes, así que este mecanismo no lo puede mover. Si el usuario quiere más
+  avisos en `la_barra`, el dial está en los umbrales del spot, y es una decisión
+  suya, no una derivación.

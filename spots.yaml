@@ -159,6 +159,17 @@
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
   cercania: viaje
+  # NO se excluye gwam aca, y el motivo esta medido (Tarea 14, 2026-08-14).
+  # La evidencia de que gwam mide mal en este punto es la mas fuerte del
+  # archivo: ratio gwam/surf-forecast = 0.63 con 23 de 23 pares por debajo de
+  # 1.0, y gwam/meteofrance_wave = 0.50 sobre 13110 horas de archivo.
+  # Lo que bloquea la exclusion es lo que queda despues: ncep_gfswave025 esta
+  # enmascarado como tierra en este punto (0.0 en las 23 horas), asi que sacar
+  # gwam deja UNA sola fuente viva y el consenso desaparece. Se probo y se
+  # midio: el backtest 2023-2025 pasa de 20.7 a 41.0 ventanas/anio y la
+  # estacionalidad se cae a NO COINCIDE (concentracion 1.13 -> 1.00, o sea
+  # distribucion uniforme). Alertar todo el anio por igual no es arreglar el
+  # spot. Ver docs/resultados-backtest.md.
 
 - id: santa_teresa
   nombre: "Playa Santa Teresa, Guanacaste"
@@ -278,6 +289,14 @@
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: baja
   cercania: viaje
+  # gwam lee alto en este punto de forma sistematica.
+  # Medicion 2026-08-14, 23 horas pareadas contra surf-forecast:
+  #   ratio gwam/SF = 1.89 (23 de 23 pares por encima de 1.0)
+  #   ratio meteofrance_wave/SF = 1.16, ratio ncep_gfswave025/SF = 1.36
+  # Corroborado sobre el archivo 2023-2025: gwam/meteofrance_wave = 1.58 en
+  # 13110 horas, mientras meteofrance y ncep coinciden entre si (0.93).
+  # gwam es el que se sale, y quedan dos fuentes vivas para contrastar.
+  modelos_excluidos: [gwam]
 
 - id: punta_del_diablo
   nombre: "Punta del Diablo, Rocha"

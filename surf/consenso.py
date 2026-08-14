@@ -94,9 +94,42 @@ def _mediana_angular(angulos: list[float]) -> float:
     return ordenados[len(ordenados) // 2]
 
 
+def _modelo_de_olas(nombre: str) -> str:
+    """Nombre del modelo de OLAS dentro de la clave del par.
+
+    `_combinar_multimodelo` nombra cada fuente `"<olas>+<viento>"` para que la
+    linea de concordancia diga con que viento se evaluo. La exclusion es del
+    modelo de olas, asi que se compara contra la parte de la izquierda: un
+    match por substring sacaria de la votacion a cualquier par cuyo modelo de
+    viento se llamara parecido.
+    """
+    return nombre.split("+")[0]
+
+
+def sin_modelos_excluidos(hmm: HoraMultiModelo, spot: Spot) -> HoraMultiModelo:
+    """La misma hora sin las fuentes de olas que el spot excluye.
+
+    Se filtra ACA y no en `surf.fetch` a proposito. `_combinar_multimodelo`
+    empareja el modelo de olas i con el de viento i, asi que sacar un modelo de
+    la lista que se le pide a la API correria ese emparejamiento y cambiaria
+    tambien con que viento se evalua el modelo que queda: se estarian moviendo
+    dos cosas a la vez. Filtrando despues de combinar, cada fuente conserva el
+    viento que le tocaba y lo unico que cambia es quien vota.
+    """
+    if not spot.modelos_excluidos:
+        return hmm
+    excluidos = set(spot.modelos_excluidos)
+    quedan = {n: h for n, h in hmm.por_modelo.items()
+              if _modelo_de_olas(n) not in excluidos}
+    if len(quedan) == len(hmm.por_modelo):
+        return hmm
+    return HoraMultiModelo(t=hmm.t, es_de_dia=hmm.es_de_dia, por_modelo=quedan)
+
+
 def consensuar(hmm: HoraMultiModelo, spot: Spot,
                exigir_viento: bool = True) -> tuple[Hora, str, int]:
     """Devuelve la hora mediana, el nivel de concordancia y cuantos modelos pasaron."""
+    hmm = sin_modelos_excluidos(hmm, spot)
     horas = list(hmm.por_modelo.values())
     pasaron = sum(1 for h in horas if evaluar_hora(h, spot, exigir_viento).pasa)
 
@@ -215,6 +248,15 @@ def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
     de_dia: dict[datetime, bool] = {}
 
     for hmm in sorted(hmms, key=lambda x: x.t):
+        # Se filtra una sola vez por hora y despues se trabaja con el resultado:
+        # el conteo de fuentes, el motivo de rechazo y los nombres que sale a
+        # informar el mensaje tienen que hablar de los modelos que votaron.
+        hmm = sin_modelos_excluidos(hmm, spot)
+        if not hmm.por_modelo:
+            # A esta hora la unica fuente presente era la excluida. No es un
+            # rechazo por las condiciones: es una hora sobre la que el spot no
+            # tiene dato, igual que si la API no la hubiera devuelto.
+            continue
         mediana, nivel, pasaron = consensuar(hmm, spot, exigir_viento)
         niveles[hmm.t] = nivel
         modelos[hmm.t] = tuple(hmm.por_modelo)

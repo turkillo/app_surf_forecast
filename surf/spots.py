@@ -3,7 +3,7 @@
 Cada spot lleva sus propios umbrales. Un umbral hardcodeado en el codigo
 de scoring seria un bug: todos los numeros salen de aca.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +49,12 @@ _CAMPOS_SWELL = [
 # documentado. Por encima de esto hay un error de investigacion.
 TOLERANCIA_COSTA_GRADOS = 30
 
+# Fuentes de olas que tienen que quedar CONFIGURADAS despues de aplicar
+# `modelos_excluidos`. Con una sola fuente no hay consenso: un modelo solo no
+# puede desmentirse a si mismo, y el falso positivo que el consenso existe para
+# evitar vuelve a entrar. Es peor que el problema que la exclusion arregla.
+MINIMO_FUENTES_OLAS_CONFIGURADAS = 2
+
 
 @dataclass(frozen=True)
 class Swell:
@@ -87,6 +93,17 @@ class Spot:
     # la condicion mas local del gate.
     lat_mar: float | None = None
     lon_mar: float | None = None
+    # Modelos de OLAS que no votan en este spot. Un modelo de olas no vale lo
+    # mismo en todos los puntos: su celda de grilla puede estar contaminada por
+    # tierra o por una batimetria que no es la del pico, y ahi describe un mar
+    # que no existe. Cuando eso pasa, el consenso "2 de 3" se vuelve en contra:
+    # el modelo equivocado le veta el aviso al que mide bien.
+    #
+    # NO es un dial para subir el volumen de alertas. Cada nombre de esta lista
+    # tiene que venir con un ratio medido contra surf-forecast anotado en
+    # spots.yaml, y el validador exige que queden al menos
+    # MINIMO_FUENTES_OLAS_CONFIGURADAS fuentes.
+    modelos_excluidos: list[str] = field(default_factory=list)
 
     @property
     def coords_mar(self) -> tuple[float, float]:
@@ -136,6 +153,50 @@ def _num_list_item(
     except (ValueError, TypeError):
         raise ValueError(
             f"[{ident}] el elemento [{indice}] de {lista_campo} debe ser numerico, se recibio: {valor}"
+        )
+
+
+def _validar_modelos_excluidos(crudo: dict[str, Any], ident: str) -> None:
+    """El campo es opcional; si esta, tiene que nombrar modelos que existan y
+    dejar con que contrastar.
+
+    La lista de modelos vive en `surf.consenso`, que a su vez importa este
+    modulo: el import va adentro de la funcion para no cerrar el ciclo. Es el
+    mismo recurso que ya usa `surf.fetch`. La alternativa --repetir los nombres
+    aca-- deja dos listas que pueden divergir en silencio, que es peor.
+    """
+    from surf.consenso import MODELOS_OLAS
+
+    if "modelos_excluidos" not in crudo or crudo["modelos_excluidos"] is None:
+        return
+
+    excluidos = crudo["modelos_excluidos"]
+    if not isinstance(excluidos, list):
+        raise ValueError(
+            f"[{ident}] modelos_excluidos debe ser una lista de nombres de "
+            f"modelo, se recibio: {excluidos!r}"
+        )
+
+    for nombre in excluidos:
+        if nombre not in MODELOS_OLAS:
+            raise ValueError(
+                f"[{ident}] modelos_excluidos nombra '{nombre}', que no es un "
+                f"modelo de olas. Los validos son: {', '.join(MODELOS_OLAS)}"
+            )
+
+    if len(set(excluidos)) != len(excluidos):
+        raise ValueError(
+            f"[{ident}] modelos_excluidos repite nombres ({', '.join(excluidos)}). "
+            f"Repetir uno no excluye dos fuentes: revisar la lista."
+        )
+
+    quedan = len(MODELOS_OLAS) - len(set(excluidos))
+    if quedan < MINIMO_FUENTES_OLAS_CONFIGURADAS:
+        raise ValueError(
+            f"[{ident}] excluir {', '.join(excluidos)} deja {quedan} fuente(s) "
+            f"de olas y el minimo es {MINIMO_FUENTES_OLAS_CONFIGURADAS}: con una "
+            f"sola fuente no hay consenso posible. Sacar un nombre de la lista, "
+            f"o corregir el punto de muestreo del spot en vez de excluir."
         )
 
 
@@ -243,6 +304,8 @@ def _validar(crudo: dict[str, Any]) -> None:
         if not 1 <= mes <= 12:
             raise ValueError(f"[{ident}] mes invalido en temporada: {mes}")
 
+    _validar_modelos_excluidos(crudo, ident)
+
 
 def cargar_spots(path: Path) -> list[Spot]:
     """Carga spots.yaml y valida cada perfil.
@@ -293,6 +356,7 @@ def cargar_spots(path: Path) -> list[Spot]:
                          if crudo.get("lat_mar") is not None else None),
                 lon_mar=(float(crudo["lon_mar"])
                          if crudo.get("lon_mar") is not None else None),
+                modelos_excluidos=list(crudo.get("modelos_excluidos") or []),
             )
         )
 

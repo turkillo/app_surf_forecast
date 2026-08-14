@@ -266,6 +266,31 @@ confirmar que el spot sigue siendo válido (por ejemplo, que `ideal` cae
 dentro de `ventana`, o que `viento_ideal` es coherente con `costa_mira`) y
 subí el cambio; la próxima corrida programada ya usa los valores nuevos.
 
+### Sacar un modelo de olas de un spot
+
+Un modelo de olas no vale lo mismo en todos los puntos: su celda de grilla
+puede estar contaminada por tierra y ahí describe un mar que no existe. Como
+el gate exige que la condición pase en 2 modelos, **el modelo equivocado le
+veta el aviso al que mide bien**. Para eso está `modelos_excluidos`:
+
+```yaml
+  # ratio gwam/surf-forecast = 1.89 medido el 2026-08-14 (23 horas pareadas)
+  modelos_excluidos: [gwam]
+```
+
+Tres reglas, y las tres las hace cumplir un test:
+
+1. **Con evidencia.** Al lado va el ratio medido contra surf-forecast y la
+   fecha. Sin eso, dentro de seis meses es una línea que nadie puede auditar.
+2. **Nunca menos de 2 fuentes.** Con una sola fuente el consenso deja de
+   existir y vuelve el falso positivo que el consenso existe para evitar. El
+   validador rechaza el perfil.
+3. **No es un dial de volumen.** El criterio pide un sesgo de factor ≥ 1.5
+   contra surf-forecast, con signo consistente y confirmado sobre 3 años de
+   archivo. Hoy hay **una sola exclusión en los 13 spots** (`gwam` en
+   `lobitos`), y le *saca* alertas al spot en vez de agregarle. El criterio
+   completo y la tabla de 13×3 ratios están en `docs/investigacion-spots.md`.
+
 ## Desarrollo local
 
 ```bash

@@ -100,6 +100,24 @@ def test_analizar_reporta_cuantas_fuentes_de_olas_hubo():
     assert r["fuentes_promedio"] == pytest.approx(2.0)
 
 
+def test_analizar_no_cuenta_las_fuentes_que_el_spot_excluye():
+    """`fuentes_promedio` existe para leer el sesgo de la corrida, asi que
+    tiene que contar los modelos que VOTAN. Contar uno excluido diria "3
+    fuentes" sobre un consenso calculado con 2."""
+    from dataclasses import replace
+
+    inicio = date(2024, 6, 1)
+    por_dia = {inicio + timedelta(days=n): _dia_de_horas(
+        inicio + timedelta(days=n), True,
+        modelos=("gwam+gfs_seamless", "meteofrance_wave+icon_seamless",
+                 "ncep_gfswave025+ecmwf_ifs025"))
+        for n in range(6)}
+    assert analizar(SPOT, por_dia)["fuentes_promedio"] == pytest.approx(3.0)
+
+    sin_gwam = replace(SPOT, modelos_excluidos=["gwam"])
+    assert analizar(sin_gwam, por_dia)["fuentes_promedio"] == pytest.approx(2.0)
+
+
 def test_analizar_normaliza_por_dias_cubiertos_no_por_anios_calendario():
     """Medio anio de datos con 1 ventana son ~2 ventanas/anio, no 1."""
     inicio = date(2024, 1, 1)

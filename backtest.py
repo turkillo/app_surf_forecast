@@ -46,7 +46,8 @@ from pathlib import Path
 import requests
 
 from surf.alert import detectar_ventanas
-from surf.consenso import MODELOS_OLAS, MODELOS_VIENTO, evaluar_dia_multimodelo
+from surf.consenso import (MODELOS_OLAS, MODELOS_VIENTO,
+                           evaluar_dia_multimodelo, sin_modelos_excluidos)
 from surf.fetch import _CAMPOS_CLIMA, _CAMPOS_MARINE, ErrorDatos, _combinar_multimodelo
 from surf.spots import Spot, cargar_spots
 
@@ -207,7 +208,11 @@ def analizar(spot: Spot, por_dia: dict) -> dict:
     por_mes = Counter(v.desde.month for v in ventanas)
     dias_por_mes = Counter(d.fecha.month for d in buenos)
 
-    conteos = [len(h.por_modelo) for horas in por_dia.values() for h in horas]
+    # Se cuentan las fuentes que VOTAN, o sea despues de aplicar las exclusiones
+    # del spot: decir "3 fuentes" sobre un consenso calculado con 2 taparia
+    # justamente el sesgo que esta columna existe para hacer visible.
+    conteos = [len(sin_modelos_excluidos(h, spot).por_modelo)
+               for horas in por_dia.values() for h in horas]
     fuentes = sum(conteos) / len(conteos) if conteos else 0.0
 
     return {

@@ -42,16 +42,23 @@ def _listar(nombres: list[str]) -> str:
 
 
 def etiqueta_concordancia(nivel: str, modelos: tuple[str, ...],
-                          de_acuerdo: int) -> str:
+                          de_acuerdo: int, consultadas: int | None = None) -> str:
     """Arma la linea de concordancia con los modelos que REALMENTE respondieron.
 
     Antes esta linea era un texto fijo que decia "GFS, ICON y ECMWF coinciden"
     aunque el pronostico se hubiera calculado con dos modelos: si Open-Meteo
     dejaba de servir uno en un spot, el usuario leia que los tres coincidian
     sobre algo que uno de ellos nunca vio.
+
+    `consultadas` son las fuentes que este spot pregunta, que no son siempre
+    todas las que existen: donde hay un modelo excluido por medir mal, 2 de 2
+    es cobertura COMPLETA y reportar "solo 2 de 3" seria denunciar como falta
+    algo que se saco a proposito.
     """
     base = "Concordancia entre modelos"
     total = len(modelos)
+    if consultadas is None:
+        consultadas = len(MODELOS_OLAS)
     if not total:
         # Dia armado por una via que no registra modelos (p.ej. evaluar_dia
         # de un solo modelo). No se inventan nombres ni cantidades.
@@ -64,8 +71,8 @@ def etiqueta_concordancia(nivel: str, modelos: tuple[str, ...],
         return f"{base}: alta ({de_acuerdo} de {total} coinciden: {_listar(nombres)}) ✓"
 
     cola = ""
-    if total < 3:
-        cola = (f" — solo {total} de 3 fuentes disponibles en este spot"
+    if total < consultadas:
+        cola = (f" — solo {total} de {consultadas} fuentes disponibles en este spot"
                 if total > 1 else " — una sola fuente disponible en este spot")
     # En media y baja NO coincidieron todos, asi que los nombres se listan como
     # "consultados" y no como "coinciden": decir lo contrario seria repetir el
@@ -152,8 +159,9 @@ def formatear_alerta(ventana: Ventana, spot: Spot) -> str:
     partes.append("Confirmado en 2 corridas consecutivas ✓")
 
     peor = _peor_dia(ventana)
-    partes.append(etiqueta_concordancia(peor.concordancia, peor.modelos,
-                                        peor.modelos_de_acuerdo))
+    partes.append(etiqueta_concordancia(
+        peor.concordancia, peor.modelos, peor.modelos_de_acuerdo,
+        len(MODELOS_OLAS) - len(spot.modelos_excluidos)))
 
     if spot.confianza == "baja":
         partes.append("⚠️ perfil poco validado — chequear en surf-forecast antes de viajar")
@@ -191,8 +199,12 @@ def formatear_preaviso(ventana: Ventana, spot: Spot, hoy: date) -> str:
     # ventana. Mas alla del dia 7 se caen modelos, y el usuario tiene que
     # poder pesar el aviso sabiendo sobre cuantas opiniones se calculo.
     peor = _peor_dia(ventana)
+    # El denominador son las fuentes que este spot consulta, no las que existen:
+    # donde hay un modelo excluido por medir mal, decir "de 3" prometeria una
+    # opinion que nunca se pidio.
+    consultadas = len(MODELOS_OLAS) - len(spot.modelos_excluidos)
     partes.append(f"Fuentes de olas disponibles: {len(peor.modelos)} "
-                  f"de {len(MODELOS_OLAS)}")
+                  f"de {consultadas}")
 
     if spot.confianza == "baja":
         partes.append("⚠️ perfil poco validado — chequear en surf-forecast antes de viajar")

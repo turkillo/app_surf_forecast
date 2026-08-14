@@ -1336,3 +1336,174 @@ en los tres spots con mayor divergencia entre modelos y sólo uno lo justificó
 
 `huanchaco` no se tocó: ya estaba dictaminado que su problema es la calidad de `gwam` en ese
 punto y que moverlo no alcanza.
+
+---
+
+# `modelos_excluidos`: sacar un modelo de olas de un spot (Tarea 14, 2026-08-14)
+
+Un modelo de olas no vale lo mismo en todos los puntos. Su celda de grilla puede estar
+contaminada por tierra o describir una batimetría que no es la del pico, y ahí reporta un mar
+que no existe. Cuando eso pasa, el consenso de "2 de 3" se vuelve en contra: **el modelo
+equivocado le veta el aviso al que mide bien**. `spots.yaml` acepta ahora
+`modelos_excluidos: [<modelo>]` para sacar esa fuente de la votación en ese spot y sólo en
+ese spot.
+
+**No es un dial de volumen.** Cada nombre de esa lista tiene que venir con un ratio medido
+anotado al lado, y un test (`tests/test_modelos_excluidos.py`) falla si una exclusión aparece
+sin el número y la fecha.
+
+## La medición: 13 spots × 3 modelos contra surf-forecast
+
+**Método.** Se comparó la altura de swell de cada modelo contra la fila *Oleaje / Altura* de
+surf-forecast, que es la misma variable (swell de aguas abiertas) y no la altura de la ola
+que rompe. Muestra pareada por hora local exacta: el cuadro horario de surf-forecast va en
+pasos de 3 h y cubre 3 días (2026-08-14 a 2026-08-16), o sea 22-23 pares por celda. El valor
+de cada celda es la **mediana de los cocientes por hora** `altura_modelo / altura_SF`. Los
+pares donde el modelo devuelve `0.0` (celda enmascarada como tierra) no se promedian: se
+cuentan como sin dato, que es lo que son.
+
+| spot | `gwam` | n | `meteofrance_wave` | n | `ncep_gfswave025` | n |
+|---|---|---|---|---|---|---|
+| `la_barra` | 0.90 | 22 | 0.86 | 22 | 1.00 | 21 |
+| `chapadmalal` | 0.88 | 22 | 0.88 | 22 | 0.97 | 22 |
+| `praia_do_rosa` | 0.85 | 22 | 0.67 | 22 | 0.93 | 22 |
+| `buchupureo` | 1.16 | 23 | 1.02 | 23 | — enmascarado | 0 |
+| `asia` | 1.34 | 23 | 1.07 | 23 | — enmascarado | 0 |
+| `huanchaco` | **0.63** | 23 | 1.05 | 23 | — enmascarado | 0 |
+| `santa_teresa` | 1.37 | 23 | 1.03 | 23 | 0.80 | 23 |
+| `saquarema` | 0.96 | 22 | 0.95 | 22 | 0.89 | 22 |
+| `punta_de_lobos` | 1.09 | 23 | 0.99 | 23 | — enmascarado | 0 |
+| `chicama` | 1.09 | 23 | 1.03 | 23 | 0.95 | 23 |
+| `lobitos` | **1.89** | 23 | 1.16 | 23 | 1.36 | 23 |
+| `punta_del_diablo` | 0.96 | 22 | 0.76 | 22 | 1.02 | 21 |
+| `joaquina` | 1.34 | 22 | 0.79 | 22 | — enmascarado | 0 |
+
+El `0.63` de `gwam` en `huanchaco` reproduce el `0.57` que había medido la Tarea 12 con n=9.
+Los 5 spots con `ncep_gfswave025` enmascarado son los mismos de siempre (`buchupureo`,
+`asia`, `huanchaco`, `punta_de_lobos`, `joaquina`), verificado hoy contra la API: 23 de 23
+horas en `0.0`.
+
+## La corroboración: 3 años de archivo, modelo contra modelo
+
+Tres días de muestra son un ancla absoluta pero una ventana corta: un swell que sube rápido
+produce cocientes altos por desfase de tiempo, no por sesgo de escala. Por eso cada candidato
+se contrasta contra el archivo 2023-2025, donde `meteofrance_wave` es el único modelo
+presente en todo el período y sirve de referencia común. Mediana del cociente sobre **todas
+las horas con dato en los dos modelos**:
+
+| spot | `gwam`/`mf` | n | `ncep`/`mf` | n |
+|---|---|---|---|---|
+| `la_barra` | 1.28 | 13110 | 0.90 | 13358 |
+| `chapadmalal` | 1.19 | 13110 | 1.08 | 13381 |
+| `praia_do_rosa` | 1.21 | 13110 | 1.23 | 13345 |
+| `buchupureo` | 1.03 | 13110 | — enmascarado | 0 |
+| `asia` | 1.18 | 13110 | — enmascarado | 0 |
+| `huanchaco` | **0.50** | 13110 | — enmascarado | 0 |
+| `santa_teresa` | 1.29 | 13110 | 0.78 | 13464 |
+| `saquarema` | 1.15 | 13110 | 0.78 | 13448 |
+| `punta_de_lobos` | 0.90 | 13110 | — enmascarado | 0 |
+| `chicama` | 0.83 | 13110 | 0.83 | 13461 |
+| `lobitos` | **1.58** | 13110 | 0.93 | 13456 |
+| `punta_del_diablo` | 1.15 | 13257 | 1.03 | 13257 |
+| `joaquina` | **1.92** | 13110 | — enmascarado | 0 |
+
+## El criterio de exclusión
+
+Tres condiciones, **todas** obligatorias:
+
+1. **Magnitud.** La mediana del cociente contra surf-forecast cae fuera de `[1/1.5, 1.5]`, o
+   sea el modelo se equivoca por un **factor 1.5 o más**. En términos del gate: como la
+   condición que manda es `altura ≥ min_altura`, un modelo con sesgo `r` aplica de hecho un
+   umbral `min_altura / r`. Con `r = 0.63` en `huanchaco`, el modelo exige 1.59 m para dar
+   por cumplido un piso de 1.0 m. Eso ya no es discrepancia entre modelos: es otro mar.
+2. **Signo consistente.** Al menos el **80 % de las horas pareadas** cae del mismo lado de
+   1.0 que la mediana. Sin esta pata, dos horas extremas alcanzarían para mover la mediana.
+3. **Persistencia.** El mismo sesgo, en el mismo sentido, con factor ≥ 1.3 sobre el archivo
+   de 3 años contra los otros modelos del spot. Es la pata que separa un sesgo del punto de
+   una casualidad de la ventana medida.
+
+**De dónde sale el 1.5 y por qué no otro número.** El arquetipo es el `0.57` de `gwam` en
+`huanchaco` (factor 1.75), que ya estaba medido antes de esta tarea. El piso lo fija este
+mismo documento en la sección de `min_periodo`: un cociente de 0.92 (−8 %) se declaró "muy
+por debajo del ~20 % que justificaría compensar". Entre "el 20 % no alcanza para compensar" y
+"el 75 % es el caso patológico", 1.5 es el punto donde el error del modelo supera el ancho
+completo de la banda ideal de un spot típico. **Honestidad sobre el orden de los pasos:** la
+tabla de 13×3 se midió antes de escribir el umbral, así que el número no puede presentarse
+como fijado a ciegas. Por eso queda acá la sensibilidad completa, para que cualquiera vea qué
+se movía con otro corte:
+
+| factor | celdas que pasarían la pata 1 |
+|---|---|
+| 1.25 | `praia_do_rosa`/mf, `asia`/gwam, `huanchaco`/gwam, `santa_teresa`/gwam, `lobitos`/gwam, `lobitos`/ncep, `punta_del_diablo`/mf, `joaquina`/gwam, `joaquina`/mf |
+| 1.35 | `praia_do_rosa`/mf, `huanchaco`/gwam, `santa_teresa`/gwam, `lobitos`/gwam, `lobitos`/ncep |
+| **1.50** | **`huanchaco`/gwam, `lobitos`/gwam** |
+| 1.75 | `lobitos`/gwam |
+
+Y la pata 3 no es decorativa: con el corte en 1.35, `praia_do_rosa`/`meteofrance_wave` (0.67)
+entraría por la ventana de 3 días, pero sobre 13345 horas de archivo ese modelo lee sólo un
+18 % por debajo de los otros dos. Sería excluir una fuente en uno de los tres spots que el
+usuario más surfea por un artefacto de tres días.
+
+## Qué se excluyó, y qué no
+
+### `lobitos`: se excluye `gwam` — **aplicado**
+
+`gwam` lee 1.89 veces lo que surf-forecast en las 23 horas pareadas, **con las 23 por encima
+de 1.0**, y 1.58 veces lo que `meteofrance_wave` en 13110 horas de archivo. Los otros dos
+modelos coinciden entre sí (`ncep`/`mf` = 0.93) y quedan a 1.16 y 1.36 de surf-forecast.
+`gwam` es el que se sale, no la referencia. Quedan **dos fuentes vivas**, así que el consenso
+sigue existiendo.
+
+Las dos familias que quedan son independientes entre sí (MFWAM de Météo-France y WW3 de
+NCEP), lo cual importa porque **surf-forecast no es un árbitro neutral**: su fila de oleaje es
+NWW3, o sea la misma familia que `ncep_gfswave025` (lo dice su propia nota al pie). Que
+`meteofrance_wave` —independiente— también quede a 1.16 es lo que sostiene la conclusión;
+apoyarse sólo en surf-forecast sería apoyarse en WW3 dos veces.
+
+### `huanchaco`: **NO se excluye**, y el motivo es lo que queda después
+
+La evidencia es la más fuerte de la tabla (0.63 contra surf-forecast con 23 de 23 pares
+bajos; 0.50 contra `meteofrance_wave` en 13110 horas). Lo que bloquea la exclusión es que
+`ncep_gfswave025` está enmascarado en ese punto: sacar `gwam` deja **una sola fuente viva**, y
+con una sola fuente el consenso deja de existir. Se aplicó, se midió y se revirtió:
+
+| | ventanas/año 23-25 | estacionalidad | concentración |
+|---|---|---|---|
+| sin excluir | 20.7 | ok | 1.13 |
+| excluyendo `gwam` | **41.0** | **NO COINCIDE** | **1.00** |
+
+Concentración 1.00 es exactamente una distribución uniforme: el detector pasa a marcar el día
+normal de la costa peruana todo el año, que es el mismo modo de falla que ya se había
+diagnosticado en `asia`. Duplicar el volumen perdiendo la señal estacional no es arreglar el
+spot. Queda registrado en `spots.yaml` como decisión, no como olvido.
+
+**El desbloqueo concreto, verificado contra la API:** `ncep_gfswave016` (NCEP GFS-Wave en
+grilla de 0.16°) **sí devuelve dato en `huanchaco`** — 48 de 48 horas, 1.00-1.06 m contra 1.1 m
+de surf-forecast. Sería la tercera fuente que hace segura la exclusión de `gwam`. No se agregó
+en esta tarea: sumar un modelo cambia la entrada de los 13 spots a la vez y necesita su propia
+validación. En `joaquina` y `asia` ese modelo no tiene cobertura.
+
+### `joaquina`: **no se excluye**, y la medición dice por qué no
+
+Es el caso más incómodo del archivo. `gwam` y `meteofrance_wave` discrepan como en ningún otro
+punto (1.92 sobre 13110 horas de archivo), pero **surf-forecast queda en el medio**: `gwam` a
+1.34 y `meteofrance_wave` a 0.79. Ninguno de los dos alcanza el factor 1.5, y sobre todo
+**ninguno de los dos aparece como el equivocado**. Excluir uno sería elegir cuál creer sin
+evidencia para elegir; y como `ncep` está enmascarado, dejaría además una sola fuente. Se deja
+como está.
+
+### `la_barra`: **no se excluye**, y no hay sesgo que lo justifique
+
+El spot que más le importa al usuario de los cuatro mudos. Los tres modelos quedan a 0.90,
+0.86 y 1.00 de surf-forecast, todos dentro del ±15 %, y hora a hora se siguen entre sí. **No
+hay ningún modelo midiendo mal en `la_barra`**: su bajo volumen (5.3-9.9 ventanas/año según el
+tramo) no se explica por calidad de fuentes, así que este mecanismo no lo toca. La divergencia
+histórica `gwam`/`mf` de 1.28 existe, pero está lejos del corte y no señala culpable.
+
+### Los otros sesgos medidos que se dejan como están
+
+`santa_teresa`/`gwam` (1.37), `asia`/`gwam` (1.34), `praia_do_rosa`/`mf` (0.67 en 3 días, 0.82
+en 3 años), `punta_del_diablo`/`mf` (0.76), `saquarema`/`ncep` (0.89), `santa_teresa`/`ncep`
+(0.80). Son sesgos reales y quedan anotados, pero por debajo del corte. **Absorber esa
+dispersión es exactamente para lo que existe el consenso**: si se excluyera a todos, no
+quedaría consenso que calcular.
