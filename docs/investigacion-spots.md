@@ -1152,3 +1152,102 @@ rompa un campo gate que estaba bien, si el diagnóstico automático de la Tarea 
 síntoma de otra cosa. Una `temporada` incorrecta no pierde alertas por sí misma, pero manda
 al backtest a reorientar una `swell.ventana` correcta.
 
+
+---
+
+# Calibración por backtest (Tarea 12)
+
+El backtest histórico 2023-2025 corrió el detector real (multi-modelo con consenso) sobre los
+13 spots y cambió cinco números de `spots.yaml`. El detalle completo —tablas por spot, sesgo
+medido del backtest contra producción, y todo lo que se revisó y **no** se cambió— está en
+**`docs/resultados-backtest.md`**. Acá queda sólo el registro de origen de cada número nuevo,
+que es la función de este archivo.
+
+## `min_periodo`: 9 → 7 (beach break) y 10 → 8 (point break y reef), los 13 spots
+
+**No es un aflojamiento de umbral: es una corrección de unidades.**
+
+La regla original de este documento ("`min_periodo`: 9 s para `beach_break`, 10 s para
+`point_break` y `reef`") está escrita en la unidad que publican surf-forecast y Wannasurf,
+que es el **período pico** (`Tp`). El detector la compara contra `swell_wave_period` de
+Open-Meteo, que es el **período medio** de la partición de swell (`Tm`). Son dos variables
+distintas. Open-Meteo no sirve período pico para estos modelos: `swell_wave_peak_period`
+devuelve vacío en las tres fuentes de olas (verificado contra la API).
+
+**Medición del desvío**, comparación pareada contra surf-forecast del 14 al 16/08/2026, tres
+franjas por día, 5 spots, n = 45:
+
+| spot | altura OM/SF | período OM − SF |
+|---|---|---|
+| `la_barra` | 1.04 | −1.4 s |
+| `joaquina` | 0.88 | −4.2 s |
+| `chapadmalal` | 0.89 | −1.4 s |
+| `chicama` | 0.82 | −2.2 s |
+| `punta_de_lobos` | 1.00 | −3.3 s |
+| **global** | **0.92** | **−2.1 s** |
+
+Mismo signo en los 5 spots. La física lo corrobora: para un espectro tipo JONSWAP,
+`Tp ≈ 1.2-1.3 · Tm`, o sea 1.8-2.2 s de diferencia con `Tm ≈ 7.5 s`. Se aplicó **−2 s
+uniforme**, que es el mismo umbral escrito en la unidad de la variable que se mide.
+
+La **altura no tiene sesgo**: el cociente Open-Meteo / surf-forecast da 0.92 (−8 %), muy por
+debajo del ~20 % que justificaría compensar. Ningún `min_altura` se movió por sesgo de
+medición.
+
+## `min_altura`: 5 spots, por volumen
+
+Regla fijada **antes** de mirar los resultados, para no sobreajustar: `min_altura` sólo puede
+subir hasta `rango_ideal[0]`, número que este documento ya define como el piso de las
+condiciones buenas del spot. Alertar por debajo de él es alertar por un día del fondo del
+rango.
+
+| spot | de | a | tope permitido | motivo |
+|---|---|---|---|---|
+| `buchupureo` | 1.0 | **2.0** | 2.0 | 41 ventanas/año post-corrección de período |
+| `asia` | 1.0 | **1.5** | 1.7 | volumen alto **y** estacionalidad plana (ver abajo) |
+| `santa_teresa` | 1.0 | **1.2** | 1.3 | 33 ventanas/año |
+| `saquarema` | 1.0 | **1.5** | 2.3 | 39 ventanas/año |
+| `punta_de_lobos` | 1.0 | **1.8** | 2.3 | 38 ventanas/año |
+
+En los 5 casos el `1.0` no era un dato de fuente: este documento lo registra como **"piso del
+usuario"**, aplicado porque Wannasurf decía *"starts working at less than 1m"*. O sea que no
+se está contradiciendo ninguna fuente; se está reemplazando un piso genérico por uno medido.
+
+## `asia`: por qué su fallo de estacionalidad NO se resolvió reorientando la ventana
+
+`asia` fue el único spot que falló el chequeo de estacionalidad (concentración 1.01, o sea
+distribución uniforme). La regla de la Tarea 12 dice que eso indica `swell.ventana` o
+`costa_mira` mal orientados. **Se verificó primero contra el dato, y no era eso:** la
+dirección mediana del swell en `asia` es 199-206 grados **todos los meses del año**, dentro
+de la ventana `[180, 270]` y a ~20 grados de `ideal: 225`.
+
+Lo que sí varía con la estación es la altura (mediana de los días buenos: 1.95 m en abril
+contra 1.35 m en diciembre). El problema era que `min_altura: 1.0` estaba **por debajo de la
+línea de base de todo el año** en la costa central peruana, así que el detector seleccionaba
+"día normal en Perú" —que es aseasonal por construcción— en vez de seleccionar eventos.
+
+Con `min_altura: 1.5` la concentración sube a 1.31 y el volumen queda en 24/año. **La
+`swell.ventana`, el `swell.ideal` y la `costa_mira` de `asia` no se tocaron**, y el corolario
+de la lección 1/5 de este archivo se respetó: no se reorientó un campo gate correcto para
+explicar un síntoma que venía de otro lado.
+
+## Los tres `confianza: baja` siguen sin validar
+
+`lobitos`, `santa_teresa` y `punta_del_diablo` eran los perfiles que el backtest debía
+revisar primero. El resultado es que **el backtest no aportó evidencia para moverlos**:
+
+- **`lobitos.max_altura = 3.0`** (inferencia por analogía con `chicama`): `max_altura` rechaza
+  el **0.00 %** de las horas de luz de `lobitos` en 2023-2025. El gate nunca llega a actuar,
+  así que el histórico no dice nada sobre si 3.0 es el número correcto. Sigue sin validar.
+- **`punta_del_diablo.max_altura = 2.5`** (estimado por analogía, y sospechoso por ser menor
+  que el 3.0 de `la_barra`): rechaza el **0.08 %** de las horas. Mismo caso. El spot queda en
+  volumen sano, así que no hay síntoma que corregir.
+- **`santa_teresa.ideal = 210`** (construido entre la normal de costa medida y el centro de la
+  banda de groundswell): la dirección no es la condición que limita en ese spot; su
+  estacionalidad es de las mejores del archivo (concentración 1.34). Sin cambios.
+
+**La convención del `+` de Wannasurf queda medida y descartada como problema.** Se temía que
+tomar `2.5m+` como 2.5 produjera techos sistemáticamente conservadores en 8 spots, y que eso
+pesara por ser `max_altura` un gate duro. La medición sobre 2023-2025 dice que `max_altura`
+rechaza entre **0.00 % y 0.29 %** de las horas de luz en los 13 spots: el techo prácticamente
+nunca se alcanza. Ninguna `confianza` se movió por esto.
