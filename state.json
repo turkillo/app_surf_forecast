@@ -1,36 +1,65 @@
 {
-  "ultima_corrida": "2026-08-13",
+  "ultima_corrida": "2026-08-14",
   "observadas": [
     {
       "spot_id": "asia",
       "desde": "2026-08-14",
-      "hasta": "2026-08-17",
-      "score": 71.74444444444445
+      "hasta": "2026-08-18",
+      "score": 74.06984126984126
     },
     {
       "spot_id": "buchupureo",
       "desde": "2026-08-18",
       "hasta": "2026-08-19",
-      "score": 63.371111111111105
+      "score": 63.821111111111094
     },
     {
-      "spot_id": "chicama",
-      "desde": "2026-08-14",
-      "hasta": "2026-08-16",
-      "score": 61.22666666666667
+      "spot_id": "huanchaco",
+      "desde": "2026-08-15",
+      "hasta": "2026-08-17",
+      "score": 66.61472222222221
     },
     {
       "spot_id": "santa_teresa",
       "desde": "2026-08-15",
       "hasta": "2026-08-17",
-      "score": 77.46428571428571
+      "score": 79.59047619047618
     },
     {
       "spot_id": "saquarema",
-      "desde": "2026-08-13",
+      "desde": "2026-08-14",
       "hasta": "2026-08-15",
-      "score": 76.44444444444444
+      "score": 69.34235347985349
     }
   ],
-  "alertadas": []
+  "alertadas": [
+    {
+      "spot_id": "santa_teresa",
+      "desde": "2026-08-15",
+      "hasta": "2026-08-17",
+      "score": 79.59047619047618,
+      "fecha_alerta": "2026-08-14"
+    },
+    {
+      "spot_id": "asia",
+      "desde": "2026-08-14",
+      "hasta": "2026-08-18",
+      "score": 74.06984126984126,
+      "fecha_alerta": "2026-08-14"
+    },
+    {
+      "spot_id": "saquarema",
+      "desde": "2026-08-14",
+      "hasta": "2026-08-15",
+      "score": 69.34235347985349,
+      "fecha_alerta": "2026-08-14"
+    },
+    {
+      "spot_id": "buchupureo",
+      "desde": "2026-08-18",
+      "hasta": "2026-08-19",
+      "score": 63.821111111111094,
+      "fecha_alerta": "2026-08-14"
+    }
+  ]
 }
