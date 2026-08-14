@@ -1203,13 +1203,17 @@ usuario tres opciones —mantener la propuesta, volver a 1.0 m en todos, o un pu
 y eligió el intermedio. Su criterio: la regla original de 1 m sigue valiendo, pero acepta
 subirla donde 1 m es un día cualquiera y no un evento.
 
-| spot | original | propuesta del backtest | **valor final (usuario)** | tope permitido (`rango_ideal[0]`) |
-|---|---|---|---|---|
-| `buchupureo` | 1.0 | 2.0 | **1.5** | 2.0 |
-| `asia` | 1.0 | 1.5 | **1.2** | 1.7 |
-| `santa_teresa` | 1.0 | 1.2 | **1.2** | 1.3 |
-| `saquarema` | 1.0 | 1.5 | **1.2** | 2.3 |
-| `punta_de_lobos` | 1.0 | 1.8 | **1.5** | 2.3 |
+La elección se hizo en dos pasadas: primero un punto intermedio, y después —al ver que tres
+spots quedaban en 33-40 ventanas/año con la concentración estacional caída a 1.03-1.08— el
+usuario subió esos tres un escalón más.
+
+| spot | original | propuesta del backtest | 1.ª elección | **valor final (usuario)** | tope permitido (`rango_ideal[0]`) |
+|---|---|---|---|---|---|
+| `buchupureo` | 1.0 | 2.0 | 1.5 | **1.8** | 2.0 |
+| `asia` | 1.0 | 1.5 | 1.2 | **1.2** | 1.7 |
+| `santa_teresa` | 1.0 | 1.2 | 1.2 | **1.2** | 1.3 |
+| `saquarema` | 1.0 | 1.5 | 1.2 | **1.4** | 2.3 |
+| `punta_de_lobos` | 1.0 | 1.8 | 1.5 | **1.8** | 2.3 |
 
 La propuesta del backtest se había acotado con una regla fijada **antes** de mirar resultados,
 para no sobreajustar: `min_altura` sólo podía subir hasta `rango_ideal[0]`, número que este

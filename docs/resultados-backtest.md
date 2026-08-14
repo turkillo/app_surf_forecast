@@ -84,23 +84,39 @@ y `regA` directo para los 5 enmascarados.
 |---|---|---|---|---|---|---|---|---|---|
 | `la_barra` | 4.3 | 2.01 | estrangulado | 1.19 | ok | 4.9 | 6 | **5.8** | bajo |
 | `chapadmalal` | 7.3 | 2.01 | bajo | 1.32 | ok | 4.9 | 9 | **9.8** | bajo |
-| `praia_do_rosa` | 16.3 | 2.00 | sano | 1.29 | ok | 14.6 | 19 | **21.9** | sano |
-| `buchupureo` | 37.7 | 1.50 | alto | 1.03 | ok | 39.7 | 25 | **39.7** | alto |
+| `praia_do_rosa` | 16.3 | 2.00 | sano | 1.29 | ok | 14.6 | 19 | **21.8** | sano |
+| `buchupureo` | 33.0 | 1.50 | alto | 1.07 | ok | 34.9 | 17 | **34.9** | alto |
 | `asia` | 30.3 | 1.50 | alto | 1.07 | ok | 20.2 | 15 | **20.2** | sano |
 | `huanchaco` | 20.7 | 1.50 | *sano (artefacto)* | 1.13 | ok | 0.7 | 1 | **0.7** | **estrangulado** |
 | `santa_teresa` | 12.3 | 2.01 | sano | 1.34 | ok | 20.9 | 18 | **16.5** | sano |
-| `saquarema` | 26.3 | 2.01 | alto | 1.22 | ok | 31.4 | 19 | **35.3** | alto |
-| `punta_de_lobos` | 35.3 | 1.50 | alto | 1.08 | ok | 39.0 | 19 | **39.0** | alto |
+| `saquarema` | 22.3 | 2.01 | sano | 1.20 | ok | 30.0 | 16 | **29.8** | alto |
+| `punta_de_lobos` | 26.3 | 1.50 | alto | 1.19 | ok | 22.3 | 14 | **22.3** | sano |
 | `chicama` | 11.7 | 2.01 | sano | 1.62 | ok | 5.6 | 13 | **15.7** | sano |
 | `lobitos` | 3.0 | 2.01 | estrangulado | 1.71 | ok | 3.5 | 7 | **4.0** | **estrangulado** |
 | `punta_del_diablo` | 14.7 | 2.00 | sano | 1.29 | ok | 16.7 | 11 | **19.7** | sano |
 | `joaquina` | 4.0 | 1.50 | estrangulado | 1.43 | ok | 4.9 | 0 | **4.9** | **estrangulado** |
 
-**Resumen en la columna que importa (estimado producción):** 5 sanos, 2 bajos
-(`la_barra`, `chapadmalal`), 3 altos (`buchupureo`, `saquarema`,
-`punta_de_lobos`), **3 estrangulados** (`huanchaco`, `lobitos`, `joaquina`),
-**ninguno en ruido** — el más alto (`buchupureo`, 39.7) está a dos tercios del
-umbral de 60. Los 13 pasan el chequeo de estacionalidad.
+**Resumen en la columna que importa (estimado producción):** 6 sanos, 2 bajos
+(`la_barra`, `chapadmalal`), 2 altos (`buchupureo`, `saquarema`), **3
+estrangulados** (`huanchaco`, `lobitos`, `joaquina`), **ninguno en ruido** — el más
+alto (`buchupureo`, 34.9) está a poco más de la mitad del umbral de 60. Los 13
+pasan el chequeo de estacionalidad.
+
+### Cuántas alertas esperar en total
+
+Sumando los 13 spots: **206 ventanas/año**. Pero no caen repartidas parejo: las 619
+ventanas de 2023-2025 arrancan en sólo **431 días distintos**, o sea **144 días con
+aviso por año ≈ 2.8 por semana**. El resto se agrupa: 290 días con un solo spot,
+109 con dos, 20 con tres, 10 con cuatro, y dos días con cinco y seis spots a la
+vez. Es esperable —un mismo sistema sinóptico pega en varios spots del mismo
+litoral— y significa que el usuario va a recibir varios mensajes juntos y después
+días de silencio. El **98 % de las semanas** tiene al menos un aviso.
+
+**Estos 206 son un techo, no el número de mensajes de Telegram.** El backtest
+detecta ventanas sobre datos de archivo en una sola pasada; producción además exige
+que la ventana haya aparecido en la corrida del día anterior (persistencia) y
+aplica anti-repetición, así que sólo alerta una vez por ventana salvo que se
+extienda o el score salte 15 puntos. El número real de mensajes es menor.
 
 ### Distribución mensual de ventanas (2023-2025)
 
@@ -109,12 +125,12 @@ umbral de 60. Los 13 pasan el chequeo de estacionalidad.
 | `la_barra` | 1 | 2 | 1 | 2 | 1 | 3 | 0 | 3 | 0 | 0 | 0 | 0 |
 | `chapadmalal` | 0 | 2 | 2 | 5 | 3 | 2 | 1 | 5 | 1 | 0 | 1 | 0 |
 | `praia_do_rosa` | 2 | 0 | 3 | 5 | 5 | 4 | 4 | 7 | 7 | 5 | 1 | 6 |
-| `buchupureo` | 7 | 9 | 12 | 9 | 9 | 9 | 9 | 9 | 8 | 15 | 11 | 6 |
+| `buchupureo` | 5 | 6 | 11 | 7 | 10 | 9 | 8 | 8 | 7 | 13 | 11 | 4 |
 | `asia` | 12 | 1 | 5 | 6 | 5 | 8 | 7 | 10 | 10 | 11 | 10 | 6 |
 | `huanchaco` | 4 | 2 | 3 | 2 | 1 | 7 | 8 | 7 | 8 | 8 | 7 | 5 |
 | `santa_teresa` | 0 | 1 | 2 | 5 | 7 | 6 | 3 | 3 | 2 | 2 | 5 | 1 |
-| `saquarema` | 5 | 4 | 3 | 9 | 10 | 8 | 9 | 11 | 6 | 3 | 5 | 6 |
-| `punta_de_lobos` | 9 | 6 | 11 | 9 | 11 | 10 | 8 | 10 | 8 | 11 | 8 | 5 |
+| `saquarema` | 5 | 3 | 3 | 9 | 10 | 6 | 7 | 9 | 3 | 3 | 4 | 5 |
+| `punta_de_lobos` | 4 | 4 | 6 | 6 | 9 | 5 | 9 | 10 | 7 | 9 | 7 | 3 |
 | `chicama` | 0 | 0 | 0 | 2 | 7 | 5 | 6 | 4 | 5 | 4 | 2 | 0 |
 | `lobitos` | 0 | 0 | 0 | 0 | 2 | 4 | 2 | 1 | 0 | 0 | 0 | 0 |
 | `punta_del_diablo` | 1 | 3 | 2 | 6 | 4 | 5 | 4 | 7 | 4 | 3 | 2 | 3 |
@@ -208,13 +224,18 @@ compensar. **No se ajustó ningún `min_altura` por sesgo de medición.**
 > valores optimizados, son una preferencia declarada, y cambiarlos requiere volver
 > a preguntar.**
 
-| spot | original | propuesta del backtest | **valor final (usuario)** | tope (`rango_ideal[0]`) |
-|---|---|---|---|---|
-| `buchupureo` | 1.0 | 2.0 | **1.5** | 2.0 |
-| `asia` | 1.0 | 1.5 | **1.2** | 1.7 |
-| `santa_teresa` | 1.0 | 1.2 | **1.2** | 1.3 |
-| `saquarema` | 1.0 | 1.5 | **1.2** | 2.3 |
-| `punta_de_lobos` | 1.0 | 1.8 | **1.5** | 2.3 |
+Se hizo en dos pasadas: primero un punto intermedio, y después —al ver que tres
+spots quedaban en 33-40 ventanas/año con la concentración estacional caída a
+1.03-1.08— el usuario subió esos tres un escalón más. `asia` y `santa_teresa`
+quedaron donde estaban porque ya daban sano.
+
+| spot | original | propuesta del backtest | 1.ª elección | **valor final (usuario)** | tope (`rango_ideal[0]`) |
+|---|---|---|---|---|---|
+| `buchupureo` | 1.0 | 2.0 | 1.5 | **1.8** | 2.0 |
+| `asia` | 1.0 | 1.5 | 1.2 | **1.2** | 1.7 |
+| `santa_teresa` | 1.0 | 1.2 | 1.2 | **1.2** | 1.3 |
+| `saquarema` | 1.0 | 1.5 | 1.2 | **1.4** | 2.3 |
+| `punta_de_lobos` | 1.0 | 1.8 | 1.5 | **1.8** | 2.3 |
 
 En los 5 casos el `min_altura: 1.0` no era un dato medido: la investigación lo
 documenta como *"piso del usuario"* porque Wannasurf decía *"starts working at less
@@ -239,25 +260,40 @@ cambia ninguna ventana detectada.
 **Efecto de la decisión del usuario respecto de la propuesta del backtest**
 (estimado producción, ventanas/año):
 
-| spot | con la propuesta | **con el valor del usuario** | veredicto |
-|---|---|---|---|
-| `buchupureo` | 25.1 | **39.7** | alto → alto |
-| `asia` | 13.2 | **20.2** | sano → sano |
-| `santa_teresa` | 16.5 | **16.5** | sano → sano |
-| `saquarema` | 24.1 | **35.3** | **sano → alto** |
-| `punta_de_lobos` | 22.3 | **39.0** | **sano → alto** |
+| spot | con la propuesta | 1.ª elección | **valor final** | veredicto final |
+|---|---|---|---|---|
+| `buchupureo` | 25.1 | 39.7 | **34.9** | alto |
+| `asia` | 13.2 | 20.2 | **20.2** | sano |
+| `santa_teresa` | 16.5 | 16.5 | **16.5** | sano |
+| `saquarema` | 24.1 | 35.3 | **29.8** | alto |
+| `punta_de_lobos` | 22.3 | 39.0 | **22.3** | **sano** |
 
-Dos spots pasan de `sano` a `alto` y `buchupureo` sube dentro de `alto`.
-**Ninguno entra en zona de ruido**: el máximo es 39.7 contra un umbral de 60. Es
-exactamente el intercambio que el usuario pidió.
+`punta_de_lobos` vuelve a `sano`; `buchupureo` y `saquarema` quedan en `alto`.
+**Ninguno entra en zona de ruido**: el máximo es 34.9 contra un umbral de 60.
 
-**Un efecto secundario que conviene vigilar:** en los tres spots que más subieron
-de volumen, la concentración estacional bajó — `buchupureo` 1.24 → **1.03**,
-`punta_de_lobos` 1.19 → **1.08**, `asia` 1.31 → **1.07**. Siguen por encima de 1.0
-y los tres pasan el chequeo, pero quedaron cerca de una distribución uniforme. Es
-el mismo mecanismo descrito en 4.3: cuanto más bajo el piso, más se parece la
-selección a "día normal del spot" y menos a "evento". No es un fallo hoy; es el
-indicador a mirar si el usuario reporta que las alertas de verano no le sirven.
+### El mecanismo "piso más alto ⇒ selecciona eventos": evidencia, no hipótesis
+
+La primera elección del usuario dejó a tres spots con la concentración estacional
+caída, lo que permitió medir el efecto de subir el piso sobre esos mismos tres:
+
+| spot | `min_altura` | conc. antes | conc. después | Δ |
+|---|---|---|---|---|
+| `punta_de_lobos` | 1.5 → 1.8 | 1.08 | **1.19** | **+0.11** |
+| `buchupureo` | 1.5 → 1.8 | 1.03 | **1.07** | +0.04 |
+| `saquarema` | 1.2 → 1.4 | 1.22 | **1.20** | −0.02 |
+
+**El mecanismo se confirma parcialmente, no del todo.** En `punta_de_lobos` el
+efecto es claro y cruza el 1.15; en `buchupureo` la dirección es la esperada pero
+el tamaño es chico y sigue casi uniforme (1.07); en `saquarema` el movimiento es
+del signo contrario, aunque dentro del ruido de una muestra de 67 ventanas.
+
+La lectura honesta: **subir el piso mueve la concentración en la dirección
+esperada, pero no es una palanca fuerte ni fiable spot por spot.** Donde funcionó
+de verdad fue en `asia` (1.01 → 1.07 con +0.2 m, y 1.31 con +0.5 m en la prueba
+previa), que era el caso extremo. En spots como `buchupureo`, donde el mar es
+grande y consistente todo el año, la estacionalidad del *volumen de alertas* va a
+ser débil por más que se suba el piso, sencillamente porque el spot funciona todo
+el año. Eso no es un defecto del detector.
 
 ### 4.3 El caso `asia`: por qué su `NO COINCIDE` no se arregló con la regla del brief
 
@@ -415,13 +451,16 @@ diseño).
 
 - **Estacionalidad: 13/13 ok.** Hipótesis de temporada validada como una sola cosa
   (concentración global 1.26; los 13 spots > 1.0 y en el mismo sentido). Con los
-  pisos que fijó el usuario, `buchupureo` (1.03), `asia` (1.07) y `punta_de_lobos`
-  (1.08) pasan con poco margen: son los que hay que revisar si aparecen alertas de
-  verano que no sirven (ver 4.2).
-- **Volumen: 5 sanos, 2 bajos, 3 altos, 3 estrangulados, 0 en ruido.**
+  pisos que fijó el usuario, `buchupureo` (1.07) y `asia` (1.07) pasan con poco
+  margen: son los que hay que revisar si aparecen alertas de verano que no sirven
+  (ver 4.2).
+- **Volumen: 6 sanos, 2 bajos, 2 altos, 3 estrangulados, 0 en ruido.**
+- **Total: 206 ventanas/año sobre los 13 spots**, agrupadas en ~144 días con aviso
+  (≈2.8 por semana), y es un techo: producción además exige persistencia y aplica
+  anti-repetición.
 - Ningún spot quedó en la zona de ruido, que es el modo de falla que hace que el
-  usuario ignore el bot. El más alto (`buchupureo`, 39.7/año) está a dos tercios
-  del umbral de 60.
+  usuario ignore el bot. El más alto (`buchupureo`, 34.9/año) está a poco más de la
+  mitad del umbral de 60.
 - **Bloqueante conocido:** `huanchaco`, `joaquina` y `lobitos` siguen estrangulados
   por divergencia entre modelos de olas, no por umbrales (sección 5).
 - **Pendiente:** ground truth del usuario sobre los top 10 (sección 6).
