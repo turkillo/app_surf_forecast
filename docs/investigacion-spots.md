@@ -1194,24 +1194,40 @@ La **altura no tiene sesgo**: el cociente Open-Meteo / surf-forecast da 0.92 (�
 debajo del ~20 % que justificaría compensar. Ningún `min_altura` se movió por sesgo de
 medición.
 
-## `min_altura`: 5 spots, por volumen
+## `min_altura`: 5 spots — decisión del usuario, no derivación
 
-Regla fijada **antes** de mirar los resultados, para no sobreajustar: `min_altura` sólo puede
-subir hasta `rango_ideal[0]`, número que este documento ya define como el piso de las
-condiciones buenas del spot. Alertar por debajo de él es alertar por un día del fondo del
-rango.
+**El origen de estos cinco números NO es el backtest: es una elección explícita del usuario.**
+El backtest detectó el síntoma (33-41 ventanas/año tras corregir el período, es decir el
+detector llamando "bueno" al día normal del spot) y propuso valores; se le presentaron al
+usuario tres opciones —mantener la propuesta, volver a 1.0 m en todos, o un punto intermedio—
+y eligió el intermedio. Su criterio: la regla original de 1 m sigue valiendo, pero acepta
+subirla donde 1 m es un día cualquiera y no un evento.
 
-| spot | de | a | tope permitido | motivo |
+| spot | original | propuesta del backtest | **valor final (usuario)** | tope permitido (`rango_ideal[0]`) |
 |---|---|---|---|---|
-| `buchupureo` | 1.0 | **2.0** | 2.0 | 41 ventanas/año post-corrección de período |
-| `asia` | 1.0 | **1.5** | 1.7 | volumen alto **y** estacionalidad plana (ver abajo) |
-| `santa_teresa` | 1.0 | **1.2** | 1.3 | 33 ventanas/año |
-| `saquarema` | 1.0 | **1.5** | 2.3 | 39 ventanas/año |
-| `punta_de_lobos` | 1.0 | **1.8** | 2.3 | 38 ventanas/año |
+| `buchupureo` | 1.0 | 2.0 | **1.5** | 2.0 |
+| `asia` | 1.0 | 1.5 | **1.2** | 1.7 |
+| `santa_teresa` | 1.0 | 1.2 | **1.2** | 1.3 |
+| `saquarema` | 1.0 | 1.5 | **1.2** | 2.3 |
+| `punta_de_lobos` | 1.0 | 1.8 | **1.5** | 2.3 |
+
+La propuesta del backtest se había acotado con una regla fijada **antes** de mirar resultados,
+para no sobreajustar: `min_altura` sólo podía subir hasta `rango_ideal[0]`, número que este
+documento ya define como el piso de las condiciones buenas del spot. El usuario se quedó por
+debajo de esa propuesta en 4 de los 5.
 
 En los 5 casos el `1.0` no era un dato de fuente: este documento lo registra como **"piso del
 usuario"**, aplicado porque Wannasurf decía *"starts working at less than 1m"*. O sea que no
-se está contradiciendo ninguna fuente; se está reemplazando un piso genérico por uno medido.
+se contradice ninguna fuente; se reemplaza un piso genérico por una preferencia declarada.
+
+**`rango_ideal` no se recalculó.** Todos los valores finales dejan `rango_ideal` contenido en
+`[min_altura, max_altura]`, así que el validador de `surf.spots` no obliga a nada. Se evaluó
+re-derivarlo con la convención de fracciones de este documento y se descartó: esa convención
+toma como entrada el **piso de funcionamiento** del spot (1.0 m, *"starts working at"*), que
+es un hecho físico que no cambió. `min_altura` pasó a cumplir un segundo papel —piso de
+alerta— y realimentarlo en la fórmula confundiría las dos cosas y correría la banda ideal por
+encima de lo que dicen las fuentes. `rango_ideal` además sólo entra en el score, nunca en el
+gate.
 
 ## `asia`: por qué su fallo de estacionalidad NO se resolvió reorientando la ventana
 
@@ -1226,7 +1242,10 @@ contra 1.35 m en diciembre). El problema era que `min_altura: 1.0` estaba **por 
 línea de base de todo el año** en la costa central peruana, así que el detector seleccionaba
 "día normal en Perú" —que es aseasonal por construcción— en vez de seleccionar eventos.
 
-Con `min_altura: 1.5` la concentración sube a 1.31 y el volumen queda en 24/año. **La
+Subir el piso resuelve el fallo. Con el `1.5` que había propuesto el backtest la
+concentración subía a 1.31; con el **`1.2` que eligió el usuario** queda en 1.07 —pasa el
+chequeo, pero por poco margen sobre una distribución uniforme— y el volumen sube a 30.3/año.
+Es un intercambio consciente, no un descuido. **La
 `swell.ventana`, el `swell.ideal` y la `costa_mira` de `asia` no se tocaron**, y el corolario
 de la lección 1/5 de este archivo se respetó: no se reorientó un campo gate correcto para
 explicar un síntoma que venía de otro lado.
