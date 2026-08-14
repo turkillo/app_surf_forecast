@@ -301,3 +301,108 @@ def test_combinar_multimodelo_usa_sunrise_sufijado_por_modelo():
     hmm = por_dia[date(2026, 8, 21)][0]
     assert len(hmm.por_modelo) == 1
     assert hmm.es_de_dia is True
+
+
+# --- punto de oleaje separado del punto de viento ---------------------------
+
+class _SesionEspia:
+    """Registra los params de cada GET para poder afirmar que endpoint recibio
+    que coordenada."""
+
+    def __init__(self):
+        self.llamadas = []
+
+    def get(self, url, params=None, timeout=None):
+        self.llamadas.append((url, dict(params or {})))
+        horas = ["2026-08-21T09:00", "2026-08-21T10:00"]
+        if "marine" in url:
+            cuerpo = {"hourly": {"time": horas}}
+            for i, m in enumerate(("gwam", "meteofrance_wave", "ncep_gfswave025")):
+                cuerpo["hourly"][f"swell_wave_height_{m}"] = [1.8 + i * 0.1] * 2
+                cuerpo["hourly"][f"swell_wave_period_{m}"] = [14.0 + i] * 2
+                cuerpo["hourly"][f"swell_wave_direction_{m}"] = [200.0 + i] * 2
+        else:
+            cuerpo = {"hourly": {"time": horas},
+                      "daily": {"time": ["2026-08-21"],
+                                "sunrise_gfs_seamless": ["2026-08-21T06:45"],
+                                "sunset_gfs_seamless": ["2026-08-21T18:20"]}}
+            for i, m in enumerate(("gfs_seamless", "icon_seamless", "ecmwf_ifs025")):
+                cuerpo["hourly"][f"wind_speed_10m_{m}"] = [8.0 + i] * 2
+                cuerpo["hourly"][f"wind_direction_10m_{m}"] = [95.0 + i] * 2
+        return _RespuestaEspia(cuerpo)
+
+
+class _RespuestaEspia:
+    def __init__(self, cuerpo):
+        self._cuerpo = cuerpo
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self._cuerpo
+
+
+def _spot_partido():
+    from surf.spots import Spot, Swell
+    return Spot(id="partido", nombre="Partido", pais="UY", lat=-34.92, lon=-54.85,
+                tipo="point_break", costa_mira=165,
+                swell=Swell(ventana=(135, 225), ideal=180, min_altura=1.0,
+                            max_altura=3.0, rango_ideal=(1.7, 2.6), min_periodo=8),
+                viento_ideal=337, temporada=[4], url_surfforecast="http://x",
+                fuentes=["t"], confianza="media",
+                lat_mar=-35.094, lon_mar=-54.793)
+
+
+def test_el_oleaje_se_pide_mar_adentro_y_el_viento_en_la_playa():
+    """El punto desplazado corrige la celda de grilla del modelo de olas, pero
+    el viento a 20 km de la costa es otro viento (medido: +7 a +14 km/h y sin
+    horas glassy). Cada endpoint tiene que recibir su propia coordenada."""
+    from surf.fetch import obtener_horas_multimodelo
+    sesion = _SesionEspia()
+    obtener_horas_multimodelo(_spot_partido(), dias=1, sesion=sesion)
+
+    marine = [p for u, p in sesion.llamadas if "marine" in u]
+    clima = [p for u, p in sesion.llamadas if "marine" not in u]
+    assert marine and clima
+    assert (marine[0]["latitude"], marine[0]["longitude"]) == (-35.094, -54.793)
+    assert (clima[0]["latitude"], clima[0]["longitude"]) == (-34.92, -54.85)
+
+
+def test_sin_desplazamiento_los_dos_endpoints_reciben_el_mismo_punto():
+    from surf.fetch import obtener_horas_multimodelo
+    from dataclasses import replace
+    sesion = _SesionEspia()
+    spot = replace(_spot_partido(), lat_mar=None, lon_mar=None)
+    obtener_horas_multimodelo(spot, dias=1, sesion=sesion)
+    puntos = {(p["latitude"], p["longitude"]) for _, p in sesion.llamadas}
+    assert puntos == {(-34.92, -54.85)}
+
+
+def test_obtener_horas_simple_tambien_parte_el_punto():
+    """El camino single-modelo no corre en produccion pero sigue existiendo:
+    si no se parte igual, quien lo use mide el viento en alta mar."""
+    from surf.fetch import obtener_horas
+    sesion = _SesionEspiaSimple()
+    obtener_horas(_spot_partido(), dias=1, sesion=sesion)
+    marine = [p for u, p in sesion.llamadas if "marine" in u]
+    clima = [p for u, p in sesion.llamadas if "marine" not in u]
+    assert (marine[0]["latitude"], marine[0]["longitude"]) == (-35.094, -54.793)
+    assert (clima[0]["latitude"], clima[0]["longitude"]) == (-34.92, -54.85)
+
+
+class _SesionEspiaSimple(_SesionEspia):
+    def get(self, url, params=None, timeout=None):
+        self.llamadas.append((url, dict(params or {})))
+        horas = ["2026-08-21T09:00", "2026-08-21T10:00"]
+        if "marine" in url:
+            cuerpo = {"hourly": {"time": horas, "swell_wave_height": [1.8, 1.9],
+                                 "swell_wave_period": [14.0, 14.2],
+                                 "swell_wave_direction": [200.0, 202.0]}}
+        else:
+            cuerpo = {"hourly": {"time": horas, "wind_speed_10m": [8.0, 9.0],
+                                 "wind_direction_10m": [95.0, 97.0]},
+                      "daily": {"time": ["2026-08-21"],
+                                "sunrise": ["2026-08-21T06:45"],
+                                "sunset": ["2026-08-21T18:20"]}}
+        return _RespuestaEspia(cuerpo)

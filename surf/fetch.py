@@ -115,15 +115,34 @@ def _combinar(marine: dict, clima: dict) -> dict[date, list[Hora]]:
     return por_dia
 
 
+def _bases(spot: Spot, dias: int) -> tuple[dict, dict]:
+    """Params comunes de cada endpoint: oleaje y viento pueden ir a puntos distintos.
+
+    Los modelos de olas trabajan en grillas de ~28 km y una coordenada pegada a
+    la costa cae en celdas contaminadas por tierra, asi que algunos spots
+    consultan el oleaje mar adentro (`spot.coords_mar`). El viento se sigue
+    midiendo en la playa: a 20 km de la costa es otro viento, y es la condicion
+    mas local del gate.
+
+    Los dos puntos van con `timezone=auto`. Estan a ~20 km, asi que resuelven a
+    la misma zona horaria; si alguna vez no fuera asi, `_combinar` corta con
+    ErrorDatos al comparar las series y el spot se saltea, que es el
+    comportamiento correcto.
+    """
+    lat_mar, lon_mar = spot.coords_mar
+    comun = {"timezone": "auto", "forecast_days": dias}
+    return ({**comun, "latitude": lat_mar, "longitude": lon_mar},
+            {**comun, "latitude": spot.lat, "longitude": spot.lon})
+
+
 def obtener_horas(spot: Spot, dias: int = 7, sesion=None) -> dict[date, list[Hora]]:
     """Trae el pronostico horario del spot, agrupado por dia local."""
-    base = {"latitude": spot.lat, "longitude": spot.lon,
-            "timezone": "auto", "forecast_days": dias}
+    base_mar, base_viento = _bases(spot, dias)
 
-    marine = _pedir(URL_MARINE, {**base, "hourly": ",".join(_CAMPOS_MARINE)}, sesion)
+    marine = _pedir(URL_MARINE, {**base_mar, "hourly": ",".join(_CAMPOS_MARINE)}, sesion)
     clima = _pedir(
         URL_CLIMA,
-        {**base, "hourly": ",".join(_CAMPOS_CLIMA), "daily": "sunrise,sunset",
+        {**base_viento, "hourly": ",".join(_CAMPOS_CLIMA), "daily": "sunrise,sunset",
          "wind_speed_unit": "kmh"},
         sesion,
     )
@@ -140,12 +159,11 @@ def obtener_horas_multimodelo(spot: Spot, dias: int = 7,
     """
     from surf.consenso import MODELOS_OLAS, MODELOS_VIENTO, HoraMultiModelo
 
-    base = {"latitude": spot.lat, "longitude": spot.lon,
-            "timezone": "auto", "forecast_days": dias}
+    base_mar, base_viento = _bases(spot, dias)
 
-    marine = _pedir(URL_MARINE, {**base, "hourly": ",".join(_CAMPOS_MARINE),
+    marine = _pedir(URL_MARINE, {**base_mar, "hourly": ",".join(_CAMPOS_MARINE),
                                  "models": ",".join(MODELOS_OLAS)}, sesion)
-    clima = _pedir(URL_CLIMA, {**base, "hourly": ",".join(_CAMPOS_CLIMA),
+    clima = _pedir(URL_CLIMA, {**base_viento, "hourly": ",".join(_CAMPOS_CLIMA),
                                "models": ",".join(MODELOS_VIENTO),
                                "daily": "sunrise,sunset",
                                "wind_speed_unit": "kmh"}, sesion)

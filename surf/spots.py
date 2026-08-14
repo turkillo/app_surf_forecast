@@ -13,11 +13,33 @@ from surf.geo import angular_diff, en_ventana
 
 _CONFIANZAS = {"alta", "media", "baja"}
 _TIPOS = {"point_break", "beach_break", "reef"}
+
+# `cercania` registra COMO llega el usuario al spot, y existe para dejar
+# asentado por que dos spots pueden llevar umbrales distintos:
+#   local -> va sin planificar viaje, el costo de ir es bajo
+#   viaje -> hay que sacar pasaje, solo vale la pena por algo muy bueno
+# No es decorativo. Si alguien corre el backtest dentro de seis meses, ve que
+# un spot local da mas alertas que el resto y lo "corrige", rompe una decision
+# deliberada. Es la leccion que dejo `temporada`, que se poblo con dos
+# significados distintos porque nunca se documento cual era.
+_CERCANIAS = {"local", "viaje"}
+
 _CAMPOS_SPOT = [
     "id", "nombre", "pais", "lat", "lon", "tipo", "costa_mira",
     "swell", "viento_ideal", "temporada", "url_surfforecast",
     "fuentes", "confianza",
 ]
+
+# `cercania` es OPCIONAL en el YAML y cae en "viaje", la categoria estricta.
+# Que sea opcional es para que un perfil minimo siga cargando; que los 13 spots
+# reales lo declaren igual lo verifica un test sobre el YAML de produccion.
+CERCANIA_POR_DEFECTO = "viaje"
+
+# Maximo desvio permitido entre el punto del spot y el punto donde se consulta
+# el oleaje. No es una tolerancia fisica: es una guarda contra un error de
+# tipeo que mande el punto a otro oceano. Un grado son ~111 km, y los
+# desplazamientos reales son de 20 km.
+MAX_DESVIO_PUNTO_MAR_GRADOS = 1.0
 _CAMPOS_SWELL = [
     "ventana", "ideal", "min_altura", "max_altura",
     "rango_ideal", "min_periodo",
@@ -53,6 +75,24 @@ class Spot:
     url_surfforecast: str
     fuentes: list[str]
     confianza: str
+    # Por defecto `viaje`, que es la categoria ESTRICTA: un spot al que nadie
+    # le puso la etiqueta se filtra con el criterio conservador.
+    cercania: str = "viaje"
+    # Punto donde se consulta el OLEAJE, cuando no es el del spot. Los modelos
+    # de olas trabajan en grillas de 0.25 grados (~28 km), asi que una
+    # coordenada pegada a la costa cae en celdas parcialmente enmascaradas como
+    # tierra y el modelo devuelve alturas muy por debajo de las reales. El
+    # viento NO se mueve: a 20 km de la costa es otro viento (medido: +7 a
+    # +14.5 km/h de mediana y practicamente sin horas glassy), y el viento es
+    # la condicion mas local del gate.
+    lat_mar: float | None = None
+    lon_mar: float | None = None
+
+    @property
+    def coords_mar(self) -> tuple[float, float]:
+        """Punto para la Marine API. Cae en el del spot si no se desplazo."""
+        return (self.lat if self.lat_mar is None else self.lat_mar,
+                self.lon if self.lon_mar is None else self.lon_mar)
 
 
 def _num(
@@ -141,6 +181,31 @@ def _validar(crudo: dict[str, Any]) -> None:
             f"[{ident}] confianza invalida '{crudo['confianza']}', debe ser una de {_CONFIANZAS}"
         )
 
+    if crudo.get("cercania", CERCANIA_POR_DEFECTO) not in _CERCANIAS:
+        raise ValueError(
+            f"[{ident}] cercania invalida '{crudo['cercania']}', debe ser una de {_CERCANIAS}"
+        )
+
+    # El punto de oleaje es opcional, pero o estan las dos coordenadas o
+    # ninguna: media coordenada desplazada daria un punto que no eligio nadie.
+    tiene_lat_mar = crudo.get("lat_mar") is not None
+    tiene_lon_mar = crudo.get("lon_mar") is not None
+    if tiene_lat_mar != tiene_lon_mar:
+        raise ValueError(
+            f"[{ident}] lat_mar y lon_mar van juntos: si se desplaza el punto de "
+            f"oleaje hay que dar las dos coordenadas"
+        )
+    if tiene_lat_mar:
+        lat_mar = _num(crudo, "lat_mar", ident)
+        lon_mar = _num(crudo, "lon_mar", ident)
+        if (abs(lat_mar - lat) > MAX_DESVIO_PUNTO_MAR_GRADOS
+                or abs(lon_mar - lon) > MAX_DESVIO_PUNTO_MAR_GRADOS):
+            raise ValueError(
+                f"[{ident}] el punto de oleaje (lat_mar {lat_mar}, lon_mar {lon_mar}) "
+                f"esta a mas de {MAX_DESVIO_PUNTO_MAR_GRADOS} grado del spot "
+                f"({lat}, {lon}). Revisar: parece un error de tipeo."
+            )
+
     if swell_max_altura <= swell_min_altura:
         raise ValueError(
             f"[{ident}] max_altura ({swell_max_altura}) debe ser mayor "
@@ -223,6 +288,11 @@ def cargar_spots(path: Path) -> list[Spot]:
                 url_surfforecast=crudo["url_surfforecast"],
                 fuentes=list(crudo["fuentes"]),
                 confianza=crudo["confianza"],
+                cercania=crudo.get("cercania", CERCANIA_POR_DEFECTO),
+                lat_mar=(float(crudo["lat_mar"])
+                         if crudo.get("lat_mar") is not None else None),
+                lon_mar=(float(crudo["lon_mar"])
+                         if crudo.get("lon_mar") is not None else None),
             )
         )
 

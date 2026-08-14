@@ -60,7 +60,7 @@ de viento y el experimento mediría dos cosas a la vez.
 | **agregado (8 spots)** | **98** | **73** | **1.34** |
 | `buchupureo`, `asia`, `huanchaco`, `punta_de_lobos`, `joaquina` | — | — | 1.00 (ncep enmascarado: producción también tiene 2 fuentes) |
 
-**Factor de corrección: ×1.34** para los 8 spots donde producción realmente tiene
+**Factor de corrección: ×1.27** para los 8 spots donde producción realmente tiene
 una tercera fuente; **×1.00** para los 5 enmascarados, donde el backtest en régimen
 de 2 fuentes *es* la configuración de producción.
 
@@ -80,37 +80,37 @@ hora): donde dice 1.50, la mitad del período corrió con una sola fuente.
 entre spots. `estimado prod` = `23-25 × 1.34` para los 8 spots con tercera fuente,
 y `regA` directo para los 5 enmascarados.
 
-| spot | 23-25 v/año | fuentes | veredicto | conc | temporada | regA v/año | prod 2026 (n/222d) | **estimado prod v/año** | **veredicto prod** |
+| spot | cercanía | 23-25 v/año | fuentes | conc | temporada | regA v/año | prod 2026 (n/222d) | **estimado prod v/año** | **veredicto prod** |
 |---|---|---|---|---|---|---|---|---|---|
-| `la_barra` | 4.3 | 2.01 | estrangulado | 1.19 | ok | 4.9 | 6 | **5.8** | bajo |
-| `chapadmalal` | 7.3 | 2.01 | bajo | 1.32 | ok | 4.9 | 9 | **9.8** | bajo |
-| `praia_do_rosa` | 16.3 | 2.00 | sano | 1.29 | ok | 14.6 | 19 | **21.8** | sano |
-| `buchupureo` | 33.0 | 1.50 | alto | 1.07 | ok | 34.9 | 17 | **34.9** | alto |
-| `asia` | 30.3 | 1.50 | alto | 1.07 | ok | 20.2 | 15 | **20.2** | sano |
-| `huanchaco` | 20.7 | 1.50 | *sano (artefacto)* | 1.13 | ok | 0.7 | 1 | **0.7** | **estrangulado** |
-| `santa_teresa` | 12.3 | 2.01 | sano | 1.34 | ok | 20.9 | 18 | **16.5** | sano |
-| `saquarema` | 22.3 | 2.01 | sano | 1.20 | ok | 30.0 | 16 | **29.8** | alto |
-| `punta_de_lobos` | 26.3 | 1.50 | alto | 1.19 | ok | 22.3 | 14 | **22.3** | sano |
-| `chicama` | 11.7 | 2.01 | sano | 1.62 | ok | 5.6 | 13 | **15.7** | sano |
-| `lobitos` | 3.0 | 2.01 | estrangulado | 1.71 | ok | 3.5 | 7 | **4.0** | **estrangulado** |
-| `punta_del_diablo` | 14.7 | 2.00 | sano | 1.29 | ok | 16.7 | 11 | **19.7** | sano |
-| `joaquina` | 4.0 | 1.50 | estrangulado | 1.43 | ok | 4.9 | 0 | **4.9** | **estrangulado** |
+| `la_barra` | local | 4.3 | 2.01 | 1.19 | ok | 4.9 | 6 | **5.5** | bajo |
+| `chapadmalal` | local | 7.3 | 2.01 | 1.32 | ok | 4.9 | 9 | **9.3** | bajo |
+| `praia_do_rosa` | local | 16.3 | 2.00 | 1.29 | ok | 14.6 | 19 | **20.7** | sano |
+| `buchupureo` | viaje | 33.0 | 1.50 | 1.07 | ok | 34.9 | 17 | **34.9** | alto |
+| `asia` | viaje | 30.3 | 1.50 | 1.07 | ok | 20.2 | 15 | **20.2** | sano |
+| `huanchaco` | viaje | 20.7 | 1.50 | 1.13 | ok | 0.7 | 1 | **0.7** | **estrangulado** |
+| `santa_teresa` | viaje | 12.3 | 2.01 | 1.34 | ok | 20.9 | 18 | **15.6** | sano |
+| `saquarema` | viaje | 22.3 | 2.01 | 1.20 | ok | 30.0 | 16 | **28.3** | alto |
+| `punta_de_lobos` | viaje | 26.3 | 1.50 | 1.19 | ok | 22.3 | 14 | **22.3** | sano |
+| `chicama` | viaje | 31.7 | 2.01 | 1.05 | ok | 34.2 | 22 | **40.3** | alto |
+| `lobitos` | viaje | 3.0 | 2.01 | 1.71 | ok | 3.5 | 7 | **3.8** | **estrangulado** |
+| `punta_del_diablo` | viaje | 14.7 | 2.00 | 1.29 | ok | 16.7 | 11 | **18.7** | sano |
+| `joaquina` | viaje | 4.0 | 1.50 | 1.43 | ok | 4.9 | 0 | **4.9** | **estrangulado** |
 
-**Resumen en la columna que importa (estimado producción):** 6 sanos, 2 bajos
-(`la_barra`, `chapadmalal`), 2 altos (`buchupureo`, `saquarema`), **3
+**Resumen en la columna que importa (estimado producción):** 5 sanos, 2 bajos
+(`la_barra`, `chapadmalal`), 3 altos (`buchupureo`, `saquarema`, `chicama`), **3
 estrangulados** (`huanchaco`, `lobitos`, `joaquina`), **ninguno en ruido** — el más
-alto (`buchupureo`, 34.9) está a poco más de la mitad del umbral de 60. Los 13
-pasan el chequeo de estacionalidad.
+alto (`chicama`, 40.3) está a dos tercios del umbral de 60. Los 13 pasan el chequeo
+de estacionalidad.
 
 ### Cuántas alertas esperar en total
 
-Sumando los 13 spots: **206 ventanas/año**. Pero no caen repartidas parejo: las 619
-ventanas de 2023-2025 arrancan en sólo **431 días distintos**, o sea **144 días con
-aviso por año ≈ 2.8 por semana**. El resto se agrupa: 290 días con un solo spot,
-109 con dos, 20 con tres, 10 con cuatro, y dos días con cinco y seis spots a la
-vez. Es esperable —un mismo sistema sinóptico pega en varios spots del mismo
-litoral— y significa que el usuario va a recibir varios mensajes juntos y después
-días de silencio. El **98 % de las semanas** tiene al menos un aviso.
+Sumando los 13 spots: **225 ventanas/año**. Pero no caen repartidas parejo: las 679
+ventanas de 2023-2025 arrancan en sólo **465 días distintos**, o sea **155 días con
+aviso por año ≈ 3.0 por semana**. El resto se agrupa: 311 días con un solo spot, 108
+con dos, 34 con tres, 10 con cuatro y 2 con cinco. Es esperable —un mismo sistema
+sinóptico pega en varios spots del mismo litoral— y significa que el usuario va a
+recibir varios mensajes juntos y después días de silencio. El **99 % de las semanas**
+tiene al menos un aviso.
 
 **Estos 206 son un techo, no el número de mensajes de Telegram.** El backtest
 detecta ventanas sobre datos de archivo en una sola pasada; producción además exige
@@ -347,6 +347,105 @@ tocar nada, y no se modificó.
 
 ---
 
+### 4.5 Campo `cercania` y punto de muestreo del oleaje
+
+**`cercania`** (`local` | `viaje`) registra cómo llega el usuario al spot. Al
+arrancar el proyecto se asumió que los 13 eran destinos de viaje y el filtro se
+calibró exigente a propósito: sólo vale la pena volar por algo muy bueno. Es
+falso — **`la_barra`, `chapadmalal` y `praia_do_rosa` son los spots donde más
+surfea y va sin planificar viaje.** El campo no cambia ningún umbral hoy (el
+usuario decidió que el mínimo de tamaño sigue siendo 1 m también para los
+locales), pero deja asentado *por qué* esos tres podrían llevar umbrales
+distintos, para que nadie los "corrija" leyendo sólo el volumen. Es la lección
+que dejó `temporada`, que se pobló con dos significados distintos porque nunca
+se documentó cuál era. El default es `viaje`, la categoría estricta.
+
+**Punto de muestreo del oleaje.** Los modelos de olas trabajan en grillas de
+~28 km, así que una coordenada pegada a la costa cae en celdas contaminadas por
+tierra. `spots.yaml` acepta `lat_mar`/`lon_mar` para consultar el oleaje mar
+adentro. **El viento NO se mueve**, y es lo primero que se midió: a 20 km de la
+costa la mediana de viento sube entre **+7.2 y +14.5 km/h** y las horas glassy
+se desploman (`joaquina` pasa de 55 % a 5 %). Con `ONSHORE_MAX_KMH = 8`, tomar
+el viento mar adentro habría destruido el gate de viento. Por eso el oleaje va a
+`coords_mar` y el viento sigue en `lat`/`lon`.
+
+Se probó el desplazamiento en los tres spots donde la divergencia entre modelos
+era mayor, y **sólo uno lo justificó**. El criterio fue el cociente contra
+surf-forecast (14-16/08/2026, n=9 por punto), no el volumen de alertas:
+
+| spot | OM/SF en la playa | OM/SF a 20 km | decisión |
+|---|---|---|---|
+| `chicama` | **0.82** | **1.00** | **desplazado** |
+| `la_barra` | **1.04** | 1.16 | revertido |
+| `joaquina` | **1.11** | 1.49 | revertido |
+
+- **`chicama`: desplazado a (-7.732, -79.63).** A 20 km los tres modelos saltan
+  a la vez de 0.80/0.98/0.80 a 1.02/0.97/0.96 contra surf-forecast: es un borde
+  de celda de grilla limpio, y por debajo de esa distancia `gwam` y `ncep`
+  estaban leyendo la misma celda contaminada. Corrige un sesgo medido de −18 %
+  a 0 %.
+- **`la_barra`: revertido.** El punto de playa ya era el más fiel (1.04);
+  desplazarlo lo llevaba a sobreestimar 16 %. El backtest lo confirma: con el
+  punto desplazado *bajaba* de 4.3 a 4.0 ventanas/año.
+- **`joaquina`: revertido.** Es el caso incómodo. En la playa `ncep_gfswave025`
+  devuelve 0.0 enmascarado el **100 %** de las horas, y desplazarlo lo
+  desenmascara — de 2 fuentes a 3, y el volumen saltaba de 4.0 a 26.3
+  ventanas/año. Pero `ncep` sólo se desenmascara a partir de 8 km, y a esa
+  distancia el punto ya lee **43 %** más alto que surf-forecast; no existe
+  distancia que arregle una cosa sin romper la otra. Ganar una tercera fuente
+  midiendo un mar que no es el que rompe en la playa no es una mejora: es
+  cambiar un sesgo conocido por otro más grande y menos visible. Se revirtió, y
+  el problema de `joaquina` queda donde corresponde, junto al de `huanchaco`, en
+  la tarea de calidad de modelos por spot (sección 5).
+
+**Nota de método:** el salto de `joaquina` a 26.3 ventanas/año habría "arreglado"
+un spot estrangulado y mejorado la tabla. Se descartó igual porque el criterio es
+la fidelidad contra la fuente externa, no el volumen. Un cambio que mejora la
+métrica midiendo otra cosa es exactamente el modo de falla que este backtest
+existe para evitar.
+
+### 4.6 Medición pedida: bajar `min_periodo` en los dos spots locales bajos
+
+`la_barra` (5.5/año) y `chapadmalal` (9.3/año) quedan debajo del rango sano y el
+usuario no quiere bajar el piso de altura de 1 m. Se midió la única otra palanca
+disponible, `min_periodo`, hoy en 8.0 s por la regla de point break. **Medición,
+no cambio aplicado:**
+
+| `min_periodo` | `la_barra` v/año (est. prod) | conc | `chapadmalal` v/año (est. prod) | conc |
+|---|---|---|---|---|
+| **8.0 (actual)** | 4.3 (**5.5**) bajo | 1.19 | 7.3 (**9.3**) bajo | 1.32 |
+| 7.5 | 4.7 (**6.3**) bajo | 1.22 | 8.0 (**10.7**) **sano** | 1.29 |
+| 7.0 | 5.3 (**7.1**) bajo | 1.29 | 9.0 (**12.1**) **sano** | 1.33 |
+| 6.5 | 5.7 (**7.6**) bajo | 1.31 | 10.3 (**13.8**) **sano** | 1.22 |
+
+**El hallazgo importante: la concentración estacional NO se degrada.** En
+`la_barra` incluso sube de forma monótona (1.19 → 1.31) y en `chapadmalal` se
+mantiene plana (1.32 → 1.33, y sólo baja a 1.22 en 6.5). Es lo contrario de lo
+que pasó con el piso de altura, donde aflojar acercaba la selección a "día
+normal". **Los días que entran al bajar el período siguen siendo eventos de
+temporada**, así que ésta sí es una palanca legítima, a diferencia de la altura.
+
+`chapadmalal` entra en rango sano ya con 7.5. **`la_barra` no llega a 10 ni
+siquiera con 6.5**: su limitación no es el período, es la divergencia entre
+modelos de la sección 5 (acuerdo de 2 modelos en apenas el 0.8 % de las horas de
+luz).
+
+Ejemplos de días que entrarían con 7.0 y hoy quedan afuera (23 en `la_barra` y 22
+en `chapadmalal` en 3 años), para que el usuario juzgue si le parecen surfeables:
+
+| spot | fecha | altura | período | dir | viento | horas buenas |
+|---|---|---|---|---|---|---|
+| `la_barra` | 2025-05-21 | 1.76 m | 10.7 s | 183 | 16 km/h de 216 | 3 |
+| `la_barra` | 2023-08-21 | 1.47 m | 8.8 s | 168 | 10 km/h de 9 | 9 |
+| `la_barra` | 2025-11-17 | 1.72 m | 8.3 s | 169 | 14 km/h de 267 | 9 |
+| `la_barra` | 2025-06-11 | 1.41 m | 9.4 s | 153 | 3 km/h de 350 | 10 |
+| `chapadmalal` | 2024-07-07 | 1.58 m | 9.2 s | 159 | 12 km/h de 198 | 7 |
+| `chapadmalal` | 2023-05-11 | 1.53 m | 8.6 s | 148 | 8 km/h de 50 | 5 |
+| `chapadmalal` | 2024-12-08 | 1.78 m | 8.6 s | 175 | 7 km/h de 232 | 7 |
+| `chapadmalal` | 2025-01-05 | 1.46 m | 8.5 s | 135 | 6 km/h de 85 | 10 |
+
+**Ningún cambio de período aplicado. La decisión es del usuario.**
+
 ## 5. Los 3 spots que siguen estrangulados, y por qué
 
 `huanchaco` (0.7/año), `joaquina` (4.9/año) y `lobitos` (4.0/año) siguen fuera de
@@ -451,16 +550,16 @@ diseño).
 
 - **Estacionalidad: 13/13 ok.** Hipótesis de temporada validada como una sola cosa
   (concentración global 1.26; los 13 spots > 1.0 y en el mismo sentido). Con los
-  pisos que fijó el usuario, `buchupureo` (1.07) y `asia` (1.07) pasan con poco
+  pisos que fijó el usuario, `chicama` (1.05), `buchupureo` (1.07) y `asia` (1.07) pasan con poco
   margen: son los que hay que revisar si aparecen alertas de verano que no sirven
   (ver 4.2).
-- **Volumen: 6 sanos, 2 bajos, 2 altos, 3 estrangulados, 0 en ruido.**
-- **Total: 206 ventanas/año sobre los 13 spots**, agrupadas en ~144 días con aviso
-  (≈2.8 por semana), y es un techo: producción además exige persistencia y aplica
+- **Volumen: 5 sanos, 2 bajos, 3 altos, 3 estrangulados, 0 en ruido.**
+- **Total: 225 ventanas/año sobre los 13 spots**, agrupadas en ~155 días con aviso
+  (≈3.0 por semana), y es un techo: producción además exige persistencia y aplica
   anti-repetición.
 - Ningún spot quedó en la zona de ruido, que es el modo de falla que hace que el
-  usuario ignore el bot. El más alto (`buchupureo`, 34.9/año) está a poco más de la
-  mitad del umbral de 60.
+  usuario ignore el bot. El más alto (`chicama`, 40.3/año) está a dos tercios del
+  umbral de 60.
 - **Bloqueante conocido:** `huanchaco`, `joaquina` y `lobitos` siguen estrangulados
   por divergencia entre modelos de olas, no por umbrales (sección 5).
 - **Pendiente:** ground truth del usuario sobre los top 10 (sección 6).

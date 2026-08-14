@@ -49,6 +49,7 @@
   url_surfforecast: "https://es.surf-forecast.com/breaks/La-Barra_2"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
+  cercania: local
 
 - id: chapadmalal
   nombre: "Chapadmalal, Argentina"
@@ -69,6 +70,7 @@
   url_surfforecast: "https://www.surf-forecast.com/breaks/Chapadmalal"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
+  cercania: local
 
 - id: praia_do_rosa
   nombre: "Praia do Rosa, Santa Catarina"
@@ -89,6 +91,7 @@
   url_surfforecast: "https://www.surf-forecast.com/breaks/Rosa"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: alta
+  cercania: local
 
 - id: buchupureo
   nombre: "Buchupureo, Ñuble"
@@ -111,6 +114,7 @@
   url_surfforecast: "https://www.surf-forecast.com/breaks/Buchupureo"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
+  cercania: viaje
 
 - id: asia
   nombre: "Asia (Mar Azul), Lima"
@@ -133,6 +137,7 @@
   url_surfforecast: "https://www.surf-forecast.com/breaks/Mar-Azul-1"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
+  cercania: viaje
 
 - id: huanchaco
   nombre: "Punta Huanchaco, La Libertad"
@@ -153,6 +158,7 @@
   url_surfforecast: "https://www.surf-forecast.com/breaks/Punta-Huanchaco"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
+  cercania: viaje
 
 - id: santa_teresa
   nombre: "Playa Santa Teresa, Guanacaste"
@@ -177,6 +183,7 @@
   url_surfforecast: "https://es.surf-forecast.com/breaks/Playa-Santa-Teresa"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: baja
+  cercania: viaje
 
 - id: saquarema
   nombre: "Saquarema (Itaúna), Rio de Janeiro"
@@ -199,6 +206,7 @@
   url_surfforecast: "https://www.surf-forecast.com/breaks/Saquarema"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
+  cercania: viaje
 
 - id: punta_de_lobos
   nombre: "Punta de Lobos, Pichilemu"
@@ -221,6 +229,7 @@
   url_surfforecast: "https://www.surf-forecast.com/breaks/Puntade-Lobos"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: alta
+  cercania: viaje
 
 - id: chicama
   nombre: "Chicama (El Point), La Libertad"
@@ -241,6 +250,13 @@
   url_surfforecast: "https://www.surf-forecast.com/breaks/Chicama"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
+  cercania: viaje
+  # Punto de OLEAJE desplazado 20 km mar adentro sobre costa_mira.
+  # Motivo: gwam leia 0.70 m contra 1.12 m de meteofrance sobre la celda de playa.
+  # El viento se sigue midiendo en lat/lon (la playa). Ver el bloque
+  # de este spot en docs/investigacion-spots.md.
+  lat_mar: -7.732
+  lon_mar: -79.63
 
 - id: lobitos
   nombre: "Lobitos, Piura"
@@ -261,6 +277,7 @@
   url_surfforecast: "https://www.surf-forecast.com/breaks/Lobitos"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: baja
+  cercania: viaje
 
 - id: punta_del_diablo
   nombre: "Punta del Diablo, Rocha"
@@ -281,6 +298,7 @@
   url_surfforecast: "https://www.surf-forecast.com/breaks/Puntadel-Diablo"
   fuentes: [surf-forecast, geometria-costa]
   confianza: baja
+  cercania: viaje
 
 - id: joaquina
   nombre: "Praia da Joaquina, Florianópolis"
@@ -301,3 +319,4 @@
   url_surfforecast: "https://www.surf-forecast.com/breaks/Joaquina"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
+  cercania: viaje

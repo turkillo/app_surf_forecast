@@ -137,18 +137,24 @@ def obtener_historico(spot: Spot, desde: date, hasta: date, *, sesion=None,
     olas = list(modelos_olas or MODELOS_OLAS)
     viento = list(modelos_viento or MODELOS_VIENTO)
 
+    # Mismo reparto de puntos que produccion: el oleaje puede venir de un punto
+    # mar adentro y el viento siempre de la playa. Ver surf.fetch._bases.
+    lat_mar, lon_mar = spot.coords_mar
+
     por_dia: dict = {}
     for ini, fin in _tramos(desde, hasta):
-        base = {"latitude": spot.lat, "longitude": spot.lon, "timezone": "auto",
-                "start_date": ini.isoformat(), "end_date": fin.isoformat()}
+        fechas = {"timezone": "auto", "start_date": ini.isoformat(),
+                  "end_date": fin.isoformat()}
+        base_mar = {**fechas, "latitude": lat_mar, "longitude": lon_mar}
+        base_viento = {**fechas, "latitude": spot.lat, "longitude": spot.lon}
 
         marine = _pedir_cacheado(
             URL_MARINE_ARCHIVO,
-            {**base, "hourly": ",".join(_CAMPOS_MARINE), "models": ",".join(olas)},
+            {**base_mar, "hourly": ",".join(_CAMPOS_MARINE), "models": ",".join(olas)},
             sesion, cache_dir)
         clima = _pedir_cacheado(
             URL_CLIMA_ARCHIVO,
-            {**base, "hourly": ",".join(_CAMPOS_CLIMA), "models": ",".join(viento),
+            {**base_viento, "hourly": ",".join(_CAMPOS_CLIMA), "models": ",".join(viento),
              "daily": "sunrise,sunset", "wind_speed_unit": "kmh"},
             sesion, cache_dir)
 

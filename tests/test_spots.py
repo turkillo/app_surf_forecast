@@ -22,6 +22,7 @@ FIXTURE = """
   url_surfforecast: "https://es.surf-forecast.com/breaks/Chapadmalal"
   fuentes: [surf-forecast]
   confianza: alta
+  cercania: viaje
 """
 
 
@@ -204,3 +205,69 @@ def test_rechaza_rango_ideal_segundo_elemento_no_numerico(tmp_path):
     roto = FIXTURE.replace("rango_ideal: [1.5, 2.5]", "rango_ideal: [1.5, bad_value]")
     with pytest.raises(ValueError, match="rango_ideal"):
         cargar_spots(_escribir(tmp_path, roto))
+
+
+# --- cercania ---------------------------------------------------------------
+
+def test_carga_la_cercania(tmp_path):
+    s = cargar_spots(_escribir(tmp_path, FIXTURE.replace("cercania: viaje", "cercania: local")))[0]
+    assert s.cercania == "local"
+
+
+def test_rechaza_cercania_invalida(tmp_path):
+    with pytest.raises(ValueError, match="cercania"):
+        cargar_spots(_escribir(tmp_path, FIXTURE.replace("cercania: viaje", "cercania: cerquita")))
+
+
+def test_cercania_por_defecto_es_viaje():
+    """El default es la categoria ESTRICTA.
+
+    Un spot al que nadie le puso la etiqueta se filtra con vara de viaje, que
+    es el criterio conservador: se pierde alguna alerta, no se generan de mas.
+    """
+    s = Spot(id="x", nombre="X", pais="AR", lat=-38.0, lon=-57.0,
+             tipo="point_break", costa_mira=140,
+             swell=Swell(ventana=(110, 200), ideal=157, min_altura=1.0,
+                         max_altura=3.5, rango_ideal=(1.5, 2.5), min_periodo=9),
+             viento_ideal=315, temporada=[4], url_surfforecast="http://x",
+             fuentes=["t"], confianza="alta")
+    assert s.cercania == "viaje"
+
+
+# --- punto de muestreo del oleaje -------------------------------------------
+
+def test_sin_lat_mar_el_punto_de_oleaje_es_el_del_spot(tmp_path):
+    s = cargar_spots(_escribir(tmp_path, FIXTURE))[0]
+    assert s.coords_mar == (s.lat, s.lon)
+
+
+def test_lat_mar_desplaza_solo_el_punto_de_oleaje(tmp_path):
+    s = cargar_spots(_escribir(tmp_path, FIXTURE.replace("cercania: viaje",
+                        "cercania: viaje\n  lat_mar: -38.30\n  lon_mar: -57.50")))[0]
+    assert s.coords_mar == (-38.30, -57.50)
+    # El punto del spot NO se mueve: el viento se sigue midiendo en la playa.
+    assert (s.lat, s.lon) == (-38.15, -57.68)
+
+
+def test_rechaza_lat_mar_sin_lon_mar(tmp_path):
+    with pytest.raises(ValueError, match="lat_mar"):
+        cargar_spots(_escribir(tmp_path, FIXTURE.replace("cercania: viaje", "cercania: viaje\n  lat_mar: -38.30")))
+
+
+def test_rechaza_punto_de_oleaje_absurdamente_lejos(tmp_path):
+    """Guarda contra un error de tipeo que mande el punto a otro oceano."""
+    with pytest.raises(ValueError, match="lat_mar"):
+        cargar_spots(_escribir(tmp_path, FIXTURE.replace("cercania: viaje",
+                            "cercania: viaje\n  lat_mar: -20.0\n  lon_mar: -57.50")))
+
+
+def test_rechaza_lat_mar_no_numerico(tmp_path):
+    with pytest.raises(ValueError, match="lat_mar"):
+        cargar_spots(_escribir(tmp_path, FIXTURE.replace("cercania: viaje",
+                            "cercania: viaje\n  lat_mar: costa\n  lon_mar: -57.50")))
+
+
+def test_sin_cercania_cae_en_viaje(tmp_path):
+    """El campo es opcional en el YAML y cae en la categoria estricta."""
+    s = cargar_spots(_escribir(tmp_path, FIXTURE.replace("\n  cercania: viaje", "")))[0]
+    assert s.cercania == "viaje"

@@ -1274,3 +1274,65 @@ tomar `2.5m+` como 2.5 produjera techos sistemáticamente conservadores en 8 spo
 pesara por ser `max_altura` un gate duro. La medición sobre 2023-2025 dice que `max_altura`
 rechaza entre **0.00 % y 0.29 %** de las horas de luz en los 13 spots: el techo prácticamente
 nunca se alcanza. Ninguna `confianza` se movió por esto.
+
+## Campo `cercania` y punto de muestreo del oleaje (Tarea 12, revisión final)
+
+### `cercania`: `local` | `viaje`
+
+Al arrancar el proyecto se asumió que los 13 spots eran destinos de viaje, y el filtro se
+calibró exigente por eso: sólo vale la pena volar por algo muy bueno. **Es falso.**
+`la_barra`, `chapadmalal` y `praia_do_rosa` son los spots donde el usuario más surfea y a
+los que va **sin planificar viaje**. Los otros 10 sí son destino de viaje.
+
+El campo **no cambia ningún umbral hoy**: el usuario decidió explícitamente que el mínimo de
+tamaño sigue siendo **1 m también para los locales**. Existe para dejar registrado *por qué*
+esos tres spots podrían llevar umbrales distintos al resto, y para que nadie los "corrija"
+dentro de seis meses leyendo sólo el volumen del backtest. Es exactamente la lección que dejó
+`temporada`: un campo cuyo significado no está escrito termina poblado con dos cosas
+distintas.
+
+El valor por defecto es `viaje`, la categoría **estricta**: un spot al que nadie le puso la
+etiqueta se filtra con el criterio conservador.
+
+### `lat_mar` / `lon_mar`: dónde se consulta el oleaje
+
+Los modelos de olas de Open-Meteo trabajan en grillas de ~0.25 grados (~28 km). Una
+coordenada pegada a la costa cae en celdas parcialmente enmascaradas como tierra, y ahí el
+modelo devuelve alturas muy por debajo de las reales. `spots.yaml` acepta `lat_mar`/`lon_mar`
+para consultar el **oleaje** en un punto de mar abierto.
+
+**El viento no se mueve, y eso se midió antes de decidir nada.** A 20 km de la costa la
+mediana de viento sube entre **+7.2 y +14.5 km/h** y las horas glassy se desploman (en
+`joaquina`, de 55 % a 5 %). Con `ONSHORE_MAX_KMH = 8`, tomar el viento mar adentro habría
+destruido el gate de viento. Por eso `surf.fetch` manda `coords_mar` a la Marine API y
+`lat`/`lon` a la Forecast/Archive API. Los dos puntos van con `timezone=auto`; a 20 km
+resuelven a la misma zona horaria (verificado en los tres candidatos), y si alguna vez no lo
+hicieran, `_combinar` corta con `ErrorDatos` y el spot se saltea.
+
+**Criterio de aceptación: fidelidad contra surf-forecast, no volumen de alertas.** Se probó
+en los tres spots con mayor divergencia entre modelos y sólo uno lo justificó
+(14-16/08/2026, n=9 por punto):
+
+| spot | OM/SF en la playa | OM/SF a 20 km | decisión |
+|---|---|---|---|
+| `chicama` | **0.82** | **1.00** | **desplazado a (-7.732, -79.63)** |
+| `la_barra` | **1.04** | 1.16 | revertido |
+| `joaquina` | **1.11** | 1.49 | revertido |
+
+- **`chicama`.** A 20 km los tres modelos saltan a la vez de 0.80/0.98/0.80 a 1.02/0.97/0.96:
+  es un borde de celda limpio, y por debajo de esa distancia `gwam` y `ncep_gfswave025`
+  estaban leyendo la misma celda contaminada. Corrige un sesgo medido de −18 % a 0 %.
+  **El punto de oleaje de `chicama` ya no es la playa: es un punto de mar abierto elegido a
+  propósito.** El punto del spot (`lat`/`lon`) sigue siendo el pico.
+- **`la_barra`.** El punto de playa ya era el más fiel (1.04); desplazarlo sobreestimaba
+  16 %. El backtest lo confirmó: con el punto desplazado *bajaba* de 4.3 a 4.0 ventanas/año.
+- **`joaquina`.** En la playa `ncep_gfswave025` devuelve 0.0 enmascarado el 100 % de las
+  horas, y desplazarlo lo desenmascara: de 2 fuentes a 3, y de 4.0 a 26.3 ventanas/año. Pero
+  `ncep` sólo aparece a partir de 8 km, y ahí el punto ya lee 43 % más alto que
+  surf-forecast. No hay distancia que arregle una cosa sin romper la otra, así que se
+  revirtió. Ganar una tercera fuente midiendo un mar que no es el que rompe en la playa no es
+  una mejora. El problema de `joaquina` queda junto al de `huanchaco`, en la tarea de calidad
+  de modelos por spot.
+
+`huanchaco` no se tocó: ya estaba dictaminado que su problema es la calidad de `gwam` en ese
+punto y que moverlo no alcanza.
