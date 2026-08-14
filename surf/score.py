@@ -36,6 +36,15 @@ FACTOR_ONSHORE = 0.5
 # las opciones que compara son surfeables.
 PESOS = {"altura": 0.35, "periodo": 0.30, "direccion": 0.15, "viento": 0.20}
 
+# Pesos para el regimen de pre-aviso (dias 7 a 10), donde el viento no se
+# evalua porque a esa distancia no se puede pronosticar. Se renormalizan sobre
+# los tres criterios de swell para que el puntaje siga siendo sobre 100 y un
+# pre-aviso se pueda leer en la misma escala que una alerta. Si no se
+# renormalizaran, el mejor swell posible sacaria 80 y pareceria mediocre.
+_PESO_SWELL = PESOS["altura"] + PESOS["periodo"] + PESOS["direccion"]
+PESOS_SOLO_SWELL = {k: PESOS[k] / _PESO_SWELL
+                    for k in ("altura", "periodo", "direccion")}
+
 HORAS_MINIMAS_CONSECUTIVAS = 3
 
 
@@ -155,8 +164,16 @@ def _gate_viento(hora: Hora, clase: str) -> str | None:
     return None
 
 
-def _gate(hora: Hora, spot: Spot, clase: str) -> str | None:
-    """Aplica las seis condiciones. Devuelve el primer motivo de rechazo."""
+def _gate(hora: Hora, spot: Spot, clase: str,
+          exigir_viento: bool = True) -> str | None:
+    """Aplica las condiciones del gate. Devuelve el primer motivo de rechazo.
+
+    Con `exigir_viento=False` se saltea SOLO el criterio de viento. Es el
+    regimen de pre-aviso: a mas de una semana el viento local no se puede
+    pronosticar, asi que exigirlo no filtra nada, solo agrega ruido. La
+    altura, el periodo, la direccion y la luz son fisica del swell en curso
+    (o astronomia) y siguen aplicando igual.
+    """
     sw = spot.swell
 
     if not hora.es_de_dia:
@@ -172,22 +189,38 @@ def _gate(hora: Hora, spot: Spot, clase: str) -> str | None:
             f"dirección fuera de la ventana del spot "
             f"({hora.swell_direccion:.0f}, ventana {sw.ventana[0]:.0f}-{sw.ventana[1]:.0f})"
         )
+    if not exigir_viento:
+        return None
     return _gate_viento(hora, clase)
 
 
-def evaluar_hora(hora: Hora, spot: Spot) -> HoraEvaluada:
-    """Evalua una hora contra el perfil del spot."""
+def evaluar_hora(hora: Hora, spot: Spot,
+                 exigir_viento: bool = True) -> HoraEvaluada:
+    """Evalua una hora contra el perfil del spot.
+
+    `exigir_viento=False` es el regimen de pre-aviso: el viento no entra ni
+    en el gate ni en el puntaje. Que no se pueda evaluar y que igual puntee
+    seria lo peor de los dos mundos -- un swell identico sacaria puntajes
+    distintos segun un dato que el propio sistema declaro impronosticable.
+    """
     clase = clasificar_viento(hora.viento_direccion, spot.costa_mira)
-    motivo = _gate(hora, spot, clase)
+    motivo = _gate(hora, spot, clase, exigir_viento)
     if motivo is not None:
         return HoraEvaluada(hora=hora, pasa=False, motivo_rechazo=motivo,
                             score=0.0, clase_viento=clase)
-    score = 100.0 * (
-        PESOS["altura"] * factor_altura(hora.swell_altura, spot)
-        + PESOS["periodo"] * factor_periodo(hora.swell_periodo, spot)
-        + PESOS["direccion"] * factor_direccion(hora.swell_direccion, spot)
-        + PESOS["viento"] * factor_viento(hora.viento_kmh, clase)
-    )
+    if exigir_viento:
+        score = 100.0 * (
+            PESOS["altura"] * factor_altura(hora.swell_altura, spot)
+            + PESOS["periodo"] * factor_periodo(hora.swell_periodo, spot)
+            + PESOS["direccion"] * factor_direccion(hora.swell_direccion, spot)
+            + PESOS["viento"] * factor_viento(hora.viento_kmh, clase)
+        )
+    else:
+        score = 100.0 * (
+            PESOS_SOLO_SWELL["altura"] * factor_altura(hora.swell_altura, spot)
+            + PESOS_SOLO_SWELL["periodo"] * factor_periodo(hora.swell_periodo, spot)
+            + PESOS_SOLO_SWELL["direccion"] * factor_direccion(hora.swell_direccion, spot)
+        )
     return HoraEvaluada(hora=hora, pasa=True, motivo_rechazo=None,
                         score=score, clase_viento=clase)
 

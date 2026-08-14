@@ -10,11 +10,14 @@ from datetime import date
 from pathlib import Path
 from typing import Callable
 
-from surf.alert import (Ventana, decidir_alertas, detectar_ventanas,
-                        estado_vacio, registrar_corrida)
+from surf.alert import (CLAVE_OBSERVADAS_PREAVISO, CLAVE_PREAVISADAS,
+                        REGIMEN_ALERTA, REGIMEN_PREAVISO, Ventana,
+                        decidir_alertas, detectar_ventanas, estado_vacio,
+                        regimen, registrar_corrida)
 from surf.consenso import evaluar_dia_multimodelo
 from surf.fetch import ErrorDatos, obtener_horas_multimodelo
-from surf.notify import ErrorEnvio, enviar, formatear_alerta, formatear_digest
+from surf.notify import (ErrorEnvio, enviar, formatear_alerta, formatear_digest,
+                         formatear_preaviso)
 from surf.score import DiaEvaluado
 from surf.spots import Spot, cargar_spots
 
@@ -53,8 +56,16 @@ def _enviar_seguro(mensaje: str, enviar_fn: Callable[[str], None], spot_id: str)
 def correr(spots: list[Spot], hoy: date,
            traer: Callable, enviar_fn: Callable[[str], None],
            estado: dict) -> tuple[dict, list[str]]:
-    """Corre el ciclo completo. Devuelve el estado nuevo y los mensajes enviados."""
-    todos_los_dias: list[DiaEvaluado] = []
+    """Corre el ciclo completo. Devuelve el estado nuevo y los mensajes enviados.
+
+    Cada dia del pronostico se evalua con el regimen que le corresponde segun
+    su distancia a `hoy`: gate completo hasta el dia 6, solo swell del 7 al 10.
+    Los dos regimenes despues corren la misma maquinaria de ventanas,
+    persistencia y anti-repeticion, cada uno sobre su propia seccion del
+    estado.
+    """
+    dias_alerta: list[DiaEvaluado] = []
+    dias_preaviso: list[DiaEvaluado] = []
     cercanos: list[tuple[DiaEvaluado, Spot]] = []
     por_id = {s.id: s for s in spots}
     exitosos = 0
@@ -67,18 +78,25 @@ def correr(spots: list[Spot], hoy: date,
             continue
         exitosos += 1
         for fecha, horas in por_dia.items():
-            d = evaluar_dia_multimodelo(horas, spot, fecha)
-            todos_los_dias.append(d)
-            if _cerca_del_umbral(d):
-                cercanos.append((d, spot))
+            cual = regimen(fecha, hoy)
+            if cual == REGIMEN_ALERTA:
+                d = evaluar_dia_multimodelo(horas, spot, fecha)
+                dias_alerta.append(d)
+                if _cerca_del_umbral(d):
+                    cercanos.append((d, spot))
+            elif cual == REGIMEN_PREAVISO:
+                dias_preaviso.append(evaluar_dia_multimodelo(
+                    horas, spot, fecha, exigir_viento=False))
+            # Mas alla del horizonte no se evalua nada: a esa distancia queda
+            # una sola fuente de olas y en 5 spots ninguna.
 
     if exitosos == 0:
         raise RuntimeError("ningun spot devolvio datos; no se escribe estado")
 
-    ventanas = detectar_ventanas(todos_los_dias)
-    a_alertar = decidir_alertas(ventanas, estado, hoy)
-
     enviados: list[str] = []
+
+    ventanas = detectar_ventanas(dias_alerta)
+    a_alertar = decidir_alertas(ventanas, estado, hoy)
     entregadas: list[Ventana] = []
     for v in sorted(a_alertar, key=lambda x: -x.score):
         m = formatear_alerta(v, por_id[v.spot_id])
@@ -86,10 +104,32 @@ def correr(spots: list[Spot], hoy: date,
             entregadas.append(v)
         enviados.append(m)
 
-    # Solo lo que efectivamente se entrego queda marcado como alertado: una
+    # Los pre-avisos van despues de las alertas: si el mismo dia sale un
+    # mensaje de cada tipo, primero se lee lo que ya esta confirmado.
+    ventanas_pre = detectar_ventanas(dias_preaviso)
+    a_preavisar = decidir_alertas(
+        ventanas_pre, estado, hoy,
+        clave_observadas=CLAVE_OBSERVADAS_PREAVISO,
+        clave_enviadas=CLAVE_PREAVISADAS,
+        reenviar_si_crece=False,
+    )
+    entregados_pre: list[Ventana] = []
+    for v in sorted(a_preavisar, key=lambda x: -x.score):
+        m = formatear_preaviso(v, por_id[v.spot_id], hoy)
+        if _enviar_seguro(m, enviar_fn, v.spot_id):
+            entregados_pre.append(v)
+        enviados.append(m)
+
+    # Solo lo que efectivamente se entrego queda marcado como avisado: una
     # ventana cuyo envio fallo (Telegram caido, token invalido, rate limit)
     # no debe perderse para siempre, tiene que reintentarse al dia siguiente.
+    # Las dos pasadas se encadenan y cada una toca solo su propia seccion.
     estado_nuevo = registrar_corrida(ventanas, entregadas, estado, hoy)
+    estado_nuevo = registrar_corrida(
+        ventanas_pre, entregados_pre, estado_nuevo, hoy,
+        clave_observadas=CLAVE_OBSERVADAS_PREAVISO,
+        clave_enviadas=CLAVE_PREAVISADAS,
+    )
 
     if hoy.weekday() == DIA_DEL_DIGEST:
         m = formatear_digest(cercanos[:10], hubo_alertas=len(a_alertar), fecha=hoy)
@@ -97,7 +137,8 @@ def correr(spots: list[Spot], hoy: date,
         enviados.append(m)
 
     print(f"[OK] {exitosos}/{len(spots)} spots, {len(ventanas)} ventanas, "
-          f"{len(a_alertar)} alertas, {len(enviados)} mensajes")
+          f"{len(a_alertar)} alertas, {len(ventanas_pre)} ventanas a 7-10 días, "
+          f"{len(a_preavisar)} pre-avisos, {len(enviados)} mensajes")
     return estado_nuevo, enviados
 
 

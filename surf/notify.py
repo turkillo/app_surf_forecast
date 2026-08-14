@@ -3,7 +3,8 @@ from datetime import date
 
 import requests
 
-from surf.alert import Ventana
+from surf.alert import ULTIMO_DIA_GATE_COMPLETO, Ventana
+from surf.consenso import MODELOS_OLAS
 from surf.geo import clasificar_viento, rumbo_a_texto
 from surf.score import DiaEvaluado
 from surf.spots import Spot
@@ -96,19 +97,48 @@ def _linea_dia(dia: DiaEvaluado, spot: Spot) -> str:
     )
 
 
+def _linea_dia_swell(dia: DiaEvaluado) -> str:
+    """Igual que `_linea_dia` pero sin viento ni puntaje.
+
+    El pre-aviso no evalua el viento, asi que tampoco lo muestra: darle al
+    usuario un numero de viento a nueve dias seria ofrecerle como dato
+    justamente lo que el sistema acaba de declarar impronosticable.
+    """
+    if dia.resumen is None:
+        return f"{_fecha_corta(dia.fecha):<7} (sin datos de pronóstico)"
+    r = dia.resumen
+    return (f"{_fecha_corta(dia.fecha):<7} "
+            f"{r.get('altura', 0):.1f}m @ {r.get('periodo', 0):.0f}s "
+            f"del {rumbo_a_texto(r.get('direccion', 0))}")
+
+
+def _rango_fechas(desde: date, hasta: date) -> str:
+    if desde.month == hasta.month:
+        return f"{_fecha_corta(desde)} a {_fecha_corta(hasta)} de {_MESES[hasta.month]}"
+    return (f"{_fecha_corta(desde)} de {_MESES[desde.month]} "
+            f"a {_fecha_corta(hasta)} de {_MESES[hasta.month]}")
+
+
+def _plural_dias(cant: int) -> str:
+    return "día" if cant == 1 else "días"
+
+
+def _peor_dia(ventana: Ventana) -> DiaEvaluado:
+    """El dia con peor concordancia manda: es el dato conservador. Se toman de
+    ese mismo dia los modelos y el conteo, para que la linea describa la
+    situacion real y no una mezcla de dias distintos."""
+    return min(ventana.dias,
+               key=lambda d: (_ORDEN_CONCORDANCIA[d.concordancia],
+                              len(d.modelos), d.modelos_de_acuerdo))
+
+
 def formatear_alerta(ventana: Ventana, spot: Spot) -> str:
     mejor = max(ventana.dias, key=lambda d: d.score)
     cant = len(ventana.dias)
 
-    if ventana.desde.month == ventana.hasta.month:
-        rango_fechas = f"{_fecha_corta(ventana.desde)} a {_fecha_corta(ventana.hasta)} de {_MESES[ventana.hasta.month]}"
-    else:
-        rango_fechas = f"{_fecha_corta(ventana.desde)} de {_MESES[ventana.desde.month]} a {_fecha_corta(ventana.hasta)} de {_MESES[ventana.hasta.month]}"
-
-    plural = "día" if cant == 1 else "días"
     partes = [
         f"🔥 BUEN SWELL — {spot.nombre}",
-        f"{rango_fechas} ({cant} {plural})",
+        f"{_rango_fechas(ventana.desde, ventana.hasta)} ({cant} {_plural_dias(cant)})",
         "",
     ]
     partes += [_linea_dia(d, spot) for d in ventana.dias]
@@ -121,14 +151,48 @@ def formatear_alerta(ventana: Ventana, spot: Spot) -> str:
         )
     partes.append("Confirmado en 2 corridas consecutivas ✓")
 
-    # El dia con peor concordancia manda: es el dato conservador. Se toman de
-    # ese mismo dia los modelos y el conteo, para que la linea describa la
-    # situacion real y no una mezcla de dias distintos.
-    peor_dia = min(ventana.dias,
-                   key=lambda d: (_ORDEN_CONCORDANCIA[d.concordancia],
-                                  len(d.modelos), d.modelos_de_acuerdo))
-    partes.append(etiqueta_concordancia(peor_dia.concordancia, peor_dia.modelos,
-                                        peor_dia.modelos_de_acuerdo))
+    peor = _peor_dia(ventana)
+    partes.append(etiqueta_concordancia(peor.concordancia, peor.modelos,
+                                        peor.modelos_de_acuerdo))
+
+    if spot.confianza == "baja":
+        partes.append("⚠️ perfil poco validado — chequear en surf-forecast antes de viajar")
+
+    partes.append(f"→ {spot.url_surfforecast}")
+    return "\n".join(partes)
+
+
+def formatear_preaviso(ventana: Ventana, spot: Spot, hoy: date) -> str:
+    """Mensaje del regimen de pre-aviso (dias 7 a 10).
+
+    Es deliberadamente distinto de la alerta: no promete condiciones, promete
+    swell. Sirve para bloquear fechas en la agenda; la confirmacion llega
+    despues, cuando el swell entra en los proximos 6 dias y el viento ya se
+    puede pronosticar. `hoy` entra por parametro para poder decir cuanto
+    falta sin consultar el reloj.
+    """
+    cant = len(ventana.dias)
+    faltan = (ventana.desde - hoy).days
+
+    partes = [
+        f"🌊 PRE-AVISO — {spot.nombre}",
+        f"{_rango_fechas(ventana.desde, ventana.hasta)} ({cant} {_plural_dias(cant)})"
+        f" · faltan {faltan} {_plural_dias(faltan)}",
+        "",
+    ]
+    partes += [_linea_dia_swell(d) for d in ventana.dias]
+    partes += [
+        "",
+        "⚠️ El viento todavía no se puede pronosticar a esta distancia.",
+        f"Te confirmo cuando entre en los próximos {ULTIMO_DIA_GATE_COMPLETO} días.",
+    ]
+
+    # Cuantas fuentes de olas quedaron vivas en el dia peor cubierto de la
+    # ventana. Mas alla del dia 7 se caen modelos, y el usuario tiene que
+    # poder pesar el aviso sabiendo sobre cuantas opiniones se calculo.
+    peor = _peor_dia(ventana)
+    partes.append(f"Fuentes de olas disponibles: {len(peor.modelos)} "
+                  f"de {len(MODELOS_OLAS)}")
 
     if spot.confianza == "baja":
         partes.append("⚠️ perfil poco validado — chequear en surf-forecast antes de viajar")

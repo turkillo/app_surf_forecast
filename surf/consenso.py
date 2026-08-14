@@ -20,7 +20,19 @@ from surf.score import (HORAS_MINIMAS_CONSECUTIVAS, DiaEvaluado, Hora,
                         _resumir)
 from surf.spots import Spot
 
-MODELOS_VIENTO = ["gfs_seamless", "icon_seamless", "ecmwf_ifs025"]
+# El orden importa: `_combinar_multimodelo` empareja el modelo de olas i con
+# el modelo de viento i, y si el de viento se queda sin datos antes, la fila
+# entera se descarta y se pierde esa fuente de olas. Medido contra la API real
+# con forecast_days=11:
+#
+#   olas    gwam 169 h · meteofrance_wave 235 h · ncep_gfswave025 264 h
+#   viento  icon_seamless 177 h · ecmwf_ifs025 264 h · gfs_seamless 264 h
+#
+# Los pares quedan gwam+ICON, meteofrance+ECMWF, ncep+GFS: cada modelo de olas
+# va con uno de viento que llega por lo menos igual de lejos. Con el orden
+# anterior (gfs, icon, ecmwf), meteofrance quedaba atado a icon y los dias 8 y
+# 9 --el corazon del pre-aviso-- perdian su unica fuente de olas util.
+MODELOS_VIENTO = ["icon_seamless", "ecmwf_ifs025", "gfs_seamless"]
 
 # Fuentes de olas GENUINAMENTE distintas. best_match de la Marine API no es
 # una fuente propia: es meteofrance_wave con otro nombre (verificado contra la
@@ -61,10 +73,11 @@ def _mediana_angular(angulos: list[float]) -> float:
     return ordenados[len(ordenados) // 2]
 
 
-def consensuar(hmm: HoraMultiModelo, spot: Spot) -> tuple[Hora, str, int]:
+def consensuar(hmm: HoraMultiModelo, spot: Spot,
+               exigir_viento: bool = True) -> tuple[Hora, str, int]:
     """Devuelve la hora mediana, el nivel de concordancia y cuantos modelos pasaron."""
     horas = list(hmm.por_modelo.values())
-    pasaron = sum(1 for h in horas if evaluar_hora(h, spot).pasa)
+    pasaron = sum(1 for h in horas if evaluar_hora(h, spot, exigir_viento).pasa)
 
     total = len(horas)
     if pasaron == total and total >= MINIMO_MODELOS_PARA_ALTA:
@@ -103,7 +116,7 @@ def _categoria(motivo: str | None) -> str | None:
 
 
 def _motivo_de_rechazo(hmm: HoraMultiModelo, mediana: Hora, spot: Spot,
-                       pasaron: int) -> str:
+                       pasaron: int, exigir_viento: bool = True) -> str:
     """Por que se rechaza una hora que no junto los votos necesarios.
 
     Si TODOS los modelos rechazan la hora por el mismo motivo, ese es el
@@ -111,14 +124,14 @@ def _motivo_de_rechazo(hmm: HoraMultiModelo, mediana: Hora, spot: Spot,
     perfectamente en que es de noche, decir "los modelos no coinciden" es
     falso y ademas tapa el motivo que el digest necesita leer.
     """
-    motivos = [evaluar_hora(h, spot).motivo_rechazo
+    motivos = [evaluar_hora(h, spot, exigir_viento).motivo_rechazo
                for h in hmm.por_modelo.values()]
     categorias = {_categoria(m) for m in motivos}
     if len(categorias) == 1 and None not in categorias:
         # Se prefiere el motivo de la hora mediana, que es la que el resto del
         # sistema reporta; si la mediana no cae en la misma categoria, sirve
         # cualquiera de los modelos porque todos dicen lo mismo.
-        de_mediana = evaluar_hora(mediana, spot).motivo_rechazo
+        de_mediana = evaluar_hora(mediana, spot, exigir_viento).motivo_rechazo
         if _categoria(de_mediana) in categorias:
             return de_mediana
         return motivos[0]
@@ -153,8 +166,16 @@ def _motivo_principal(evaluadas: list[HoraEvaluada],
 
 
 def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
-                            fecha: date) -> DiaEvaluado:
-    """Igual que evaluar_dia, pero exigiendo acuerdo entre modelos."""
+                            fecha: date,
+                            exigir_viento: bool = True) -> DiaEvaluado:
+    """Igual que evaluar_dia, pero exigiendo acuerdo entre modelos.
+
+    `exigir_viento=False` es el regimen de pre-aviso (dias 7 a 10): se pide
+    acuerdo entre modelos igual que siempre, pero solo sobre el swell. En ese
+    rango quedan menos fuentes de olas vivas, asi que la etiqueta de
+    concordancia baja sola -- la regla de no declarar "alta" con menos de
+    MINIMO_MODELOS_PARA_ALTA fuentes se sigue aplicando sin cambios.
+    """
     vacio = DiaEvaluado(fecha=fecha, spot_id=spot.id, es_bueno=False, score=0.0,
                         horas_buenas=0, bloque=None, resumen=None,
                         motivo_principal=None, concordancia="baja")
@@ -168,7 +189,7 @@ def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
     de_dia: dict[datetime, bool] = {}
 
     for hmm in sorted(hmms, key=lambda x: x.t):
-        mediana, nivel, pasaron = consensuar(hmm, spot)
+        mediana, nivel, pasaron = consensuar(hmm, spot, exigir_viento)
         niveles[hmm.t] = nivel
         modelos[hmm.t] = tuple(hmm.por_modelo)
         acuerdos[hmm.t] = pasaron
@@ -176,11 +197,12 @@ def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
         if pasaron < min(MINIMO_MODELOS_DE_ACUERDO, len(hmm.por_modelo)):
             evaluadas.append(HoraEvaluada(
                 hora=mediana, pasa=False,
-                motivo_rechazo=_motivo_de_rechazo(hmm, mediana, spot, pasaron),
+                motivo_rechazo=_motivo_de_rechazo(hmm, mediana, spot, pasaron,
+                                                  exigir_viento),
                 score=0.0, clase_viento="",
             ))
         else:
-            evaluadas.append(evaluar_hora(mediana, spot))
+            evaluadas.append(evaluar_hora(mediana, spot, exigir_viento))
 
     bloques = [b for b in _bloques_consecutivos(evaluadas)
                if len(b) >= HORAS_MINIMAS_CONSECUTIVAS]

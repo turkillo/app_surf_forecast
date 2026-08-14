@@ -8,20 +8,114 @@ además manda un resumen semanal aunque no haya habido alertas.
 
 Repositorio: https://github.com/turkillo/app_surf_forecast
 
+## Los dos tipos de mensaje
+
+El sistema manda dos mensajes distintos, y la diferencia no es de estilo: es
+física.
+
+**El swell y el viento no se pueden pronosticar con el mismo horizonte.** Un
+groundswell generado por una tormenta a miles de kilómetros ya está viajando
+cuando el modelo lo ve: es física en curso, y se anticipa con una semana o
+más. El viento local de las 8 de la mañana del día 9, en cambio, es
+esencialmente impredecible. Exigir las dos cosas a diez días no daría más
+anticipación, daría ruido.
+
+Por eso cada día del pronóstico se evalúa según su distancia a hoy:
+
+| Días desde hoy | Qué se evalúa | Qué sale |
+|---|---|---|
+| **0 a 6** | gate completo: altura, período, dirección, **viento**, luz y consenso entre modelos | 🔥 **Alerta confirmada** |
+| **7 a 10** | **solo swell**: altura, período, dirección, luz y consenso. Sin gate de viento | 🌊 **Pre-aviso** |
+
+### 🌊 Pre-aviso
+
+Sirve para **bloquear fechas en la agenda**, no para decidir un viaje. Dice
+que va a haber swell, no que las condiciones van a estar buenas — eso todavía
+no se puede saber. Muestra altura, período y dirección de cada día, y
+explícitamente **no muestra viento**: darte un número de viento a nueve días
+sería ofrecerte como dato justo lo que el sistema acaba de declarar
+impronosticable.
+
+```
+🌊 PRE-AVISO — Chapadmalal, Argentina
+Sáb 22 a Lun 24 de agosto (3 días) · faltan 8 días
+
+Sáb 22  1.8m @ 9s del SSW
+Dom 23  1.9m @ 9s del S
+Lun 24  1.5m @ 10s del SSE
+
+⚠️ El viento todavía no se puede pronosticar a esta distancia.
+Te confirmo cuando entre en los próximos 6 días.
+Fuentes de olas disponibles: 1 de 3
+→ https://www.surf-forecast.com/breaks/Chapadmalal
+```
+
+Los pre-avisos pasan por los mismos filtros que protegen a las alertas: hacen
+falta **2 o más días consecutivos**, la ventana tiene que haber aparecido
+también **en la corrida de ayer**, y cada pre-aviso se manda **una sola vez**.
+
+La línea `Fuentes de olas disponibles` no es decorativa. Más allá del día 7 se
+empiezan a caer modelos y en ese rango quedan menos opiniones: con 1 de 3
+fuentes el aviso vale bastante menos que con 3 de 3, y tenés que poder pesarlo.
+
+### 🔥 Alerta confirmada
+
+Es la de siempre, sin cambios: gate completo, incluyendo viento, más la mejor
+franja horaria del día y la línea de concordancia entre modelos.
+
+### Un mismo swell puede generar los dos mensajes, y es a propósito
+
+Primero llega el pre-aviso, para que bloquees las fechas. Después, cuando el
+swell entra en los próximos 6 días y el viento ya se puede pronosticar, llega
+la alerta confirmada. **Si el swell se cae en el medio, el segundo mensaje no
+llega — y eso también es información.**
+
+Para que esto funcione, `state.json` guarda los dos regímenes en secciones
+separadas (`observadas`/`alertadas` y `observadas_preaviso`/`preavisadas`). Si
+compartieran lista, el pre-aviso marcaría el swell como ya avisado y
+bloquearía la alerta confirmada del mismo swell, que es justo el mensaje que
+sirve para viajar.
+
+### Por qué el techo es 10 días y no 14
+
+Por cobertura de los modelos, medida contra la API real:
+
+| | alcance |
+|---|---|
+| **Olas** | `gwam` 169 h (~7 d) · `meteofrance_wave` 235 h (~9.8 d) · `ncep_gfswave025` 384 h |
+| **Viento** | `icon_seamless` 177 h (~7.4 d) · `ecmwf_ifs025` 360 h · `gfs_seamless` 384 h |
+
+A partir del día 7 se caen `gwam` e `icon`. A partir del día 10 la única
+fuente de olas viva es `ncep_gfswave025`, que además está enmascarada por
+tierra en 5 de los 13 spots (`buchupureo`, `asia`, `huanchaco`,
+`punta_de_lobos`, `joaquina`): ahí, más allá del día 9, no hay ningún dato de
+olas. Estirar el horizonte más lejos no agregaría información, agregaría una
+sola opinión sin nadie que la contraste.
+
+Por el mismo motivo, cada modelo de olas se empareja con un modelo de viento
+que llegue por lo menos igual de lejos (`gwam`+ICON, `meteofrance`+ECMWF,
+`ncep`+GFS). Si no, la única fuente de olas útil en los días 8 y 9 se
+descartaría por falta de viento — justo donde el pre-aviso la necesita.
+
 ## Cómo funciona, en corto
 
 - `spots.yaml` tiene el perfil de cada spot: dirección de swell ideal, altura
   mínima/máxima, período mínimo, viento ideal, etc.
-- Cada mañana, `run.py` trae el pronóstico horario de cada spot, lo evalúa
-  hora por hora contra su perfil (`surf/score.py`), agrupa los días buenos en
+- Cada mañana, `run.py` trae el pronóstico horario de cada spot (11 días, dos
+  llamadas HTTP por spot), decide con qué régimen le toca evaluar a cada día
+  según su distancia a hoy (`regimen()` en `surf/alert.py`), lo evalúa hora
+  por hora contra su perfil (`surf/score.py`), agrupa los días buenos en
   "ventanas" (`surf/alert.py`) y manda un mensaje por Telegram
   (`surf/notify.py`) solo si la ventana se confirmó en dos días seguidos —
   así se filtran los swells fantasma que el modelo inventa y borra al otro
   día.
-- El estado (`state.json`) guarda qué se observó y qué se alertó, para no
-  repetir avisos y para poder confirmar ventanas entre una corrida y la
-  siguiente. Solo se reescribe si la corrida terminó bien: si algo falla, el
-  estado anterior queda intacto.
+- Los dos regímenes usan **la misma** maquinaria de ventanas, persistencia y
+  anti-repetición, parametrizada por la sección del estado sobre la que
+  trabajan. No hay dos copias de esa lógica.
+- El estado (`state.json`) guarda qué se observó y qué se avisó, en secciones
+  separadas por régimen, para no repetir avisos y para poder confirmar
+  ventanas entre una corrida y la siguiente. Solo se reescribe si la corrida
+  terminó bien: si algo falla, el estado anterior queda intacto.
 - Todo corre gratis en GitHub Actions (`.github/workflows/daily.yml`), una
   vez por día.
 

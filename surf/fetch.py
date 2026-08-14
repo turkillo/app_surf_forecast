@@ -21,6 +21,12 @@ REINTENTOS = 3
 ESPERA_BASE_S = 2
 TIMEOUT_S = 30
 
+# Dias de pronostico que se piden por spot. Cubre desde hoy (dia 0) hasta el
+# dia 10 inclusive, que es el techo del regimen de pre-aviso (ver
+# surf/alert.py). Alargar el rango NO multiplica las llamadas: siguen siendo
+# dos por spot (oleaje y viento), cada una con una serie mas larga.
+DIAS_PRONOSTICO = 11
+
 _CAMPOS_MARINE = ["swell_wave_height", "swell_wave_period", "swell_wave_direction"]
 _CAMPOS_CLIMA = ["wind_speed_10m", "wind_direction_10m"]
 
@@ -149,7 +155,7 @@ def obtener_horas(spot: Spot, dias: int = 7, sesion=None) -> dict[date, list[Hor
     return _combinar(marine, clima)
 
 
-def obtener_horas_multimodelo(spot: Spot, dias: int = 7,
+def obtener_horas_multimodelo(spot: Spot, dias: int = DIAS_PRONOSTICO,
                               sesion=None) -> dict[date, list["HoraMultiModelo"]]:
     """Trae el pronostico de varios modelos y los devuelve agrupados por hora.
 

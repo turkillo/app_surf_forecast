@@ -16,6 +16,53 @@ DIAS_MINIMOS_VENTANA = 2
 SALTO_SCORE_REALERTA = 15.0
 DIAS_RETENCION_ESTADO = 30
 
+# --- Los dos regimenes del sistema -----------------------------------------
+#
+# El swell y el viento no se pueden pronosticar con el mismo horizonte. Un
+# groundswell generado por una tormenta a miles de kilometros ya esta
+# viajando: es fisica en curso y se anticipa con una semana o mas. El viento
+# local de las 8 AM del dia 9 es esencialmente impredecible. Estirar el gate
+# completo a 10 dias no daria mas anticipacion, daria ruido.
+#
+# Hasta el dia 6 inclusive corre el gate completo y sale una alerta
+# confirmada. Del 7 al 10 se evalua solo el swell y sale un pre-aviso.
+#
+# El techo es 10 y no 14 por cobertura de los modelos (medido contra la API):
+# a partir del dia 7 se cae gwam (olas, 169 h) e icon (viento, 177 h), y a
+# partir del dia 10 la unica fuente de olas viva es ncep_gfswave025, que ademas
+# esta enmascarada por tierra en 5 de los 13 spots.
+ULTIMO_DIA_GATE_COMPLETO = 6
+ULTIMO_DIA_PREAVISO = 10
+
+REGIMEN_ALERTA = "alerta"
+REGIMEN_PREAVISO = "preaviso"
+REGIMEN_FUERA = "fuera"
+
+# Secciones de state.json. Las del pre-aviso son propias y NO se mezclan con
+# las de las alertas: si compartieran lista, un pre-aviso ya mandado marcaria
+# el swell como avisado y bloquearia la alerta confirmada del mismo swell,
+# que es justo el mensaje que sirve para viajar.
+CLAVE_OBSERVADAS = "observadas"
+CLAVE_ALERTADAS = "alertadas"
+CLAVE_OBSERVADAS_PREAVISO = "observadas_preaviso"
+CLAVE_PREAVISADAS = "preavisadas"
+
+
+def regimen(fecha: date, hoy: date) -> str:
+    """Que regimen le toca a una fecha, medido desde `hoy`.
+
+    `hoy` entra por parametro a proposito: el limite entre regimenes se mueve
+    todos los dias, y un indice fijo sobre la lista del pronostico lo
+    congelaria en la posicion equivocada apenas la API devolviera un dia de
+    mas o de menos.
+    """
+    dias = (fecha - hoy).days
+    if dias <= ULTIMO_DIA_GATE_COMPLETO:
+        return REGIMEN_ALERTA
+    if dias <= ULTIMO_DIA_PREAVISO:
+        return REGIMEN_PREAVISO
+    return REGIMEN_FUERA
+
 
 @dataclass(frozen=True)
 class Ventana:
@@ -27,7 +74,9 @@ class Ventana:
 
 
 def estado_vacio() -> dict:
-    return {"ultima_corrida": None, "observadas": [], "alertadas": []}
+    return {"ultima_corrida": None,
+            CLAVE_OBSERVADAS: [], CLAVE_ALERTADAS: [],
+            CLAVE_OBSERVADAS_PREAVISO: [], CLAVE_PREAVISADAS: []}
 
 
 def detectar_ventanas(dias: list[DiaEvaluado]) -> list[Ventana]:
@@ -75,21 +124,33 @@ def _a_registro(v: Ventana) -> dict:
             "hasta": v.hasta.isoformat(), "score": v.score}
 
 
-def decidir_alertas(ventanas: list[Ventana], estado: dict,
-                    hoy: date) -> list[Ventana]:
+def decidir_alertas(ventanas: list[Ventana], estado: dict, hoy: date,
+                    clave_observadas: str = CLAVE_OBSERVADAS,
+                    clave_enviadas: str = CLAVE_ALERTADAS,
+                    reenviar_si_crece: bool = True) -> list[Ventana]:
     """Aplica persistencia y anti-repeticion. Funcion de decision pura.
 
-    Devuelve las ventanas que corresponde alertar hoy. No toca el estado:
+    Devuelve las ventanas que corresponde avisar hoy. No toca el estado:
     quien llama todavia no sabe si el envio de cada una va a llegar, asi que
     no hay nada que registrar todavia. Ver `registrar_corrida`.
+
+    Las claves permiten correr la MISMA logica sobre las dos secciones del
+    estado (alertas y pre-avisos) sin duplicarla: dos copias de esta funcion
+    se desincronizarian a la primera correccion.
+
+    `reenviar_si_crece=False` hace la anti-repeticion estricta -- una sola vez
+    y nunca mas. Es la regla del pre-aviso: en el borde del horizonte la
+    ventana gana un dia por corrida a medida que el pronostico rueda hacia
+    adelante, asi que la regla de re-aviso por extension mandaria un mensaje
+    por dia sobre el mismo swell.
     """
     ultima = estado.get("ultima_corrida")
     ultima_fecha = date.fromisoformat(ultima) if ultima else None
     # La confirmacion solo vale si la corrida anterior fue realmente ayer.
     hay_corrida_previa = ultima_fecha == hoy - timedelta(days=1)
 
-    observadas = estado.get("observadas", [])
-    alertadas = estado.get("alertadas", [])
+    observadas = estado.get(clave_observadas, [])
+    enviadas = estado.get(clave_enviadas, [])
     a_alertar: list[Ventana] = []
 
     for v in ventanas:
@@ -97,9 +158,11 @@ def decidir_alertas(ventanas: list[Ventana], estado: dict,
         if not confirmada:
             continue
 
-        previas = [r for r in alertadas if _solapa(v, r)]
+        previas = [r for r in enviadas if _solapa(v, r)]
         if not previas:
             a_alertar.append(v)
+            continue
+        if not reenviar_si_crece:
             continue
 
         mejor_previa = max(previas, key=lambda r: r["score"])
@@ -117,9 +180,16 @@ def decidir_alertas(ventanas: list[Ventana], estado: dict,
 
 
 def registrar_corrida(ventanas: list[Ventana], entregadas: list[Ventana],
-                      estado: dict, hoy: date) -> dict:
+                      estado: dict, hoy: date,
+                      clave_observadas: str = CLAVE_OBSERVADAS,
+                      clave_enviadas: str = CLAVE_ALERTADAS) -> dict:
     """Construye el estado nuevo a partir de lo que se detecto y lo que
     efectivamente se logro entregar.
+
+    Actualiza SOLO las dos claves indicadas y conserva el resto del estado tal
+    cual. Es lo que permite llamarla dos veces en la misma corrida --una por
+    regimen-- encadenando el resultado, sin que la segunda pasada borre lo que
+    escribio la primera.
 
     Separado de `decidir_alertas` a proposito: `decidir_alertas` dice que
     ventanas corresponde alertar, pero el envio puede fallar (Telegram
@@ -130,7 +200,7 @@ def registrar_corrida(ventanas: list[Ventana], entregadas: list[Ventana],
     alertada sin haberse entregado la perderia para siempre (solo
     re-alertaria si el score sube mucho o la ventana se extiende).
     """
-    alertadas = estado.get("alertadas", [])
+    enviadas = estado.get(clave_enviadas, [])
 
     def _reemplazada(r: dict) -> bool:
         """r queda obsoleto solo si TODAS las ventanas de hoy que lo tocan
@@ -143,12 +213,13 @@ def registrar_corrida(ventanas: list[Ventana], entregadas: list[Ventana],
         return bool(solapantes) and all(v in entregadas for v in solapantes)
 
     corte = hoy - timedelta(days=DIAS_RETENCION_ESTADO)
-    conservadas = [r for r in alertadas
+    conservadas = [r for r in enviadas
                   if date.fromisoformat(r["hasta"]) >= corte and not _reemplazada(r)]
     nuevas = [{**_a_registro(v), "fecha_alerta": hoy.isoformat()} for v in entregadas]
 
     return {
+        **estado,
         "ultima_corrida": hoy.isoformat(),
-        "observadas": [_a_registro(v) for v in ventanas],
-        "alertadas": conservadas + nuevas,
+        clave_observadas: [_a_registro(v) for v in ventanas],
+        clave_enviadas: conservadas + nuevas,
     }

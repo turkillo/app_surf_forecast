@@ -211,7 +211,12 @@ class _SesionFalsa:
                       "daily": {"time": ["2024-06-01", "2024-06-02"],
                                 "sunrise_gfs_seamless": ["2024-06-01T07:00", "2024-06-02T07:00"],
                                 "sunset_gfs_seamless": ["2024-06-01T18:00", "2024-06-02T18:00"]}}
-            for m in ("gfs_seamless", "icon_seamless"):
+            # Los tres modelos de viento, no dos: `_combinar_multimodelo`
+            # empareja el modelo de olas i con el de viento i, y desde que el
+            # orden de MODELOS_VIENTO se eligio por alcance temporal (ver
+            # surf/consenso.py) el doble tiene que traer los tres o el par
+            # correspondiente se cae por falta de columna de viento.
+            for m in ("gfs_seamless", "icon_seamless", "ecmwf_ifs025"):
                 cuerpo["hourly"][f"wind_speed_10m_{m}"] = [5.0] * len(horas)
                 cuerpo["hourly"][f"wind_direction_10m_{m}"] = [320.0] * len(horas)
         return _RespuestaFalsa(cuerpo)
