@@ -64,22 +64,27 @@ cuenta si tiene **al menos 2 fuentes de olas disponibles**
 (`MINIMO_FUENTES_OLAS_PREAVISO` en `surf/consenso.py`).
 
 **Esto tiene un precio, aceptado a propósito: hay spots que casi nunca van a
-generar pre-avisos.** Son los 5 donde `ncep_gfswave025` cae en una celda de
-grilla enmascarada como tierra y no devuelve nada:
+generar pre-avisos.** Son los 4 donde el modelo de NOAA cae en una celda de
+grilla enmascarada como tierra y no devuelve nada, ni en la grilla de 0.25° ni
+en la de 0.16°:
 
-- `buchupureo`, `asia`, `huanchaco`, `punta_de_lobos`, `joaquina`
+- `buchupureo`, `asia`, `punta_de_lobos`, `joaquina`
 
-En esos 5, a partir del día 8 queda una sola fuente de olas, así que **no vas a
-ver pre-avisos de Huanchaco** aunque el swell exista. Vas a seguir recibiendo
-sus **alertas confirmadas** normalmente: la regla del mínimo de fuentes aplica
-solo al régimen de pre-aviso, y en el rango 0-6 esos spots tienen cobertura de
-sobra. Es deliberado: mejor ningún pre-aviso que uno que no se puede
-contrastar.
+En esos 4, a partir del día 8 queda una sola fuente de olas. Vas a seguir
+recibiendo sus **alertas confirmadas** normalmente: la regla del mínimo de
+fuentes aplica solo al régimen de pre-aviso, y en el rango 0-6 esos spots
+tienen cobertura de sobra. Es deliberado: mejor ningún pre-aviso que uno que no
+se puede contrastar.
 
-Por el mismo motivo, **el día 10 en la práctica nunca dispara un pre-aviso**:
-ahí la única fuente viva es `ncep_gfswave025` en todos los spots. El horizonte
-efectivo del pre-aviso es de 7 a 9 días. El día 10 se sigue consultando y
-evaluando por si la cobertura de los modelos mejora.
+**`huanchaco` salió de esa lista.** Era el quinto, y desde que la cadena de
+respaldo le pone `ncep_gfswave016` en el lugar del modelo enmascarado tiene dos
+fuentes en las 12 horas de luz de los días 8 y 9 (medido contra la API: antes
+eran 0). O sea que sí vas a ver pre-avisos de Huanchaco.
+
+De todas formas **el día 10 en la práctica nunca dispara un pre-aviso**: ahí la
+única fuente viva es la de NOAA en todos los spots. El horizonte efectivo del
+pre-aviso es de 7 a 9 días. El día 10 se sigue consultando y evaluando por si
+la cobertura de los modelos mejora.
 
 La línea `Fuentes de olas disponibles` no es decorativa: con 2 de 3 el aviso
 vale menos que con 3 de 3, y tenés que poder pesarlo.
@@ -115,11 +120,17 @@ Por cobertura de los modelos, medida contra la API real:
 | **Viento** | `icon_seamless` 177 h (~7.4 d) · `ecmwf_ifs025` 360 h · `gfs_seamless` 384 h |
 
 A partir del día 7 se caen `gwam` e `icon`. A partir del día 10 la única
-fuente de olas viva es `ncep_gfswave025`, que además está enmascarada por
-tierra en 5 de los 13 spots (`buchupureo`, `asia`, `huanchaco`,
-`punta_de_lobos`, `joaquina`): ahí, más allá del día 9, no hay ningún dato de
-olas. Estirar el horizonte más lejos no agregaría información, agregaría una
-sola opinión sin nadie que la contraste.
+fuente de olas viva es la de NOAA (`ncep_gfswave025`, o su respaldo
+`ncep_gfswave016` donde la de 0.25° está enmascarada), que además no tiene
+dato en 4 de los 13 spots (`buchupureo`, `asia`, `punta_de_lobos`,
+`joaquina`): ahí, más allá del día 9, no hay ningún dato de olas. Estirar el
+horizonte más lejos no agregaría información, agregaría una sola opinión sin
+nadie que la contraste.
+
+El respaldo **no mueve este techo**: las dos grillas de NOAA llegan a las
+mismas 264 h, así que el día 10 sigue quedando con una sola fuente en todos los
+spots. Lo que sí cambia es `huanchaco`, que pasa de no tener con qué contrastar
+en los días 8 y 9 a tener dos fuentes en las 12 horas de luz de cada uno.
 
 Hay un detalle de implementación que hace falta para que esto funcione. Los
 datos vienen emparejados: el modelo de olas *i* con el modelo de viento *i*, y
@@ -290,6 +301,31 @@ Tres reglas, y las tres las hace cumplir un test:
    archivo. Hoy hay **una sola exclusión en los 13 spots** (`gwam` en
    `lobitos`), y le *saca* alertas al spot en vez de agregarle. El criterio
    completo y la tabla de 13×3 ratios están en `docs/investigacion-spots.md`.
+
+### La cadena de respaldo entre grillas del mismo modelo
+
+`ncep_gfswave025` (GFS-Wave de NOAA, grilla de 0.25°) está enmascarado como
+tierra en 5 spots: devuelve `0.0` el 100 % de las horas. El mismo modelo en
+grilla de 0.16° (`ncep_gfswave016`) tiene la celda en agua en algunos de esos
+puntos. `RESPALDO_OLAS` en `surf/consenso.py` declara ese reemplazo:
+
+```python
+RESPALDO_OLAS = {"ncep_gfswave025": "ncep_gfswave016"}
+```
+
+**El respaldo reemplaza, no se suma.** Los dos son WW3 de NOAA, así que
+contarlos como dos fuentes sería un solo modelo votando dos veces — el mismo
+bug que se arregló sacando `best_match` de `MODELOS_OLAS`. Por eso entra sólo
+cuando el titular no tiene ningún dato útil en ese punto, y entra **en su misma
+posición**, con lo cual conserva el modelo de viento que le tocaba y no corre a
+ninguna otra fuente. Un test lo verifica en las cuatro combinaciones posibles.
+
+Es automático y no se configura por spot: la decisión se toma mirando la
+respuesta de la API. La grilla de 0.16° no cubre el Atlántico ni el Pacífico
+sur, así que de los 13 spots sólo responde en `huanchaco`, `santa_teresa`,
+`chicama` y `lobitos`; en los otros tres el titular ya tiene dato y el respaldo
+no entra. **Hoy la cadena se activa en un solo spot: `huanchaco`.** Los otros
+12 dan resultados idénticos, verificado con el backtest completo.
 
 ## Desarrollo local
 

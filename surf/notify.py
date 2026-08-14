@@ -24,6 +24,10 @@ _NOMBRES_MODELOS = {
     "gwam": "GWAM",
     "meteofrance_wave": "MFWAM",
     "ncep_gfswave025": "GFS-Wave",
+    # Misma familia WW3 de NOAA que el anterior pero en grilla de 0.16 grados.
+    # Lleva la resolucion en el nombre a proposito: es la unica diferencia
+    # entre los dos, y nunca aparecen juntos (ver RESPALDO_OLAS).
+    "ncep_gfswave016": "GFS-Wave 0.16°",
     "best_match": "Open-Meteo",
     "gfs_seamless": "GFS",
     "icon_seamless": "ICON",

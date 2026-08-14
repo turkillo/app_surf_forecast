@@ -46,8 +46,31 @@ MODELOS_VIENTO = ["gfs_seamless", "icon_seamless", "ecmwf_ifs025"]
 # los 13 spots en una celda enmascarada como tierra y devuelve 0.0/0.0/0 las
 # 72 horas. Ese 0.0 se descarta como dato faltante en fetch, no se toma como
 # mar planchado. En esos spots el consenso queda con dos fuentes y el sistema
-# lo dice: nunca reporta concordancia alta.
+# lo dice: nunca reporta concordancia alta. Para eso existe RESPALDO_OLAS.
 MODELOS_OLAS = ["gwam", "meteofrance_wave", "ncep_gfswave025"]
+
+# Que fuente OCUPA EL LUGAR de un titular cuando el titular no tiene dato en el
+# punto que se esta consultando. No es un modelo mas: es el mismo puesto
+# ocupado por otro.
+#
+# `ncep_gfswave016` es el mismo GFS-Wave de NOAA que `ncep_gfswave025` pero en
+# grilla de 0.16 grados. Donde la celda gruesa cae en tierra, la fina puede caer
+# en agua: en `huanchaco` la de 0.25 devuelve 0.0 el 100% de las horas y la de
+# 0.16 devuelve dato en 8757 de 8760 horas del archivo 2025. Su cobertura NO es
+# global -- de los 13 spots solo responde en huanchaco, santa_teresa, chicama y
+# lobitos --, asi que no sirve como reemplazo global de la de 0.25.
+#
+# LA REGLA QUE NO SE PUEDE ROMPER: los dos son WW3 de NOAA. Contarlos como dos
+# fuentes seria un solo modelo votando dos veces, que es exactamente el bug que
+# se arreglo sacando best_match de MODELOS_OLAS. Por eso el respaldo entra solo
+# cuando el titular NO tiene dato, y entra en su misma posicion (asi conserva el
+# modelo de viento que le tocaba y ninguna otra fuente se corre).
+RESPALDO_OLAS = {"ncep_gfswave025": "ncep_gfswave016"}
+
+# Lo que se le pide a la API: los titulares mas los respaldos. Que un respaldo
+# venga en la respuesta no lo hace votar; quien decide es `surf.fetch`.
+MODELOS_OLAS_PEDIDOS = MODELOS_OLAS + [m for m in RESPALDO_OLAS.values()
+                                       if m not in MODELOS_OLAS]
 
 MINIMO_MODELOS_DE_ACUERDO = 2
 
@@ -61,10 +84,13 @@ MINIMO_MODELOS_DE_ACUERDO = 2
 # lo desmienta. El pre-aviso es ademas donde el falso positivo cuesta mas
 # caro: es el mensaje que hace que el usuario empiece a mover fechas.
 #
-# El precio, aceptado a proposito: los 5 spots donde ncep_gfswave025 esta
-# enmascarado por tierra (buchupureo, asia, huanchaco, punta_de_lobos,
-# joaquina) se quedan con una sola fuente a partir del dia 8 y no van a
-# generar pre-avisos. Mejor ninguno que uno que no se puede contrastar.
+# El precio, aceptado a proposito: los spots donde ncep_gfswave025 esta
+# enmascarado por tierra y no hay respaldo con cobertura (buchupureo, asia,
+# punta_de_lobos, joaquina) se quedan con una sola fuente a partir del dia 8 y
+# no van a generar pre-avisos. Mejor ninguno que uno que no se puede
+# contrastar. huanchaco salio de esa lista en la Tarea 15: ncep_gfswave016 le
+# da la segunda fuente hasta el dia 9 (medido: 12 de 12 horas de luz de los
+# dias 8 y 9, contra 0 antes).
 #
 # El regimen de alerta confirmada (dias 0-6) NO usa esta regla: ahi hay
 # cobertura de sobra y el consenso de 2 de 3 ya funciona.
@@ -118,7 +144,12 @@ def sin_modelos_excluidos(hmm: HoraMultiModelo, spot: Spot) -> HoraMultiModelo:
     """
     if not spot.modelos_excluidos:
         return hmm
+    # Excluir un titular excluye tambien a su respaldo: el respaldo es el mismo
+    # puesto ocupado por otra grilla del mismo modelo, no una fuente distinta.
+    # Si sobreviviera, la exclusion no sacaria la fuente que se quiso sacar --
+    # la renombraria.
     excluidos = set(spot.modelos_excluidos)
+    excluidos |= {RESPALDO_OLAS[m] for m in excluidos if m in RESPALDO_OLAS}
     quedan = {n: h for n, h in hmm.por_modelo.items()
               if _modelo_de_olas(n) not in excluidos}
     if len(quedan) == len(hmm.por_modelo):

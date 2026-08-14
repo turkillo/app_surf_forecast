@@ -33,6 +33,14 @@ tierra y devuelve 0.0, que `surf.fetch` descarta como dato faltante. En esos
 spots el tramo 2024-06-19..2025-12-08 queda con UNA sola fuente, que es mas
 permisivo. `analizar` reporta `fuentes_promedio` para que el sesgo sea
 visible spot por spot en vez de quedar escondido en el promedio.
+
+Y un tercer sesgo, propio de la cadena de respaldo (RESPALDO_OLAS): en
+`huanchaco` el respaldo ncep_gfswave016 recien aparece en el archivo el
+2024-10-01, y gwam falta entre 2024-06-08 y 2025-12-08. O sea que el tramo
+2024-10-01..2025-12-08 pasa de UNA fuente (permisivo) a DOS (estricto), que es
+la direccion contraria a lo que hace en produccion, donde las tres conviven.
+Por eso el efecto del respaldo se mide sobre 2026-01-01..2026-08-10, el unico
+periodo del archivo con los tres modelos vivos. Ver docs/resultados-backtest.md.
 """
 import argparse
 import gzip
@@ -46,7 +54,7 @@ from pathlib import Path
 import requests
 
 from surf.alert import detectar_ventanas
-from surf.consenso import (MODELOS_OLAS, MODELOS_VIENTO,
+from surf.consenso import (MODELOS_OLAS, MODELOS_VIENTO, RESPALDO_OLAS,
                            evaluar_dia_multimodelo, sin_modelos_excluidos)
 from surf.fetch import _CAMPOS_CLIMA, _CAMPOS_MARINE, ErrorDatos, _combinar_multimodelo
 from surf.spots import Spot, cargar_spots
@@ -138,6 +146,14 @@ def obtener_historico(spot: Spot, desde: date, hasta: date, *, sesion=None,
     olas = list(modelos_olas or MODELOS_OLAS)
     viento = list(modelos_viento or MODELOS_VIENTO)
 
+    # Los respaldos se PIDEN pero no se listan como titulares: igual que en
+    # produccion, cada uno entra solo si su titular no tiene dato en el punto
+    # (ver RESPALDO_OLAS en surf/consenso.py). Se agregan solo los de los
+    # titulares realmente pedidos, para que `--modelos-olas` siga sirviendo
+    # para medir el sesgo del archivo con una lista exacta.
+    pedidos = olas + [r for m, r in RESPALDO_OLAS.items()
+                      if m in olas and r not in olas]
+
     # Mismo reparto de puntos que produccion: el oleaje puede venir de un punto
     # mar adentro y el viento siempre de la playa. Ver surf.fetch._bases.
     lat_mar, lon_mar = spot.coords_mar
@@ -151,7 +167,7 @@ def obtener_historico(spot: Spot, desde: date, hasta: date, *, sesion=None,
 
         marine = _pedir_cacheado(
             URL_MARINE_ARCHIVO,
-            {**base_mar, "hourly": ",".join(_CAMPOS_MARINE), "models": ",".join(olas)},
+            {**base_mar, "hourly": ",".join(_CAMPOS_MARINE), "models": ",".join(pedidos)},
             sesion, cache_dir)
         clima = _pedir_cacheado(
             URL_CLIMA_ARCHIVO,

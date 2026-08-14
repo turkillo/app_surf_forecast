@@ -1507,3 +1507,145 @@ en 3 años), `punta_del_diablo`/`mf` (0.76), `saquarema`/`ncep` (0.89), `santa_t
 (0.80). Son sesgos reales y quedan anotados, pero por debajo del corte. **Absorber esa
 dispersión es exactamente para lo que existe el consenso**: si se excluyera a todos, no
 quedaría consenso que calcular.
+
+---
+
+# `ncep_gfswave016` y la cadena de respaldo (Tarea 15, 2026-08-14)
+
+`ncep_gfswave025` está enmascarado como tierra en 5 spots y devuelve `0.0` el 100 % de las
+horas. `ncep_gfswave016` es **el mismo GFS-Wave de NOAA** en grilla de 0.16° en vez de 0.25°:
+la celda fina puede caer en agua donde la gruesa cae en tierra. La Tarea 14 lo había verificado
+en `huanchaco` (48/48 horas) y lo dejó anotado como pendiente. Acá se midió en los 13.
+
+## Advertencia de independencia, antes de leer los números
+
+`ncep_gfswave016`, `ncep_gfswave025` y **la fila «Wave / Height» de surf-forecast son los tres
+WW3 de NOAA** — la propia nota al pie de surf-forecast dice que es «open-water NWW3». O sea:
+
+- surf-forecast **no sirve de árbitro** para decidir cuál de las dos grillas de NCEP es mejor:
+  sería WW3 evaluándose a sí mismo. Sirve para un chequeo de escala absoluta y nada más.
+- El árbitro con familia distinta es `meteofrance_wave` (MFWAM), y por eso la segunda tabla
+  —contra el archivo 2025— es la que manda para juzgar sesgo.
+- Y en el consenso, `016` + `025` **nunca pueden contar como dos fuentes**. Es el mismo modelo
+  votando dos veces, exactamente el bug que se arregló sacando `best_match`. La solución
+  elegida lo hace estructuralmente imposible: el respaldo **reemplaza** al titular, no se suma.
+
+## Cobertura y alcance temporal — pronóstico en vivo, 2026-08-14, 264 h pedidas
+
+`útiles` = horas con altura no nula y distinta de `0.0` (el `0.0` es la máscara de tierra, no
+un dato). `alcance` = última hora con dato.
+
+| spot | `016` útiles / alcance | `025` útiles / alcance | `mf` alcance | `gwam` alcance |
+|---|---|---|---|---|
+| `la_barra` | **sin columna** | 233 / 264 h | 237 h | 183 h |
+| `chapadmalal` | **sin columna** | 238 / 264 h | 237 h | 183 h |
+| `praia_do_rosa` | **sin columna** | 264 / 264 h | 237 h | 183 h |
+| `buchupureo` | **sin columna** | 0 (enmascarado) | 236 h | 182 h |
+| `asia` | columna vacía (0 horas) | 0 (enmascarado) | 235 h | 181 h |
+| `huanchaco` | **263 / 264 h** | 0 (enmascarado) | 235 h | 181 h |
+| `santa_teresa` | 264 / 264 h | 264 / 264 h | 234 h | 180 h |
+| `saquarema` | **sin columna** | 264 / 264 h | 237 h | 183 h |
+| `punta_de_lobos` | **sin columna** | 0 (enmascarado) | 236 h | 182 h |
+| `chicama` | 264 / 264 h | 264 / 264 h | 235 h | 181 h |
+| `lobitos` | 264 / 264 h | 264 / 264 h | 235 h | 181 h |
+| `punta_del_diablo` | **sin columna** | 246 / 264 h | 237 h | 183 h |
+| `joaquina` | **sin columna** | 0 (enmascarado) | 237 h | 183 h |
+
+**El dato que decide la tarea: `ncep_gfswave016` sólo responde en 4 de los 13 spots.** Su
+grilla no cubre el Atlántico sur, ni el Pacífico chileno, ni siquiera Lima (`asia` devuelve la
+columna pero vacía). De los 5 spots enmascarados **destraba uno solo: `huanchaco`**.
+
+**Alcance temporal: idéntico al titular.** Las dos grillas de NOAA llegan a las 264 h pedidas,
+o sea que el respaldo no mueve el techo de 10 días ni el horizonte efectivo de pre-aviso (7-9).
+
+## Fidelidad contra surf-forecast — muestra pareada por hora local, 2026-08-14
+
+Mediana de `altura_modelo / altura_SF`. Recordar la advertencia: para `016` y `025` esto es
+WW3 contra WW3. Los ratios de `gwam` y `mf` reproducen los de la Tarea 14 y sirven de control
+del método.
+
+| spot | `016` | n | `025` | n | `mf` | n | `gwam` | n |
+|---|---|---|---|---|---|---|---|---|
+| `la_barra` | sin cobertura | 0 | 1.01 | 20 | 0.86 | 22 | 0.90 | 22 |
+| `chapadmalal` | sin cobertura | 0 | 0.98 | 22 | 0.88 | 22 | 0.88 | 22 |
+| `praia_do_rosa` | sin cobertura | 0 | 0.94 | 22 | 0.67 | 22 | 0.85 | 22 |
+| `buchupureo` | sin cobertura | 0 | enmascarado | 0 | 1.02 | 23 | 1.16 | 23 |
+| `asia` | sin cobertura | 0 | enmascarado | 0 | 1.07 | 23 | 1.34 | 23 |
+| `huanchaco` | **0.87** | 23 | enmascarado | 0 | 1.05 | 23 | 0.63 | 23 |
+| `santa_teresa` | 0.77 | 23 | 0.80 | 23 | 1.03 | 23 | 1.37 | 23 |
+| `saquarema` | sin cobertura | 0 | 0.88 | 22 | 0.95 | 22 | 0.96 | 22 |
+| `punta_de_lobos` | sin cobertura | 0 | enmascarado | 0 | 0.99 | 23 | 1.09 | 23 |
+| `chicama` | 0.89 | 23 | 0.95 | 23 | 1.03 | 23 | 1.09 | 23 |
+| `lobitos` | 1.02 | 23 | 1.38 | 23 | 1.16 | 23 | 1.89 | 23 |
+| `punta_del_diablo` | sin cobertura | 0 | 1.03 | 22 | 0.76 | 22 | 0.96 | 22 |
+| `joaquina` | sin cobertura | 0 | enmascarado | 0 | 0.79 | 22 | 1.34 | 22 |
+
+Los cuatro valores de `016` (0.77, 0.87, 0.89, 1.02) caen **dentro** de la banda de exclusión
+`[1/1.5, 1.5]` fijada en la Tarea 14. Ningún modelo se excluye por esta tabla.
+
+## Contra `meteofrance_wave` (familia independiente), archivo 2025 completo
+
+Mediana del cociente sobre todas las horas con dato en los dos modelos.
+
+| spot | `016`/`mf` | n | `025`/`mf` | n |
+|---|---|---|---|---|
+| `huanchaco` | 0.70 | 8757 | — enmascarado | 0 |
+| `santa_teresa` | 0.75 | 8760 | 0.76 | 8760 |
+| `chicama` | 0.74 | 8754 | 0.82 | 8758 |
+| `lobitos` | 0.60 | 8759 | 0.93 | 8753 |
+
+Lectura honesta: **`016` lee bajo contra MFWAM de forma sistemática** (0.60-0.75). Parte de eso
+es sesgo real de WW3 en esa costa —`025` también lee 0.76-0.93 donde tiene dato—, pero en
+`lobitos` los dos NCEP difieren entre sí (0.60 vs 0.93), así que **no son intercambiables**.
+Esa es la razón técnica por la que no hay reemplazo global: no es el mismo dato con otro
+nombre.
+
+## `016` contra `025` donde los dos responden — pronóstico en vivo, 264 pares
+
+| spot | ratio mediano `016`/`025` | horas idénticas en las 3 variables | máxima diferencia de altura |
+|---|---|---|---|
+| `santa_teresa` | 0.974 | 5 de 264 | 0.20 m |
+| `chicama` | 0.906 | 0 de 264 | 1.00 m |
+| `lobitos` | 0.724 | 0 de 264 | 1.44 m |
+
+**No son la misma serie.** Si lo fueran, `016` sería un reemplazo directo de `025` y la decisión
+sería trivial. Con diferencias de hasta 1.44 m, cambiar de grilla en un spot que ya funciona
+sería cambiarle el dato al gate sin ninguna evidencia de que la grilla fina mide mejor —y esa
+evidencia no se puede conseguir, porque el único árbitro disponible con la escala correcta
+(surf-forecast) es el mismo WW3.
+
+## La decisión: opción (b), cadena de respaldo
+
+- **(a) Reemplazo global — descartada por cobertura, no por preferencia.** `016` no devuelve
+  columna en 8 de los 13 spots. Aplicarlo globalmente dejaría a `la_barra`, `chapadmalal`,
+  `praia_do_rosa`, `saquarema` y `punta_del_diablo` con **dos** fuentes en vez de tres, y a
+  `buchupureo`, `punta_de_lobos` y `joaquina` igual de mudos que hoy. Es estrictamente peor.
+- **(c) Override por spot — descartada por redundante.** El único spot que lo necesita es
+  `huanchaco`, y la condición que lo justifica («el titular devuelve `0.0` siempre») es
+  observable en la respuesta de la API. Escribirla a mano en el YAML agrega una línea que hay
+  que mantener sincronizada con lo que hace Open-Meteo, y que quedaría desactualizada en
+  silencio el día que la máscara cambie.
+- **(b) Cadena de respaldo — elegida.** `RESPALDO_OLAS = {"ncep_gfswave025": "ncep_gfswave016"}`
+  en `surf/consenso.py`. El respaldo entra **sólo** si el titular no tiene ningún dato útil en
+  ese punto, y entra **en la posición del titular**, con lo cual conserva su modelo de viento y
+  no corre a ninguna otra fuente. Que sea un reemplazo y no un agregado es lo que hace
+  **estructuralmente imposible** que los dos WW3 voten juntos.
+
+La sustitución es una decisión **de punto, no de hora**: se mira la serie completa. Si
+dependiera de la hora, la tercera fuente cambiaría de identidad a lo largo del día y la mediana
+del consenso saltaría entre dos modelos distintos sin que nada lo dijera.
+
+## Qué se destrabó, y qué no
+
+De los 5 spots enmascarados, la cadena destraba **uno**:
+
+| spot | `025` | `016` | resultado |
+|---|---|---|---|
+| `huanchaco` | enmascarado | 263/264 h | **destrabado** |
+| `buchupureo` | enmascarado | sin columna | sigue con 2 fuentes |
+| `asia` | enmascarado | columna vacía | sigue con 2 fuentes |
+| `punta_de_lobos` | enmascarado | sin columna | sigue con 2 fuentes |
+| `joaquina` | enmascarado | sin columna | sigue con 2 fuentes |
+
+Para esos cuatro **este mecanismo no existe**, y no hay nada que ajustar: el modelo no cubre
+esos puntos. `joaquina` y `buchupureo` siguen esperando otra herramienta.

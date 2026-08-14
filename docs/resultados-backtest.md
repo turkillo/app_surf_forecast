@@ -689,3 +689,127 @@ a nadie.
   fuentes, así que este mecanismo no lo puede mover. Si el usuario quiere más
   avisos en `la_barra`, el dial está en los umbrales del spot, y es una decisión
   suya, no una derivación.
+
+---
+
+## 9. Cadena de respaldo `ncep_gfswave025` → `ncep_gfswave016` (Tarea 15, 2026-08-14)
+
+El objetivo era destrabar `huanchaco`. **El criterio de éxito no era que aparecieran
+alertas**, sino que el spot entrara en el rango sano de 10-25 ventanas/año **y** conservara
+la concentración estacional por encima de ~1.15. La Tarea 14 ya había mostrado el modo de
+falla: excluyendo `gwam`, el volumen saltaba a 41/año con concentración **1.00**, o sea
+distribución uniforme — un spot que avisa todo el año por igual no está arreglado, está roto
+de otra manera.
+
+La medición completa de cobertura y fidelidad de `ncep_gfswave016` en los 13 spots, y por qué
+se eligió la cadena de respaldo sobre el reemplazo global y sobre el override por spot, están
+en `docs/investigacion-spots.md`.
+
+### 9.1 El sesgo de archivo que hace inservible el backtest 2023-2025 para este cambio
+
+Para `huanchaco`, en el archivo de Open-Meteo:
+
+| tramo | fuentes en el archivo |
+|---|---|
+| 2023-01-01 .. 2024-06-07 | `gwam` + `mf` |
+| 2024-06-08 .. 2024-09-30 | sólo `mf` |
+| 2024-10-01 .. 2025-12-08 | `mf` + `016` (aparece el respaldo, sigue sin `gwam`) |
+| 2025-12-09 en adelante | los tres |
+
+O sea que en 2024-10..2025-12 el cambio lleva al spot de **una** fuente (permisivo: un solo
+modelo decide) a **dos** (estricto: tienen que coincidir los dos). Eso es lo contrario de lo
+que pasa en producción, donde las tres conviven y el respaldo agrega una tercera opinión.
+Por eso el número con autoridad es el de la ventana con los tres modelos vivos.
+
+### 9.2 Backtest completo 2023-2025 — antes y después
+
+| spot | v/año antes | v/año después | conc. antes | conc. después | fuentes antes | después |
+|---|---|---|---|---|---|---|
+| `huanchaco` | 20.7 | **10.3** | 1.13 | **1.55** | 1.50 | 1.91 |
+| los otros 12 | — | **idénticos** | — | idénticos | — | idénticos |
+
+Los 12 restantes dan resultados **byte a byte idénticos**, verificado comparando los dos
+volcados JSON campo por campo (incluidos `por_mes`, `dias_por_mes` y `top_dias`). Es el
+control: si alguno se hubiera movido, algo se habría roto.
+
+El 20.7 → 10.3 es el sesgo del apartado anterior, no el efecto del cambio: el tramo de una
+sola fuente pasa a exigir acuerdo. La concentración sube de 1.13 a **1.55**, que es la señal
+de que las ventanas que se pierden son las de fuera de temporada.
+
+### 9.3 La ventana que sí reproduce producción (2026-01-01 .. 2026-08-10, tres fuentes)
+
+| spot | v/año antes | v/año después | conc. antes | conc. después | temporada | fuentes antes → después |
+|---|---|---|---|---|---|---|
+| `huanchaco` | **1.6** | **24.7** | 1.71 (n=1) | **1.26** (n=15) | ok → ok | 2.00 → **3.00** |
+| los otros 12 | — | idénticos | — | idénticos | sin cambio | sin cambio |
+
+**Este es el resultado de la tarea.** `huanchaco` pasa de 1.6 a 24.7 ventanas/año, dentro del
+rango sano, **y la estacionalidad se sostiene**: concentración 1.26, por encima del 1.15 que
+se había puesto como piso, y muy lejos del 1.00 uniforme que había producido excluir `gwam`.
+Distribución mensual después: `03:4 04:4 05:2 06:3 07:2` — 11 de 15 ventanas en temporada.
+
+Comparación con la alternativa que se descartó en la Tarea 14, sobre el mismo spot:
+
+| configuración | volumen | concentración | veredicto |
+|---|---|---|---|
+| hoy (3 fuentes, `025` enmascarado) | 1.6/año | 1.71 (n=1, sin valor) | estrangulado |
+| excluyendo `gwam` (1 fuente) | 41.0/año (23-25) | **1.00 = uniforme** | ruido con forma de arreglo |
+| **cadena de respaldo (3 fuentes)** | **24.7/año** | **1.26** | **sano y estacional** |
+
+La diferencia entre las dos últimas filas es la razón de ser de esta tarea: la exclusión daba
+volumen destruyendo la señal; el respaldo da volumen **porque agrega una fuente**, no porque
+saque un veto.
+
+**Advertencias sobre este número, que hay que decir:**
+
+1. **24.7 está en el borde superior del rango sano (10-25).** La ventana medida termina el
+   10 de agosto y le faltan agosto-octubre, que son meses de temporada: con el año completo el
+   volumen probablemente suba (y con él la concentración, porque esos meses son de temporada).
+   Si en la próxima revisión pasa de 25, el dial correcto es el umbral del spot, no el modelo.
+2. **La concentración 1.71 de la columna «antes» no significa nada:** se calcula sobre **una
+   sola** ventana. El 1.26 de la columna «después» se calcula sobre 15.
+3. La ventana empieza en enero, así que incluye el verano peruano completo (fuera de
+   temporada) y sólo parte del invierno. Es un test **conservador** para la estacionalidad.
+
+### 9.4 Efecto sobre los pre-avisos
+
+Fuentes de olas disponibles en las horas de luz de cada día del régimen de pre-aviso, medido
+contra la API real el 2026-08-14 (13 spots, antes y después):
+
+| spot | día 7 | día 8 | día 9 | día 10 | cambia |
+|---|---|---|---|---|---|
+| `huanchaco` antes | 2 fuentes en 6/12 h | **1** | **1** | sin datos | — |
+| `huanchaco` después | **3** en 12/12 h | **2** en 12/12 h | **2** en 12/12 h | 1 | **sí** |
+| los otros 12 | sin cambio | sin cambio | sin cambio | sin cambio | no |
+
+Antes, `huanchaco` no podía formar una ventana de pre-aviso: hacen falta 2 días consecutivos
+y sólo el 7 llegaba (a medias) a las 2 fuentes que exige
+`MINIMO_FUENTES_OLAS_PREAVISO`. Ahora tiene los días 7, 8 y 9 completos.
+
+**El horizonte efectivo no se movió: sigue siendo 7-9 días.** Las dos grillas de NOAA llegan
+a las mismas 264 h, así que el día 10 sigue teniendo una sola fuente en los 13 spots y el
+pre-aviso lo sigue rechazando. Los spots que pueden generar pre-avisos pasan de 8 a **9**:
+`la_barra`, `chapadmalal`, `praia_do_rosa`, `santa_teresa`, `saquarema`, `chicama`, `lobitos`,
+`punta_del_diablo` y ahora `huanchaco`. Los 4 que siguen sin poder (`buchupureo`, `asia`,
+`punta_de_lobos`, `joaquina`) son los que no tienen cobertura de NOAA en ninguna de las dos
+grillas.
+
+### 9.5 Verificación de que las dos grillas de NOAA nunca votan juntas
+
+Es el riesgo central del cambio: `ncep_gfswave016` y `ncep_gfswave025` son el mismo WW3 de
+NOAA, así que contarlos como dos fuentes reintroduciría el bug de `best_match`. Está impedido
+por construcción —el respaldo **reemplaza** al titular en su misma posición— y verificado con
+un test que recorre las cuatro combinaciones (titular con/sin dato × respaldo con/sin dato) y
+exige que en ninguna hora aparezcan los dos.
+
+Corroborado además contra la API real en la corrida punta a punta: `huanchaco` reporta
+`gwam, meteofrance_wave, ncep_gfswave016` y ningún spot reporta las dos grillas a la vez.
+
+### 9.6 Lo que esta tarea NO arregló
+
+- **`buchupureo` (33/año, conc. 1.07), `asia` (30.3/año, conc. 1.07), `punta_de_lobos`
+  (26.3/año, conc. 1.19), `joaquina` (4.0/año).** Los otros cuatro enmascarados: la grilla de
+  0.16° **no los cubre**, así que la cadena de respaldo no los toca. Sus números son
+  exactamente los de antes.
+- **`lobitos` (3.0/año) y `la_barra` (5.3/año)** siguen estrangulados y por los motivos ya
+  documentados en la sección 8, que no son de cobertura de fuentes.

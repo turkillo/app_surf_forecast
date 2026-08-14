@@ -163,13 +163,24 @@
   # La evidencia de que gwam mide mal en este punto es la mas fuerte del
   # archivo: ratio gwam/surf-forecast = 0.63 con 23 de 23 pares por debajo de
   # 1.0, y gwam/meteofrance_wave = 0.50 sobre 13110 horas de archivo.
-  # Lo que bloquea la exclusion es lo que queda despues: ncep_gfswave025 esta
-  # enmascarado como tierra en este punto (0.0 en las 23 horas), asi que sacar
-  # gwam deja UNA sola fuente viva y el consenso desaparece. Se probo y se
-  # midio: el backtest 2023-2025 pasa de 20.7 a 41.0 ventanas/anio y la
-  # estacionalidad se cae a NO COINCIDE (concentracion 1.13 -> 1.00, o sea
+  # Lo que bloqueaba la exclusion era lo que quedaba despues: ncep_gfswave025
+  # esta enmascarado como tierra en este punto (0.0 en las 23 horas), asi que
+  # sacar gwam dejaba UNA sola fuente viva y el consenso desaparecia. Se probo
+  # y se midio: el backtest 2023-2025 pasaba de 20.7 a 41.0 ventanas/anio y la
+  # estacionalidad se caia a NO COINCIDE (concentracion 1.13 -> 1.00, o sea
   # distribucion uniforme). Alertar todo el anio por igual no es arreglar el
   # spot. Ver docs/resultados-backtest.md.
+  #
+  # Tarea 15 (2026-08-14): el spot se destrabo SIN excluir gwam. La cadena de
+  # respaldo de surf/consenso.py pone ncep_gfswave016 --el mismo GFS-Wave de
+  # NOAA en grilla de 0.16- en el lugar del de 0.25, que aca esta enmascarado.
+  # Es automatico y no se configura por spot: no hay nada que tocar en este
+  # archivo. Con tres fuentes vivas, meteofrance_wave y ncep_gfswave016 pueden
+  # formar consenso sin depender de gwam, y el resultado medido sobre el unico
+  # periodo donde el archivo sirve los tres modelos (2026-01-01..2026-08-10)
+  # es 1.6 -> 24.7 ventanas/anio con concentracion estacional 1.26 (sigue
+  # concentrado en temporada, no uniforme). Esa es la diferencia con excluir
+  # gwam: aquello daba volumen sin estacionalidad, esto da las dos cosas.
 
 - id: santa_teresa
   nombre: "Playa Santa Teresa, Guanacaste"

@@ -29,8 +29,11 @@ DIAS_RETENCION_ESTADO = 30
 #
 # El techo es 10 y no 14 por cobertura de los modelos (medido contra la API):
 # a partir del dia 7 se cae gwam (olas, 169 h) e icon (viento, 177 h), y a
-# partir del dia 10 la unica fuente de olas viva es ncep_gfswave025, que ademas
-# esta enmascarada por tierra en 5 de los 13 spots.
+# partir del dia 10 la unica fuente de olas viva es la de NOAA (ncep_gfswave025
+# o su respaldo ncep_gfswave016), que ademas esta enmascarada por tierra en 4
+# de los 13 spots. El respaldo NO alarga el horizonte: las dos grillas de NOAA
+# llegan a las mismas 264 h, asi que el dia 10 sigue quedando con una sola
+# fuente en todos los spots y el pre-aviso lo sigue rechazando.
 ULTIMO_DIA_GATE_COMPLETO = 6
 ULTIMO_DIA_PREAVISO = 10
 

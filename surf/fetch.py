@@ -163,12 +163,16 @@ def obtener_horas_multimodelo(spot: Spot, dias: int = DIAS_PRONOSTICO,
     tiene cobertura en el spot, Open-Meteo no devuelve su columna y ese modelo
     se omite; el consenso se calcula con los que si respondieron.
     """
-    from surf.consenso import MODELOS_OLAS, MODELOS_VIENTO, HoraMultiModelo
+    from surf.consenso import (MODELOS_OLAS, MODELOS_OLAS_PEDIDOS,
+                               MODELOS_VIENTO, HoraMultiModelo)
 
     base_mar, base_viento = _bases(spot, dias)
 
+    # Se piden tambien los respaldos (ver RESPALDO_OLAS). Traerlos no los hace
+    # votar: `_combinar_multimodelo` deja entrar a uno solo cuando su titular
+    # no tiene dato en este punto.
     marine = _pedir(URL_MARINE, {**base_mar, "hourly": ",".join(_CAMPOS_MARINE),
-                                 "models": ",".join(MODELOS_OLAS)}, sesion)
+                                 "models": ",".join(MODELOS_OLAS_PEDIDOS)}, sesion)
     clima = _pedir(URL_CLIMA, {**base_viento, "hourly": ",".join(_CAMPOS_CLIMA),
                                "models": ",".join(MODELOS_VIENTO),
                                "daily": "sunrise,sunset",
@@ -189,12 +193,51 @@ def _sufijo(campo: str, modelo: str, disponibles: dict) -> str | None:
     return None
 
 
+def _tiene_dato_util(modelo: str, hm: dict) -> bool:
+    """El modelo devolvio al menos una altura que no sea nula ni el 0.0 de mascara.
+
+    Es la prueba de que su celda de grilla cae en agua en ESTE punto. Se mira la
+    serie completa y no hora por hora a proposito: la sustitucion por respaldo
+    es una decision del punto, no de la hora. Si dependiera de la hora, la
+    tercera fuente cambiaria de identidad a lo largo del dia y la mediana
+    saltaria entre dos modelos distintos sin que nada lo dijera.
+    """
+    columna = _sufijo("swell_wave_height", modelo, hm)
+    if columna is None:
+        return False
+    return any(v is not None and float(v) != ALTURA_HUECO_M for v in hm[columna])
+
+
+def _con_respaldos(modelos_olas: list[str], hm: dict,
+                   respaldos: dict[str, str]) -> list[str]:
+    """Reemplaza cada titular sin dato en este punto por su respaldo.
+
+    El respaldo entra EN LA MISMA POSICION, que es lo que conserva el
+    emparejamiento olas[i]+viento[i]: la fuente cambia de nombre, no de puesto.
+    Y como es un reemplazo y no un agregado, titular y respaldo nunca pueden
+    votar juntos -- que es obligatorio cuando los dos son el mismo modelo de
+    NOAA en dos grillas (ver RESPALDO_OLAS en surf/consenso.py).
+    """
+    efectivos = []
+    for modelo in modelos_olas:
+        respaldo = respaldos.get(modelo)
+        if (respaldo is not None and not _tiene_dato_util(modelo, hm)
+                and _tiene_dato_util(respaldo, hm)):
+            efectivos.append(respaldo)
+        else:
+            efectivos.append(modelo)
+    return efectivos
+
+
 def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
-                          modelos_viento: list[str]) -> dict:
+                          modelos_viento: list[str],
+                          respaldos: dict[str, str] | None = None) -> dict:
     """Une las respuestas multi-modelo. Funcion pura."""
-    from surf.consenso import HoraMultiModelo
+    from surf.consenso import RESPALDO_OLAS, HoraMultiModelo
 
     hm, hc, dc = marine.get("hourly", {}), clima.get("hourly", {}), clima.get("daily", {})
+    modelos_olas = _con_respaldos(
+        modelos_olas, hm, RESPALDO_OLAS if respaldos is None else respaldos)
 
     if "time" not in hm or "time" not in hc:
         raise ErrorDatos("falta la serie 'time' en alguna respuesta")

@@ -89,7 +89,7 @@ def correr(spots: list[Spot], hoy: date,
                     horas, spot, fecha, exigir_viento=False,
                     minimo_fuentes=MINIMO_FUENTES_OLAS_PREAVISO))
             # Mas alla del horizonte no se evalua nada: a esa distancia queda
-            # una sola fuente de olas y en 5 spots ninguna.
+            # una sola fuente de olas y en 4 spots ninguna.
 
     if exitosos == 0:
         raise RuntimeError("ningun spot devolvio datos; no se escribe estado")
