@@ -20,19 +20,21 @@ from surf.score import (HORAS_MINIMAS_CONSECUTIVAS, DiaEvaluado, Hora,
                         _resumir)
 from surf.spots import Spot
 
-# El orden importa: `_combinar_multimodelo` empareja el modelo de olas i con
-# el modelo de viento i, y si el de viento se queda sin datos antes, la fila
-# entera se descarta y se pierde esa fuente de olas. Medido contra la API real
-# con forecast_days=11:
+# El ORDEN de esta lista es carga historica y NO se puede tocar a la ligera.
+# `_combinar_multimodelo` empareja el modelo de olas i con el modelo de viento
+# i, y los tres modelos discrepan de verdad en el mismo punto y hora (medido en
+# asia, 2026-08-15 09:00: GFS 8.8 km/h del 261, ICON 4.5 del 209, ECMWF 5.4 del
+# 250). O sea que QUE modelo de viento le toca a cada modelo de olas decide si
+# el dia pasa el gate o no.
 #
-#   olas    gwam 169 h · meteofrance_wave 235 h · ncep_gfswave025 264 h
-#   viento  icon_seamless 177 h · ecmwf_ifs025 264 h · gfs_seamless 264 h
-#
-# Los pares quedan gwam+ICON, meteofrance+ECMWF, ncep+GFS: cada modelo de olas
-# va con uno de viento que llega por lo menos igual de lejos. Con el orden
-# anterior (gfs, icon, ecmwf), meteofrance quedaba atado a icon y los dias 8 y
-# 9 --el corazon del pre-aviso-- perdian su unica fuente de olas util.
-MODELOS_VIENTO = ["icon_seamless", "ecmwf_ifs025", "gfs_seamless"]
+# Se probo reordenarla por alcance temporal (para que ningun modelo de olas
+# largo quedara atado a un viento corto) y se midio el efecto sobre los 13
+# spots reales: 5 de 91 dias del rango 0-6 cambiaban de es_bueno, y las
+# ventanas detectadas pasaban de 5 a 6. Nada de eso es una mejora -- los dos
+# ordenes son igual de arbitrarios --, asi que se descarto: el problema de
+# cobertura se resuelve en fetch con un respaldo por hora, que en el rango 0-6
+# no se activa nunca (los tres modelos de viento tienen 0 nulos ahi).
+MODELOS_VIENTO = ["gfs_seamless", "icon_seamless", "ecmwf_ifs025"]
 
 # Fuentes de olas GENUINAMENTE distintas. best_match de la Marine API no es
 # una fuente propia: es meteofrance_wave con otro nombre (verificado contra la
@@ -48,6 +50,25 @@ MODELOS_VIENTO = ["icon_seamless", "ecmwf_ifs025", "gfs_seamless"]
 MODELOS_OLAS = ["gwam", "meteofrance_wave", "ncep_gfswave025"]
 
 MINIMO_MODELOS_DE_ACUERDO = 2
+
+# Fuentes de olas que tienen que estar DISPONIBLES para emitir un pre-aviso.
+# No es lo mismo que MINIMO_MODELOS_DE_ACUERDO: aquella regla cuenta cuantos
+# modelos pasan el gate entre los que respondieron, esta exige que haya con
+# quien contrastar en primer lugar.
+#
+# Existe porque un modelo solo puede inventar un swell que no existe, y a 8
+# dias no hay con que contrastarlo -- no queda ninguna otra fuente viva que
+# lo desmienta. El pre-aviso es ademas donde el falso positivo cuesta mas
+# caro: es el mensaje que hace que el usuario empiece a mover fechas.
+#
+# El precio, aceptado a proposito: los 5 spots donde ncep_gfswave025 esta
+# enmascarado por tierra (buchupureo, asia, huanchaco, punta_de_lobos,
+# joaquina) se quedan con una sola fuente a partir del dia 8 y no van a
+# generar pre-avisos. Mejor ninguno que uno que no se puede contrastar.
+#
+# El regimen de alerta confirmada (dias 0-6) NO usa esta regla: ahi hay
+# cobertura de sobra y el consenso de 2 de 3 ya funciona.
+MINIMO_FUENTES_OLAS_PREAVISO = 2
 # "Alta" es la etiqueta que le dice al usuario que puede manejar cuatro horas
 # sin chequear nada mas. No se puede afirmar con menos de tres fuentes: si un
 # modelo no respondio, no hay tres opiniones, hay dos.
@@ -167,7 +188,8 @@ def _motivo_principal(evaluadas: list[HoraEvaluada],
 
 def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
                             fecha: date,
-                            exigir_viento: bool = True) -> DiaEvaluado:
+                            exigir_viento: bool = True,
+                            minimo_fuentes: int = 1) -> DiaEvaluado:
     """Igual que evaluar_dia, pero exigiendo acuerdo entre modelos.
 
     `exigir_viento=False` es el regimen de pre-aviso (dias 7 a 10): se pide
@@ -175,6 +197,10 @@ def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
     rango quedan menos fuentes de olas vivas, asi que la etiqueta de
     concordancia baja sola -- la regla de no declarar "alta" con menos de
     MINIMO_MODELOS_PARA_ALTA fuentes se sigue aplicando sin cambios.
+
+    `minimo_fuentes` exige un piso de fuentes de olas DISPONIBLES para que la
+    hora pueda pasar. El default de 1 conserva el comportamiento del regimen
+    de alerta; el pre-aviso lo sube a MINIMO_FUENTES_OLAS_PREAVISO.
     """
     vacio = DiaEvaluado(fecha=fecha, spot_id=spot.id, es_bueno=False, score=0.0,
                         horas_buenas=0, bloque=None, resumen=None,
@@ -194,7 +220,17 @@ def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
         modelos[hmm.t] = tuple(hmm.por_modelo)
         acuerdos[hmm.t] = pasaron
         de_dia[hmm.t] = hmm.es_de_dia
-        if pasaron < min(MINIMO_MODELOS_DE_ACUERDO, len(hmm.por_modelo)):
+        if len(hmm.por_modelo) < minimo_fuentes:
+            # Sin fuentes suficientes no se rechaza por las condiciones: se
+            # rechaza por no poder contrastarlas. Es una hora sobre la que el
+            # sistema no tiene derecho a opinar.
+            evaluadas.append(HoraEvaluada(
+                hora=mediana, pasa=False,
+                motivo_rechazo=(f"fuentes de olas insuficientes "
+                                f"({len(hmm.por_modelo)}, mínimo {minimo_fuentes})"),
+                score=0.0, clase_viento="",
+            ))
+        elif pasaron < min(MINIMO_MODELOS_DE_ACUERDO, len(hmm.por_modelo)):
             evaluadas.append(HoraEvaluada(
                 hora=mediana, pasa=False,
                 motivo_rechazo=_motivo_de_rechazo(hmm, mediana, spot, pasaron,

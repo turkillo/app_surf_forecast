@@ -19,7 +19,8 @@ from surf.alert import (REGIMEN_ALERTA, REGIMEN_FUERA, REGIMEN_PREAVISO,
                         ULTIMO_DIA_GATE_COMPLETO, ULTIMO_DIA_PREAVISO,
                         decidir_alertas, detectar_ventanas, estado_vacio,
                         regimen, registrar_corrida)
-from surf.consenso import evaluar_dia_multimodelo, HoraMultiModelo
+from surf.consenso import (MINIMO_FUENTES_OLAS_PREAVISO, HoraMultiModelo,
+                           evaluar_dia_multimodelo)
 from surf.notify import ErrorEnvio, formatear_preaviso
 from surf.score import DiaEvaluado, Hora, evaluar_hora
 from tests.test_score_gate import SPOT, hora
@@ -232,6 +233,63 @@ def test_sin_ninguna_fuente_de_olas_no_rompe():
     fecha = HOY + timedelta(days=10)
     d = evaluar_dia_multimodelo([], SPOT, fecha, exigir_viento=False)
     assert d.es_bueno is False
+
+
+# --- minimo de fuentes de olas para emitir un pre-aviso ---------------------
+#
+# Decision del usuario: un modelo solo puede inventar un swell que no existe, y
+# a 8 dias no queda ninguna otra fuente viva que lo desmienta. Acepta perder los
+# pre-avisos de los 5 spots enmascarados a cambio de que los que lleguen valgan.
+
+def test_el_minimo_de_fuentes_del_preaviso_es_dos():
+    assert MINIMO_FUENTES_OLAS_PREAVISO == 2
+
+
+def test_con_una_sola_fuente_de_olas_no_hay_dia_de_preaviso():
+    fecha = HOY + timedelta(days=8)
+    d = evaluar_dia_multimodelo(_hmm(fecha, VIENTO_MALO, modelos=1), SPOT, fecha,
+                                exigir_viento=False,
+                                minimo_fuentes=MINIMO_FUENTES_OLAS_PREAVISO)
+    assert d.es_bueno is False
+    assert "fuentes de olas insuficientes" in d.motivo_principal
+
+
+def test_con_dos_fuentes_de_olas_si_hay_dia_de_preaviso():
+    fecha = HOY + timedelta(days=8)
+    d = evaluar_dia_multimodelo(_hmm(fecha, VIENTO_MALO, modelos=2), SPOT, fecha,
+                                exigir_viento=False,
+                                minimo_fuentes=MINIMO_FUENTES_OLAS_PREAVISO)
+    assert d.es_bueno is True
+
+
+def test_el_regimen_de_alerta_no_usa_el_minimo_de_fuentes():
+    """El default es 1: los dias 0-6 se siguen comportando exactamente igual
+    que antes de que existiera esta regla."""
+    fecha = HOY + timedelta(days=2)
+    con_una = evaluar_dia_multimodelo(_hmm(fecha, VIENTO_BUENO, modelos=1),
+                                      SPOT, fecha)
+    assert con_una.es_bueno is True
+    explicito = evaluar_dia_multimodelo(_hmm(fecha, VIENTO_BUENO, modelos=1),
+                                        SPOT, fecha, minimo_fuentes=1)
+    assert explicito.es_bueno == con_una.es_bueno
+
+
+def test_un_swell_con_una_sola_fuente_no_genera_preaviso_punta_a_punta():
+    traer = _traer_swell([8, 9], modelos=1)
+    estado, _ = _correr(traer, HOY - timedelta(days=1), estado_vacio())
+    msgs = []
+    _correr(traer, HOY, estado, msgs)
+    assert msgs == []
+
+
+def test_un_swell_con_dos_fuentes_si_genera_preaviso_punta_a_punta():
+    traer = _traer_swell([8, 9], modelos=2)
+    estado, _ = _correr(traer, HOY - timedelta(days=1), estado_vacio())
+    msgs = []
+    _correr(traer, HOY, estado, msgs)
+    assert len(msgs) == 1
+    assert "PRE-AVISO" in msgs[0]
+    assert "Fuentes de olas disponibles: 2 de 3" in msgs[0]
 
 
 # --- notify.py: el mensaje ---------------------------------------------------
@@ -492,18 +550,12 @@ def test_alargar_el_rango_no_multiplica_las_llamadas():
     assert len(sesion.llamadas) == 2
 
 
-def test_los_modelos_de_olas_largos_no_se_pierden_por_un_viento_corto():
-    """icon_seamless muere a las 177 h y meteofrance_wave llega a las 235 h
-    (medido contra la API real). Si se emparejan, la unica fuente de olas que
-    cubre los dias 8 y 9 se descarta por falta de viento y el pre-aviso se
-    queda sin datos justo donde lo necesita."""
-    from surf.consenso import MODELOS_OLAS, MODELOS_VIENTO
-    from surf.fetch import _combinar_multimodelo
-
+def _respuestas_con_viento_corto():
+    """Marine con las 3 fuentes de olas y clima donde icon_seamless (el modelo
+    de viento de rango corto) se queda sin datos en la segunda hora."""
     tiempos = ["2026-08-21T09:00", "2026-08-21T10:00"]
     marine = {"hourly": {"time": tiempos}}
-    # gwam es el modelo de olas de rango corto: en la segunda hora ya no tiene dato.
-    for m, filas in (("gwam", [(1.8, 14.0, 200.0), (None, None, None)]),
+    for m, filas in (("gwam", [(1.8, 14.0, 200.0), (1.8, 14.0, 200.0)]),
                      ("meteofrance_wave", [(1.9, 14.5, 201.0), (1.9, 14.5, 201.0)]),
                      ("ncep_gfswave025", [(1.7, 13.5, 199.0), (1.7, 13.5, 199.0)])):
         marine["hourly"][f"swell_wave_height_{m}"] = [f[0] for f in filas]
@@ -511,18 +563,64 @@ def test_los_modelos_de_olas_largos_no_se_pierden_por_un_viento_corto():
         marine["hourly"][f"swell_wave_direction_{m}"] = [f[2] for f in filas]
 
     clima = {"hourly": {"time": tiempos}, "daily": {
-        "time": ["2026-08-21"], "sunrise_icon_seamless": ["2026-08-21T06:45"],
-        "sunset_icon_seamless": ["2026-08-21T18:20"]}}
-    for m in ("gfs_seamless", "ecmwf_ifs025"):
-        clima["hourly"][f"wind_speed_10m_{m}"] = [8.0, 8.0]
+        "time": ["2026-08-21"], "sunrise_gfs_seamless": ["2026-08-21T06:45"],
+        "sunset_gfs_seamless": ["2026-08-21T18:20"]}}
+    for m, vel in (("gfs_seamless", 8.0), ("ecmwf_ifs025", 9.0)):
+        clima["hourly"][f"wind_speed_10m_{m}"] = [vel, vel]
         clima["hourly"][f"wind_direction_10m_{m}"] = [95.0, 95.0]
-    # icon_seamless es el modelo de viento de rango corto.
     clima["hourly"]["wind_speed_10m_icon_seamless"] = [7.0, None]
     clima["hourly"]["wind_direction_10m_icon_seamless"] = [97.0, None]
+    return marine, clima
 
+
+def test_los_modelos_de_olas_largos_no_se_pierden_por_un_viento_corto():
+    """icon_seamless muere a las 177 h y meteofrance_wave llega a las 235 h
+    (medido contra la API real). Como estan emparejados, sin un respaldo de
+    viento la unica fuente de olas que cubre los dias 8 y 9 se descartaria por
+    falta de viento y el pre-aviso se quedaria sin datos justo donde los
+    necesita."""
+    from surf.consenso import MODELOS_OLAS, MODELOS_VIENTO
+    from surf.fetch import _combinar_multimodelo
+
+    marine, clima = _respuestas_con_viento_corto()
     por_dia = _combinar_multimodelo(marine, clima, MODELOS_OLAS, MODELOS_VIENTO)
     horas = por_dia[date(2026, 8, 21)]
     assert len(horas[0].por_modelo) == 3
-    assert len(horas[1].por_modelo) == 2, (
-        "un modelo de olas de largo alcance se perdio por el viento: "
+    assert len(horas[1].por_modelo) == 3, (
+        "una fuente de olas se perdio por falta de viento: "
         f"{sorted(horas[1].por_modelo)}")
+
+
+def test_el_respaldo_de_viento_no_se_activa_si_el_preferido_tiene_dato():
+    """La garantia que protege al rango 0-6: mientras los tres modelos de
+    viento tengan cobertura --y en los dias 0 a 6 la tienen, medido: 0 nulos--
+    el emparejamiento es exactamente el de siempre. Reordenar MODELOS_VIENTO
+    en cambio movia 5 de 91 dias de ese rango."""
+    from surf.consenso import MODELOS_OLAS, MODELOS_VIENTO
+    from surf.fetch import _combinar_multimodelo
+
+    marine, clima = _respuestas_con_viento_corto()
+    por_dia = _combinar_multimodelo(marine, clima, MODELOS_OLAS, MODELOS_VIENTO)
+    primera = por_dia[date(2026, 8, 21)][0].por_modelo
+
+    # Emparejamiento por posicion, intacto.
+    assert set(primera) == {"gwam+gfs_seamless",
+                            "meteofrance_wave+icon_seamless",
+                            "ncep_gfswave025+ecmwf_ifs025"}
+    assert primera["meteofrance_wave+icon_seamless"].viento_kmh == 7.0
+
+
+def test_el_respaldo_nombra_el_modelo_de_viento_que_uso_de_verdad():
+    """Si el nombre siguiera diciendo icon, la linea de concordancia nombraria
+    un modelo que en esa hora no aporto nada -- el mismo error que la Tarea 11
+    vino a corregir."""
+    from surf.consenso import MODELOS_OLAS, MODELOS_VIENTO
+    from surf.fetch import _combinar_multimodelo
+
+    marine, clima = _respuestas_con_viento_corto()
+    por_dia = _combinar_multimodelo(marine, clima, MODELOS_OLAS, MODELOS_VIENTO)
+    segunda = por_dia[date(2026, 8, 21)][1].por_modelo
+
+    assert "meteofrance_wave+icon_seamless" not in segunda
+    assert "meteofrance_wave+gfs_seamless" in segunda
+    assert segunda["meteofrance_wave+gfs_seamless"].viento_kmh == 8.0

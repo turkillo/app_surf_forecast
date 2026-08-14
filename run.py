@@ -14,7 +14,7 @@ from surf.alert import (CLAVE_OBSERVADAS_PREAVISO, CLAVE_PREAVISADAS,
                         REGIMEN_ALERTA, REGIMEN_PREAVISO, Ventana,
                         decidir_alertas, detectar_ventanas, estado_vacio,
                         regimen, registrar_corrida)
-from surf.consenso import evaluar_dia_multimodelo
+from surf.consenso import MINIMO_FUENTES_OLAS_PREAVISO, evaluar_dia_multimodelo
 from surf.fetch import ErrorDatos, obtener_horas_multimodelo
 from surf.notify import (ErrorEnvio, enviar, formatear_alerta, formatear_digest,
                          formatear_preaviso)
@@ -86,7 +86,8 @@ def correr(spots: list[Spot], hoy: date,
                     cercanos.append((d, spot))
             elif cual == REGIMEN_PREAVISO:
                 dias_preaviso.append(evaluar_dia_multimodelo(
-                    horas, spot, fecha, exigir_viento=False))
+                    horas, spot, fecha, exigir_viento=False,
+                    minimo_fuentes=MINIMO_FUENTES_OLAS_PREAVISO))
             # Mas alla del horizonte no se evalua nada: a esa distancia queda
             # una sola fuente de olas y en 5 spots ninguna.
 

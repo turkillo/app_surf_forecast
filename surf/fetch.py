@@ -217,6 +217,14 @@ def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
     if not col_sunrise or not col_sunset or not dc.get(col_sunrise) or not dc.get(col_sunset):
         raise ErrorDatos("faltan los datos de salida y puesta del sol")
 
+    # Columnas de viento de cada modelo, en el orden de `modelos_viento`.
+    # Sirven como respaldo: ver el emparejamiento mas abajo.
+    viento_por_modelo: list[tuple[str, dict]] = []
+    for mv in modelos_viento:
+        cols = {c: _sufijo(c, mv, hc) for c in _CAMPOS_CLIMA}
+        if all(v is not None for v in cols.values()):
+            viento_por_modelo.append((mv, cols))
+
     # Emparejar modelos de olas con modelos de viento por posicion.
     pares = []
     series_vistas: dict[tuple, str] = {}
@@ -236,11 +244,25 @@ def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
             continue
         series_vistas[huella] = mo
 
-        mv = modelos_viento[min(i, len(modelos_viento) - 1)]
-        cols_viento = {c: _sufijo(c, mv, hc) for c in _CAMPOS_CLIMA}
-        if any(v is None for v in cols_viento.values()):
+        if not viento_por_modelo:
             continue
-        pares.append((f"{mo}+{mv}", cols_olas, cols_viento))
+        preferido = modelos_viento[min(i, len(modelos_viento) - 1)]
+        # El modelo de viento asignado va primero y el resto queda de respaldo,
+        # en orden. El respaldo NO cambia el emparejamiento cuando el preferido
+        # tiene dato: solo entra cuando la columna preferida viene vacia a esa
+        # hora, y entonces la alternativa es usar otro viento o perder por
+        # completo esa fuente de olas.
+        #
+        # Es lo que pasa a partir del dia 7: icon_seamless muere a las 177 h
+        # mientras meteofrance_wave llega a las 235 h, asi que sin respaldo la
+        # unica fuente de olas util de los dias 8 y 9 --el corazon del
+        # pre-aviso-- se descartaria por falta de viento. Reordenar
+        # MODELOS_VIENTO tambien lo arreglaria, pero movia 5 de 91 dias del
+        # rango 0-6 (medido): el respaldo no toca nada ahi, porque en esos
+        # dias los tres modelos de viento tienen cobertura completa.
+        alternativas = ([p for p in viento_por_modelo if p[0] == preferido]
+                        + [p for p in viento_por_modelo if p[0] != preferido])
+        pares.append((mo, cols_olas, alternativas))
 
     if not pares:
         raise ErrorDatos("ningun modelo devolvio las columnas esperadas")
@@ -258,10 +280,19 @@ def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
         es_de_dia = amanecer <= t <= ocaso
 
         por_modelo = {}
-        for nombre, cols_olas, cols_viento in pares:
-            vals = ([hm[c][i] for c in cols_olas.values()]
-                    + [hc[c][i] for c in cols_viento.values()])
-            if any(v is None for v in vals):
+        for mo, cols_olas, alternativas in pares:
+            if any(hm[c][i] is None for c in cols_olas.values()):
+                continue
+            # Primer modelo de viento con dato a esta hora: el preferido salvo
+            # que no lo tenga. El nombre lleva el que se uso de verdad, no el
+            # que le tocaba, para que la linea de concordancia no nombre un
+            # modelo que en esa hora no aporto nada.
+            cols_viento = nombre = None
+            for mv, cols in alternativas:
+                if all(hc[c][i] is not None for c in cols.values()):
+                    cols_viento, nombre = cols, f"{mo}+{mv}"
+                    break
+            if cols_viento is None:
                 continue
             if float(hm[cols_olas["swell_wave_height"]][i]) == ALTURA_HUECO_M:
                 # Un 0.0 exacto donde otros modelos ven mas de un metro no es

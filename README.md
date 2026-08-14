@@ -54,9 +54,38 @@ Los pre-avisos pasan por los mismos filtros que protegen a las alertas: hacen
 falta **2 o más días consecutivos**, la ventana tiene que haber aparecido
 también **en la corrida de ayer**, y cada pre-aviso se manda **una sola vez**.
 
-La línea `Fuentes de olas disponibles` no es decorativa. Más allá del día 7 se
-empiezan a caer modelos y en ese rango quedan menos opiniones: con 1 de 3
-fuentes el aviso vale bastante menos que con 3 de 3, y tenés que poder pesarlo.
+### Los pre-avisos exigen 2 fuentes de olas como mínimo
+
+Un modelo solo puede inventar un swell que no existe, y **a 8 días no hay con
+qué contrastarlo**: no queda ninguna otra fuente viva que lo desmienta. Y el
+pre-aviso es justamente donde el falso positivo cuesta más caro, porque es el
+mensaje que te hace empezar a mover fechas. Por eso un día del rango 7-10 solo
+cuenta si tiene **al menos 2 fuentes de olas disponibles**
+(`MINIMO_FUENTES_OLAS_PREAVISO` en `surf/consenso.py`).
+
+**Esto tiene un precio, aceptado a propósito: hay spots que casi nunca van a
+generar pre-avisos.** Son los 5 donde `ncep_gfswave025` cae en una celda de
+grilla enmascarada como tierra y no devuelve nada:
+
+- `buchupureo`, `asia`, `huanchaco`, `punta_de_lobos`, `joaquina`
+
+En esos 5, a partir del día 8 queda una sola fuente de olas, así que **no vas a
+ver pre-avisos de Huanchaco** aunque el swell exista. Vas a seguir recibiendo
+sus **alertas confirmadas** normalmente: la regla del mínimo de fuentes aplica
+solo al régimen de pre-aviso, y en el rango 0-6 esos spots tienen cobertura de
+sobra. Es deliberado: mejor ningún pre-aviso que uno que no se puede
+contrastar.
+
+Por el mismo motivo, **el día 10 en la práctica nunca dispara un pre-aviso**:
+ahí la única fuente viva es `ncep_gfswave025` en todos los spots. El horizonte
+efectivo del pre-aviso es de 7 a 9 días. El día 10 se sigue consultando y
+evaluando por si la cobertura de los modelos mejora.
+
+La línea `Fuentes de olas disponibles` no es decorativa: con 2 de 3 el aviso
+vale menos que con 3 de 3, y tenés que poder pesarlo.
+
+El régimen de alerta confirmada (0-6) **no** usa esta regla: ahí sigue rigiendo
+el consenso de 2 de 3 de siempre, sin ningún cambio.
 
 ### 🔥 Alerta confirmada
 
@@ -92,10 +121,22 @@ tierra en 5 de los 13 spots (`buchupureo`, `asia`, `huanchaco`,
 olas. Estirar el horizonte más lejos no agregaría información, agregaría una
 sola opinión sin nadie que la contraste.
 
-Por el mismo motivo, cada modelo de olas se empareja con un modelo de viento
-que llegue por lo menos igual de lejos (`gwam`+ICON, `meteofrance`+ECMWF,
-`ncep`+GFS). Si no, la única fuente de olas útil en los días 8 y 9 se
-descartaría por falta de viento — justo donde el pre-aviso la necesita.
+Hay un detalle de implementación que hace falta para que esto funcione. Los
+datos vienen emparejados: el modelo de olas *i* con el modelo de viento *i*, y
+si al viento le faltan datos se descarta la fila entera. Como `icon_seamless`
+(viento, 177 h) está emparejado con `meteofrance_wave` (olas, 235 h), sin
+arreglo los días 8 y 9 perderían su única fuente de olas útil. La solución es
+un **respaldo por hora**: si al modelo de viento asignado le falta el dato, se
+usa el primero que sí lo tenga, y el nombre del par refleja el que se usó de
+verdad.
+
+El respaldo **no cambia nada en el rango 0-6**, porque ahí los tres modelos de
+viento tienen cobertura completa (medido: 0 nulos en 168 horas) y nunca se
+activa. Verificado comparando día por día contra el código previo a esta
+feature: **0 diferencias en 91 días**. La alternativa que se descartó era
+reordenar `MODELOS_VIENTO` por alcance, que arreglaba lo mismo pero movía 5 de
+esos 91 días — los dos órdenes son igual de arbitrarios, así que no había
+motivo para preferir el nuevo.
 
 ## Cómo funciona, en corto
 
