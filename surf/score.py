@@ -47,6 +47,30 @@ PESOS_SOLO_SWELL = {k: PESOS[k] / _PESO_SWELL
 
 HORAS_MINIMAS_CONSECUTIVAS = 3
 
+# Energia por ola y por metro de cresta, en kJ. Es la magnitud que surf-forecast
+# publica en su columna de energia, y se incluye en el mensaje para poder
+# contrastar contra esa fuente. NO participa del gate ni del score: es un dato
+# informativo.
+#
+# La constante se ajusto empiricamente contra 24 lecturas de surf-forecast en
+# tres spots (chapadmalal, la_barra, praia_do_rosa) el 2026-08-14: k = 1.95 con
+# 7% de dispersion, explicada por el redondeo con que surf-forecast publica
+# altura y periodo. Ajusta a H^2*T^2 y no a H^2*T (13% de dispersion).
+#
+# Coincide con la fisica: la energia por ola por metro de cresta es
+# (rho*g^2/64pi) * H^2 * T^2 = 0.49 * H^2 * T^2, y 1.95 es casi exactamente
+# cuatro veces eso, consistente con que surf-forecast use la altura maxima
+# (~2*Hs) en vez de la significativa, ya que la energia va con el cuadrado.
+CONSTANTE_ENERGIA_KJ = 1.95
+
+
+def energia_kj(altura: float, periodo: float) -> float:
+    """Energia por ola y por metro de cresta, en kJ.
+
+    Funcion pura: solo depende de altura y periodo del swell.
+    """
+    return CONSTANTE_ENERGIA_KJ * altura * altura * periodo * periodo
+
 
 @dataclass(frozen=True)
 class Hora:

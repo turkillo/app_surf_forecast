@@ -6,7 +6,7 @@ import requests
 from surf.alert import ULTIMO_DIA_GATE_COMPLETO, Ventana
 from surf.consenso import MODELOS_OLAS
 from surf.geo import clasificar_viento, rumbo_a_texto
-from surf.score import DiaEvaluado
+from surf.score import DiaEvaluado, energia_kj
 from surf.spots import Spot
 
 URL_TELEGRAM = "https://api.telegram.org/bot{token}/sendMessage"
@@ -98,10 +98,12 @@ def _linea_dia(dia: DiaEvaluado, spot: Spot) -> str:
         return f"{_fecha_corta(dia.fecha):<7} (sin datos de pronóstico)"
     r = dia.resumen
     clase = clasificar_viento(r.get("viento_direccion", 0), spot.costa_mira)
+    energia = energia_kj(r.get("altura", 0), r.get("periodo", 0))
     return (
         f"{_fecha_corta(dia.fecha):<7} "
         f"{r.get('altura', 0):.1f}m @ {r.get('periodo', 0):.0f}s "
         f"del {rumbo_a_texto(r.get('direccion', 0))}  ·  "
+        f"{energia:.0f} kJ  ·  "
         f"viento {rumbo_a_texto(r.get('viento_direccion', 0))} "
         f"{r.get('viento_kmh', 0):.0f}km/h {clase}  ·  "
         f"{dia.score:.0f}/100"
@@ -118,9 +120,11 @@ def _linea_dia_swell(dia: DiaEvaluado) -> str:
     if dia.resumen is None:
         return f"{_fecha_corta(dia.fecha):<7} (sin datos de pronóstico)"
     r = dia.resumen
+    energia = energia_kj(r.get("altura", 0), r.get("periodo", 0))
     return (f"{_fecha_corta(dia.fecha):<7} "
             f"{r.get('altura', 0):.1f}m @ {r.get('periodo', 0):.0f}s "
-            f"del {rumbo_a_texto(r.get('direccion', 0))}")
+            f"del {rumbo_a_texto(r.get('direccion', 0))}  ·  "
+            f"{energia:.0f} kJ")
 
 
 def _rango_fechas(desde: date, hasta: date) -> str:
