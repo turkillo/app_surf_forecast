@@ -1,17 +1,17 @@
 {
-  "ultima_corrida": "2026-08-16",
+  "ultima_corrida": "2026-08-17",
   "observadas": [
     {
       "spot_id": "asia",
-      "desde": "2026-08-16",
-      "hasta": "2026-08-17",
-      "score": 76.99
+      "desde": "2026-08-17",
+      "hasta": "2026-08-19",
+      "score": 79.91666666666667
     },
     {
       "spot_id": "chicama",
-      "desde": "2026-08-16",
-      "hasta": "2026-08-19",
-      "score": 69.6471264367816
+      "desde": "2026-08-17",
+      "hasta": "2026-08-20",
+      "score": 67.28136973180077
     }
   ],
   "alertadas": [
@@ -20,13 +20,6 @@
       "desde": "2026-08-15",
       "hasta": "2026-08-17",
       "score": 79.59047619047618,
-      "fecha_alerta": "2026-08-14"
-    },
-    {
-      "spot_id": "asia",
-      "desde": "2026-08-14",
-      "hasta": "2026-08-18",
-      "score": 74.06984126984126,
       "fecha_alerta": "2026-08-14"
     },
     {
@@ -44,13 +37,27 @@
       "fecha_alerta": "2026-08-14"
     },
     {
-      "spot_id": "chicama",
-      "desde": "2026-08-16",
+      "spot_id": "asia",
+      "desde": "2026-08-17",
       "hasta": "2026-08-19",
-      "score": 69.6471264367816,
-      "fecha_alerta": "2026-08-16"
+      "score": 79.91666666666667,
+      "fecha_alerta": "2026-08-17"
+    },
+    {
+      "spot_id": "chicama",
+      "desde": "2026-08-17",
+      "hasta": "2026-08-20",
+      "score": 67.28136973180077,
+      "fecha_alerta": "2026-08-17"
     }
   ],
-  "observadas_preaviso": [],
+  "observadas_preaviso": [
+    {
+      "spot_id": "saquarema",
+      "desde": "2026-08-24",
+      "hasta": "2026-08-25",
+      "score": 71.05555555555556
+    }
+  ],
   "preavisadas": []
 }
