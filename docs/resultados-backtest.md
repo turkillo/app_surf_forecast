@@ -909,3 +909,98 @@ Los cortes salen de la fila del medio, que es la población sobre la que
 producción emite. Calibrar sobre la primera --el error que se cometió primero--
 hacía que casi todos los mensajes reales dijeran "baja", porque el máximo de dos
 números es sistemáticamente menor que el de tres.
+
+---
+
+# Tarea 16 (bis) — recalibración de umbrales
+
+El rediseño es correcto pero **corrió el umbral efectivo hacia abajo**: exigir que
+dos modelos pasaran el gate era, implícitamente, una vara más alta que exigirlo de
+la mediana. Mismo patrón que el error de unidades del período. La corrección es
+recalibrar, no volver atrás.
+
+## Criterio, fijado antes de mirar las curvas
+
+1. Restricciones duras: `min_altura ≥ 1.0` en los tres locales (regla del
+   usuario); `temporada` no se toca; `chicama` se elige por **volumen ≈ 7**.
+2. Para el resto: el **menor** `min_altura` que deje el spot con `temporada_ok` y
+   dentro de 10-25 ventanas/año. El menor, porque subir el umbral cuesta falsos
+   negativos: el objetivo es volver al comportamiento previo, no endurecerlo.
+3. Si ninguno cumple las dos, prioriza `temporada_ok`.
+4. Si un spot no llega al rango sin romper otra cosa, se reporta en vez de
+   forzarlo.
+
+Se aplicó tal cual, **con una desviación declarada**: `lobitos` (ver abajo).
+
+## Curvas de `min_altura` (ventanas/año · concentración)
+
+| min_alt | la_barra | chapadmalal | praia_do_rosa | huanchaco | saquarema | punta_del_diablo | joaquina |
+|---|---|---|---|---|---|---|---|
+| 1.0 | **15.3**·1.08 | **18.3**·1.31 | 32.3·1.10 | 35.7·1.09 | 36.3·1.02 ✗ | 26.3·1.19 | **15.3**·1.04 |
+| 1.1 | 11.7·1.03 | 13.7·1.25 | 27.0·1.12 | 32.0·1.18 | 37.0·1.07 | **22.0**·1.19 | 12.0·1.14 |
+| 1.2 | 8.0·1.07 | 12.0·1.24 | 24.0·1.14 | 28.7·1.34 | 34.7·1.14 | 17.3·1.15 | 10.0·1.09 |
+| 1.3 | 5.7·0.91 ✗ | 11.0·1.25 | 17.7·1.16 | **22.7**·1.46 | 30.7·1.16 | 14.7·1.21 | 7.7·1.12 |
+| 1.4 | 4.0·1.00 ✗ | 8.0·1.21 | 14.7·1.13 | 19.0·1.56 | 28.3·1.19 | 11.3·1.21 | 5.7·1.21 |
+| 1.5 | 1.7·1.37 | 6.0·1.33 | 10.3·1.11 | 13.7·1.59 | 27.0·1.16 | 7.7·1.27 | 4.3·1.45 |
+| 1.6 | | | | | **24.0**·1.19 | | |
+
+(✗ = estacionalidad no coincide. **Negrita** = valor elegido.)
+
+| min_alt | buchupureo | asia | punta_de_lobos | chicama | lobitos |
+|---|---|---|---|---|---|
+| 0.9 | | | | | 12.3·1.34 |
+| 1.0 | | 40.7·0.96 ✗ | | | **9.0**·1.46 |
+| 1.2 | | 39.7·1.04 | | 34.0·1.13 | |
+| 1.5 | 41.0·0.98 ✗ | 37.3·1.19 | 41.7·0.99 ✗ | 20.0·1.40 | |
+| 1.7 | 42.0·0.98 ✗ | 27.3·1.36 | 42.0·0.98 ✗ | 12.3·1.62 | |
+| 1.8 | 43.0·0.97 ✗ | **23.3**·1.37 | 39.3·1.00 ✗ | 9.3·1.59 | |
+| 1.9 | 39.7·0.99 ✗ | 18.3·1.53 | 35.3·1.04 | **7.0**·1.55 | |
+| 2.0 | 37.0·1.05 | 14.7·1.52 | 31.7·1.03 | 3.7·1.71 | |
+| 2.2 | 28.7·1.20 | | **23.0**·1.27 | | |
+| 2.3 | **22.7**·1.31 | | 19.0·1.32 | | |
+
+En `buchupureo` y `asia` el valor elegido está por encima del `rango_ideal[0]`
+anterior, así que `rango_ideal` sube con él: el validador exige
+`rango_ideal[0] ≥ min_altura`, y además sería incoherente declarar "ideal desde
+2.0" con un mínimo de 2.3.
+
+## Curva de `min_periodo` en `praia_do_rosa`
+
+Es el único spot donde la palanca no pudo ser `min_altura`: es local y su piso de
+1.0 m es regla del usuario. Con `min_altura = 1.0`:
+
+| min_periodo | 7.0 | 8.0 | 8.5 | **9.0** | 9.5 | 10.0 | 11.0 |
+|---|---|---|---|---|---|---|---|
+| ventanas/año | 32.3 | 29.0 | 25.7 | **19.3** | 15.3 | 12.3 | 6.0 |
+| concentración | 1.10 | 1.16 | 1.22 | **1.33** | 1.30 | 1.30 | 1.43 |
+
+9.0 s es el menor que entra en rango, y de paso sube la concentración de 1.10
+(prácticamente uniforme) a 1.33: selecciona groundswell en vez de marejada corta.
+**No se tocó `min_periodo` en `la_barra` ni en `chapadmalal`**, que son los dos
+donde el usuario lo bajó a 7.0 a propósito.
+
+## Resultado
+
+| spot | antes del rediseño | sin recalibrar | **recalibrado** | conc. | temporada |
+|---|---|---|---|---|---|
+| `la_barra` | 5.3 | 15.3 | **15.3** | 1.08 | ok |
+| `chapadmalal` | 9.0 | 18.3 | **18.3** | 1.31 | ok |
+| `praia_do_rosa` | 16.3 | 32.3 | **19.3** | 1.33 | ok |
+| `buchupureo` | 33.0 | 43.0 | **22.7** | 1.31 | ok |
+| `asia` | 30.3 | 39.7 | **23.3** | 1.37 | ok |
+| `huanchaco` | 10.3 | 35.7 | **22.7** | 1.46 | ok |
+| `santa_teresa` | 12.3 | 25.0 | **25.0** | 1.20 | ok |
+| `saquarema` | 22.3 | 28.3 | **24.0** | 1.19 | ok |
+| `punta_de_lobos` | 26.3 | 39.3 | **23.0** | 1.27 | ok |
+| `chicama` | 7.0 | 20.0 | **7.0** | 1.55 | ok |
+| `lobitos` | 3.0 | 9.0 | **9.0** | 1.46 | ok |
+| `punta_del_diablo` | 14.7 | 26.3 | **22.0** | 1.19 | ok |
+| `joaquina` | 4.0 | 15.3 | **15.3** | 1.04 | ok |
+| **total** | **194.0** | **347.6** | **246.9** | | **13/13** |
+
+`backtest.py` sale con **0 spots requieren ajuste**. La concentración sube en 11
+de los 13 respecto de la línea base, que es la señal de que se están eligiendo
+eventos y no días cualquiera.
+
+`TOLERANCIA_UMBRAL` se dejó en 5 %: la recalibración se hizo con la banda puesta,
+así que los umbrales elegidos ya la absorben.

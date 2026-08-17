@@ -82,10 +82,21 @@
   swell:
     ventana: [90, 180]
     ideal: 135
-    min_altura: 1.0
+    min_altura: 1.0  # PISO INTOCABLE: regla del usuario para los spots locales.
     max_altura: 2.5
     rango_ideal: [1.5, 2.0]
-    min_periodo: 7
+    # RECALIBRADO en la Tarea 16. El gate paso a evaluarse sobre la mediana
+    # entre modelos en vez de exigir que 2 de 3 pasaran, y eso corrio el umbral
+    # efectivo hacia abajo: exigir dos modelos era, implicitamente, una vara mas
+    # alta. El valor sale de barrer el umbral en pasos de 0.1 sobre 2023-2025 y
+    # tomar el MENOR que deje el spot en 10-25 ventanas/anio con la estacionalidad
+    # en pie. Curvas completas en docs/resultados-backtest.md.
+    # Aca la palanca NO puede ser min_altura (piso del usuario), asi que se movio
+    # min_periodo: 7.0 daba 32.3 ventanas/anio con concentracion 1.10 --practicamente
+    # uniforme, o sea eligiendo dias cualquiera--. Medido: 8.5s -> 25.7 y conc 1.22;
+    # 9.0s -> 19.3 y conc 1.33; 10.0s -> 12.3. Se elige 9.0, el menor que entra en
+    # rango, y de paso selecciona groundswell en vez de marejada corta.
+    min_periodo: 9.0
   viento_ideal: 270
   temporada: [4, 5, 6, 7, 8, 9, 10]
   url_surfforecast: "https://www.surf-forecast.com/breaks/Rosa"
@@ -105,9 +116,21 @@
     ideal: 225
     # min_altura 1.0 -> 1.5 -> 1.8. Decision explicita del usuario (Tarea 12),
     # no derivacion del backtest. Ver docs/resultados-backtest.md.
-    min_altura: 1.8
+    # RECALIBRADO en la Tarea 16. El gate paso a evaluarse sobre la mediana
+    # entre modelos en vez de exigir que 2 de 3 pasaran, y eso corrio el umbral
+    # efectivo hacia abajo: exigir dos modelos era, implicitamente, una vara mas
+    # alta. El valor sale de barrer el umbral en pasos de 0.1 sobre 2023-2025 y
+    # tomar el MENOR que deje el spot en 10-25 ventanas/anio con la estacionalidad
+    # en pie. Curvas completas en docs/resultados-backtest.md.
+    # Unico spot que ademas venia fallando la estacionalidad (0.566 en temporada,
+    # umbral 0.600). Medido: 1.8 -> 43.0 y temporada NO; 2.0 -> 37.0 y temporada si
+    # (conc 1.05); 2.3 -> 22.7 y conc 1.31. Se elige 2.3, el menor que entra en
+    # rango con la estacionalidad recuperada. rango_ideal sube con el porque el
+    # validador exige rango_ideal[0] >= min_altura, y ademas seria incoherente
+    # declarar "ideal desde 2.0" con un minimo de 2.3.
+    min_altura: 2.3
     max_altura: 4.0
-    rango_ideal: [2.0, 3.4]
+    rango_ideal: [2.3, 3.4]
     min_periodo: 8
   viento_ideal: 135
   temporada: [4, 5, 6, 7, 8, 9, 10]
@@ -128,9 +151,17 @@
     ideal: 225
     # min_altura 1.0 -> 1.2. Decision explicita del usuario (Tarea 12), no
     # derivacion del backtest. Ver docs/resultados-backtest.md.
-    min_altura: 1.2
+    # RECALIBRADO en la Tarea 16. El gate paso a evaluarse sobre la mediana
+    # entre modelos en vez de exigir que 2 de 3 pasaran, y eso corrio el umbral
+    # efectivo hacia abajo: exigir dos modelos era, implicitamente, una vara mas
+    # alta. El valor sale de barrer el umbral en pasos de 0.1 sobre 2023-2025 y
+    # tomar el MENOR que deje el spot en 10-25 ventanas/anio con la estacionalidad
+    # en pie. Curvas completas en docs/resultados-backtest.md.
+    # Medido: 1.2 -> 39.7 (conc 1.04); 1.7 -> 27.3 (conc 1.36); 1.8 -> 23.3 y
+    # conc 1.37. Se elige 1.8. rango_ideal sube con el por el validador.
+    min_altura: 1.8
     max_altura: 3.0
-    rango_ideal: [1.7, 2.3]
+    rango_ideal: [1.8, 2.3]
     min_periodo: 7
   viento_ideal: 45
   temporada: [4, 5, 6, 7, 8, 9, 10]
@@ -149,7 +180,14 @@
   swell:
     ventana: [157, 247]
     ideal: 202
-    min_altura: 1.0
+    # RECALIBRADO en la Tarea 16. El gate paso a evaluarse sobre la mediana
+    # entre modelos en vez de exigir que 2 de 3 pasaran, y eso corrio el umbral
+    # efectivo hacia abajo: exigir dos modelos era, implicitamente, una vara mas
+    # alta. El valor sale de barrer el umbral en pasos de 0.1 sobre 2023-2025 y
+    # tomar el MENOR que deje el spot en 10-25 ventanas/anio con la estacionalidad
+    # en pie. Curvas completas en docs/resultados-backtest.md.
+    # Medido: 1.0 -> 35.7 (conc 1.09); 1.2 -> 28.7; 1.3 -> 22.7 y conc 1.46.
+    min_altura: 1.3
     max_altura: 2.5
     rango_ideal: [1.5, 2.2]
     min_periodo: 8
@@ -219,7 +257,14 @@
     ideal: 180
     # min_altura 1.0 -> 1.2 -> 1.4. Decision explicita del usuario (Tarea 12),
     # no derivacion del backtest. Ver docs/resultados-backtest.md.
-    min_altura: 1.4
+    # RECALIBRADO en la Tarea 16. El gate paso a evaluarse sobre la mediana
+    # entre modelos en vez de exigir que 2 de 3 pasaran, y eso corrio el umbral
+    # efectivo hacia abajo: exigir dos modelos era, implicitamente, una vara mas
+    # alta. El valor sale de barrer el umbral en pasos de 0.1 sobre 2023-2025 y
+    # tomar el MENOR que deje el spot en 10-25 ventanas/anio con la estacionalidad
+    # en pie. Curvas completas en docs/resultados-backtest.md.
+    # Medido: 1.4 -> 28.3 (conc 1.19); 1.5 -> 27.0; 1.6 -> 24.0 y conc 1.19.
+    min_altura: 1.6
     max_altura: 5.0
     rango_ideal: [2.3, 3.7]
     min_periodo: 7
@@ -242,7 +287,16 @@
     ideal: 225
     # min_altura 1.0 -> 1.5 -> 1.8. Decision explicita del usuario (Tarea 12),
     # no derivacion del backtest. Ver docs/resultados-backtest.md.
-    min_altura: 1.8
+    # RECALIBRADO en la Tarea 16. El gate paso a evaluarse sobre la mediana
+    # entre modelos en vez de exigir que 2 de 3 pasaran, y eso corrio el umbral
+    # efectivo hacia abajo: exigir dos modelos era, implicitamente, una vara mas
+    # alta. El valor sale de barrer el umbral en pasos de 0.1 sobre 2023-2025 y
+    # tomar el MENOR que deje el spot en 10-25 ventanas/anio con la estacionalidad
+    # en pie. Curvas completas en docs/resultados-backtest.md.
+    # El otro spot que perdio la estacionalidad (0.585, umbral 0.600). Medido:
+    # 1.8 -> 39.3 y temporada NO; 1.9 -> 35.3 y temporada si; 2.1 -> 28.0;
+    # 2.2 -> 23.0 y conc 1.27. Se elige 2.2, el menor que entra en rango.
+    min_altura: 2.2
     max_altura: 5.0
     rango_ideal: [2.3, 4.2]
     min_periodo: 8
@@ -263,11 +317,15 @@
   swell:
     ventana: [173, 247]
     ideal: 202
-    min_altura: 1.5  # subido de 1.0 por decision del usuario: quiere pocas alertas
-                     # y que sean impresionantes. Medido sobre 2023-2025: 1.0 daba
-                     # 31.7 ventanas/anio con concentracion estacional 1.05 (casi
-                     # uniforme, seleccionaba dias normales); 1.5 da 7.0 con
-                     # concentracion 1.63, o sea eventos de groundswell reales.
+    # DECISION DEL USUARIO: este spot va a ~7 ventanas/anio, no al rango 10-25.
+    # Lo eligio mirando la curva completa, con el criterio de "pocas alarmas y que
+    # sean impresionantes". El numero que manda es el VOLUMEN, no este 1.9: con el
+    # motor viejo (gate por modelo, 2 de 3) los 7 se conseguian con 1.5.
+    #
+    # Re-medido con el motor nuevo (gate sobre la mediana, Tarea 16): 1.5 -> 20.0
+    # ventanas/anio; 1.7 -> 12.3; 1.8 -> 9.3; 1.9 -> 7.0 con concentracion 1.55;
+    # 2.0 -> 3.7 (estrangulado). 1.9 es el que reproduce los 7 que el usuario pidio.
+    min_altura: 1.9
     max_altura: 4.0
     rango_ideal: [2.0, 3.4]
     min_periodo: 8
@@ -294,6 +352,12 @@
   swell:
     ventana: [210, 270]
     ideal: 225
+    # NO se recalibro, y es deliberado. Con el motor nuevo da 9.0 ventanas/anio:
+    # apenas por debajo del piso de 10, pero muy por encima del 3.0 estrangulado
+    # que daba antes. Se puede meter en rango bajando min_altura a 0.9 (12.3
+    # ventanas/anio, medido), y no se hizo: es un spot de VIAJE --hay que sacar
+    # pasaje a Peru-- y declarar que 90 cm alcanzan contradice el criterio del
+    # propio usuario. Queda en 9.0 y a la vista, para que el decida.
     min_altura: 1.0
     max_altura: 3.0
     rango_ideal: [1.7, 2.6]
@@ -323,7 +387,14 @@
   swell:
     ventana: [90, 180]
     ideal: 135
-    min_altura: 1.0
+    # RECALIBRADO en la Tarea 16. El gate paso a evaluarse sobre la mediana
+    # entre modelos en vez de exigir que 2 de 3 pasaran, y eso corrio el umbral
+    # efectivo hacia abajo: exigir dos modelos era, implicitamente, una vara mas
+    # alta. El valor sale de barrer el umbral en pasos de 0.1 sobre 2023-2025 y
+    # tomar el MENOR que deje el spot en 10-25 ventanas/anio con la estacionalidad
+    # en pie. Curvas completas en docs/resultados-backtest.md.
+    # Medido: 1.0 -> 26.3 (conc 1.19); 1.1 -> 22.0 y conc 1.19; 1.2 -> 17.3.
+    min_altura: 1.1
     max_altura: 2.5
     rango_ideal: [1.5, 2.0]
     min_periodo: 7
