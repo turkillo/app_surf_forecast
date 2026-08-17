@@ -263,7 +263,11 @@
   swell:
     ventana: [173, 247]
     ideal: 202
-    min_altura: 1.0
+    min_altura: 1.5  # subido de 1.0 por decision del usuario: quiere pocas alertas
+                     # y que sean impresionantes. Medido sobre 2023-2025: 1.0 daba
+                     # 31.7 ventanas/anio con concentracion estacional 1.05 (casi
+                     # uniforme, seleccionaba dias normales); 1.5 da 7.0 con
+                     # concentracion 1.63, o sea eventos de groundswell reales.
     max_altura: 4.0
     rango_ideal: [2.0, 3.4]
     min_periodo: 8
