@@ -813,3 +813,99 @@ Corroborado además contra la API real en la corrida punta a punta: `huanchaco` 
   exactamente los de antes.
 - **`lobitos` (3.0/año) y `la_barra` (5.3/año)** siguen estrangulados y por los motivos ya
   documentados en la sección 8, que no son de cobertura de fuentes.
+
+---
+
+# Tarea 16 — el consenso sobre la mediana
+
+Re-corrida completa del backtest, **mismo período y mismos 13 spots**, antes y
+después del rediseño (`python backtest.py`). La línea base ya incluye
+`min_altura: 1.5` en `chicama`.
+
+## Volumen y estacionalidad
+
+| spot | antes | después | Δ | conc. antes | conc. después | temporada |
+|---|---|---|---|---|---|---|
+| `la_barra` | 5.3 | 15.3 | +10.0 | 1.29 | 1.08 | ok |
+| `chapadmalal` | 9.0 | 18.3 | +9.3 | 1.33 | 1.31 | ok |
+| `praia_do_rosa` | 16.3 | 32.3 | +16.0 | 1.29 | 1.10 | ok |
+| `buchupureo` | 33.0 | 43.0 | +10.0 | 1.07 | 0.97 | **NO COINCIDE** |
+| `asia` | 30.3 | 39.7 | +9.4 | 1.07 | 1.04 | ok |
+| `huanchaco` | 10.3 | 35.7 | +25.4 | 1.55 | 1.09 | ok |
+| `santa_teresa` | 12.3 | 25.0 | +12.7 | 1.34 | 1.20 | ok |
+| `saquarema` | 22.3 | 28.3 | +6.0 | 1.20 | 1.19 | ok |
+| `punta_de_lobos` | 26.3 | 39.3 | +13.0 | 1.19 | 1.00 | **NO COINCIDE** |
+| `chicama` | 7.0 | 20.0 | +13.0 | 1.63 | 1.40 | ok |
+| `lobitos` | 3.0 | 9.0 | +6.0 | 1.71 | 1.46 | ok |
+| `punta_del_diablo` | 14.7 | 26.3 | +11.6 | 1.29 | 1.19 | ok |
+| `joaquina` | 4.0 | 15.3 | +11.3 | 1.43 | 1.04 | ok |
+| **total** | **194.0** | **347.6** | **+79%** | | | **11/13** |
+
+Ningún spot entra en ruido (>60/año); el máximo es `buchupureo` con 43.0. Los dos
+que estaban estrangulados (`lobitos` 3.0, `joaquina` 4.0) salen de esa zona.
+
+## De dónde viene el volumen
+
+Descomposición medida corriendo el backtest con cada pieza aislada:
+
+| paso | ventanas/año | Δ |
+|---|---|---|
+| antes | 194.0 | |
+| + gate sobre la mediana (sin tolerancia, sin desacople) | 305.6 | **+111.6** |
+| + desacople de olas y viento | 307.6 | +2.0 |
+| + banda de tolerancia del 5% | 347.6 | +40.0 |
+
+**El 73% del aumento es el gate sobre la mediana**, y era esperable: con 3
+fuentes, si 2 pasan un criterio la mediana también lo pasa, así que la regla
+nueva no puede ser más estricta que "2 de 3" en ningún caso, y es más permisiva
+cuando cada modelo falla por un criterio distinto. Con 2 fuentes --que es el 96%
+del archivo-- la mediana es el promedio y la diferencia es todavía mayor: antes
+tenían que pasar los dos.
+
+El **desacople de olas y viento casi no mueve el volumen** (+0.7%). Es la
+confirmación de que el emparejamiento era arbitrario y no un filtro: lo que
+arregla son casos puntuales, no un sesgo sistemático.
+
+## La estacionalidad: 11/13, no 13/13
+
+`buchupureo` y `punta_de_lobos` pasan a `NO COINCIDE`. Los números:
+
+| spot | fracción en temporada antes | con mediana (sin tolerancia) | con tolerancia 5% | umbral |
+|---|---|---|---|---|
+| `buchupureo` | 0.626 | 0.595 | 0.566 | 0.600 |
+| `punta_de_lobos` | 0.696 | 0.622 | 0.585 | 0.600 |
+
+Los dos venían **rozando el umbral**: con concentración 1.07 y 1.19 sobre una
+temporada declarada de 7 meses (que ya cubre el 58% del año), su "ok" previo era
+casi el del azar. El rediseño los empuja del lado equivocado, y en el caso de
+`buchupureo` lo hace **el gate sobre la mediana solo**, antes de que entre la
+tolerancia.
+
+No se ajustó nada para taparlo: la decisión es del usuario. Las opciones
+naturales son revisar la `temporada` declarada de esos dos spots (los dos son
+spots chilenos con swell del SW casi todo el año, y la hipótesis de temporada
+puede estar mal) o subirles `min_altura` como se hizo con `chicama`.
+
+## Con tolerancia del 10%
+
+Se midió también con `TOLERANCIA_UMBRAL = 0.10`: 381.6 ventanas/año y la
+estacionalidad cae a **8/13** (`buchupureo`, `asia`, `huanchaco`,
+`punta_de_lobos`, `joaquina`). Ninguno entra en ruido, pero cinco spots con
+concentración ≈ 0.95 son cinco spots eligiendo días cualquiera. Por eso la
+constante quedó en 5%.
+
+## La distribución de dispersión, y por qué la población importa
+
+Cuartiles de `max(dispersión de altura, dispersión de período)` sobre las horas
+de luz que pasan el gate:
+
+| población | n | p25 | p50 | p75 | p90 |
+|---|---|---|---|---|---|
+| 2023-2025, ≥2 fuentes (96% con solo 2) | 23.347 | 0.094 | 0.130 | 0.192 | 0.304 |
+| 2025-12-09 → 2026-08-15, **3 fuentes** | 5.079 | 0.137 | 0.190 | 0.287 | 0.385 |
+| pronóstico en vivo, 3 fuentes (2026-08-17) | 105 | 0.197 | 0.278 | 0.392 | 0.492 |
+
+Los cortes salen de la fila del medio, que es la población sobre la que
+producción emite. Calibrar sobre la primera --el error que se cometió primero--
+hacía que casi todos los mensajes reales dijeran "baja", porque el máximo de dos
+números es sistemáticamente menor que el de tres.

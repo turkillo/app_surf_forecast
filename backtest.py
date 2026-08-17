@@ -15,16 +15,17 @@ Criterios objetivos:
 SESGO CONOCIDO DEL BACKTEST
 ---------------------------
 Produccion consulta tres modelos de olas (gwam, meteofrance_wave,
-ncep_gfswave025) y exige que el gate pase en al menos MINIMO_MODELOS_DE_ACUERDO
-= 2. El archivo de Open-Meteo no sirve los tres en todo el periodo:
+ncep_gfswave025) y evalua el gate sobre la MEDIANA entre ellos. El archivo de
+Open-Meteo no sirve los tres en todo el periodo:
 
   2023-01-01 .. 2024-06-07   gwam + meteofrance_wave
   2024-06-08 .. 2024-06-18   solo meteofrance_wave
   2024-06-19 .. 2025-12-08   meteofrance_wave + ncep_gfswave025
   2025-12-09 en adelante     los tres
 
-Con dos fuentes, "2 de 3" se vuelve "2 de 2": son TODAS, o sea mas estricto
-que produccion. El backtest subestima el volumen. La magnitud se mide con
+Con dos fuentes la mediana es el promedio de dos, que es mucho mas sensible a
+un outlier que la mediana de tres: el backtest no mide el mismo estimador que
+produccion. La magnitud del sesgo se mide con
 `--modelos-olas` sobre un periodo donde los tres coexisten (ver
 docs/resultados-backtest.md); no se compensa con ningun truco en el codigo.
 

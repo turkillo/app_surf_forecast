@@ -89,13 +89,60 @@ la cobertura de los modelos mejora.
 La línea `Fuentes de olas disponibles` no es decorativa: con 2 de 3 el aviso
 vale menos que con 3 de 3, y tenés que poder pesarlo.
 
-El régimen de alerta confirmada (0-6) **no** usa esta regla: ahí sigue rigiendo
-el consenso de 2 de 3 de siempre, sin ningún cambio.
+El régimen de alerta confirmada (0-6) **no** usa esta regla: ahí hay cobertura
+de sobra y la mediana se calcula sobre dos o tres fuentes.
 
 ### 🔥 Alerta confirmada
 
-Es la de siempre, sin cambios: gate completo, incluyendo viento, más la mejor
-franja horaria del día y la línea de concordancia entre modelos.
+Gate completo, incluyendo viento, más la mejor franja horaria del día y la línea
+de concordancia entre modelos.
+
+### Cómo se combinan los modelos
+
+Primero se calcula el **valor de consenso** de cada variable --la mediana entre
+los modelos que respondieron-- y recién después se evalúa esa mediana contra el
+gate, **una sola vez**. Las olas se consensúan entre los modelos de olas y el
+viento entre los de viento: no hay emparejamiento entre unos y otros.
+
+Antes era al revés: se evaluaba el gate modelo por modelo y se pedían 2 votos de
+3, con cada modelo de olas atado a un modelo de viento por posición. Eso hacía
+dos cosas mal. El modelo que acertaba las olas podía quedar vetado por un viento
+que no le correspondía, y una diferencia de 2 cm sobre el umbral descartaba un
+modelo entero. El caso que lo destapó está en `docs/resultados-backtest.md`.
+
+La mediana **no** debilita la protección contra el swell fantasma: si un modelo
+ve 2 m y los otros dos ven 0.5, la mediana da 0.5 y no hay alerta. Y además el
+outlier tampoco decide en la dirección contraria. Los dos casos tienen test.
+
+Con **dos** fuentes la mediana es el promedio y deja de proteger de un outlier,
+así que existe `DISPERSION_INCONCILIABLE`: cuando un modelo ve más del triple
+que el otro, el sistema no opina en vez de inventar el promedio.
+
+### La concordancia se mide, no se cuenta
+
+La etiqueta de confianza sale de **cuánto difieren los modelos entre sí**
+(`dispersion_relativa`: semirango relativo sobre la mediana, el peor entre
+altura y período), no de cuántos pasaron el gate. "2 de 3" tapaba si el tercero
+discrepaba por un centímetro o por un metro.
+
+Los cortes son los cuartiles de la distribución medida sobre las 5.079 horas que
+pasan el gate con las **tres** fuentes vivas: `alta` ≤ 0.137, `media` ≤ 0.287,
+`baja` por encima. Se conserva la regla de honestidad: **nunca `alta` con menos
+de 3 fuentes**, y el mensaje nombra los modelos que realmente respondieron.
+
+El mismo número sale impreso en el mensaje como `1.1m ± 15%`.
+
+### La banda de tolerancia
+
+`TOLERANCIA_UMBRAL = 0.05` en `surf/score.py`. Un criterio que se cumple
+raspando --dentro del 5 % del umbral-- cuenta como cumplido pero **marca el
+día**, y la marca llega al mensaje como `al límite`. El umbral se compara contra
+una mediana de 1 a 3 modelos, o sea contra una estimación con error propio;
+tratarla como exacta finge una precisión que el dato no tiene.
+
+Dos excepciones deliberadas: `max_altura` (el tamaño con que el spot cierra) y
+las horas de luz. La banda existe para no *perder* un buen día por el error del
+modelo, no para mandar a nadie a un mar que cierra.
 
 ### Un mismo swell puede generar los dos mensajes, y es a propósito
 
