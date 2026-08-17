@@ -406,3 +406,59 @@ class _SesionEspiaSimple(_SesionEspia):
                                 "sunrise": ["2026-08-21T06:45"],
                                 "sunset": ["2026-08-21T18:20"]}}
         return _RespuestaEspia(cuerpo)
+
+
+# --- Tarea 16: el viento se sirve desacoplado de las olas --------------------
+
+def test_el_viento_viene_por_modelo_sin_emparejar():
+    """El consenso de viento se calcula entre los modelos de viento. Para eso
+    `_combinar_multimodelo` tiene que entregar la serie de cada modelo de
+    viento por separado, no solo el que le toco a cada modelo de olas."""
+    from surf.fetch import _combinar_multimodelo
+
+    marine = _marine_multi({"gwam": [(1.8, 14.0, 200.0)],
+                            "meteofrance_wave": [(1.6, 13.0, 198.0)],
+                            "ncep_gfswave025": [(2.0, 15.0, 202.0)]})
+    clima = {"hourly": {
+        "time": ["2026-08-21T09:00"],
+        "wind_speed_10m_gfs_seamless": [1.1],
+        "wind_direction_10m_gfs_seamless": [320.0],
+        "wind_speed_10m_icon_seamless": [7.2],
+        "wind_direction_10m_icon_seamless": [318.0],
+        "wind_speed_10m_ecmwf_ifs025": [21.6],
+        "wind_direction_10m_ecmwf_ifs025": [316.0],
+    }, "daily": {"time": ["2026-08-21"], "sunrise": ["2026-08-21T06:45"],
+                 "sunset": ["2026-08-21T18:20"]}}
+
+    por_dia = _combinar_multimodelo(
+        marine, clima, ["gwam", "meteofrance_wave", "ncep_gfswave025"],
+        ["gfs_seamless", "icon_seamless", "ecmwf_ifs025"])
+    hmm = por_dia[date(2026, 8, 21)][0]
+
+    assert set(hmm.viento_por_modelo) == {"gfs_seamless", "icon_seamless",
+                                          "ecmwf_ifs025"}
+    assert hmm.viento_por_modelo["ecmwf_ifs025"] == (21.6, 316.0)
+
+
+def test_el_viento_por_modelo_omite_los_que_no_tienen_dato_a_esa_hora():
+    """icon_seamless muere a las 177 h mientras las olas llegan a las 235 h.
+    El modelo que no tiene dato no vota; los que si tienen, siguen votando."""
+    from surf.fetch import _combinar_multimodelo
+
+    marine = _marine_multi({"gwam": [(1.8, 14.0, 200.0), (1.8, 14.0, 200.0)],
+                            "meteofrance_wave": [(1.6, 13.0, 198.0), (1.6, 13.0, 198.0)]})
+    clima = {"hourly": {
+        "time": ["2026-08-21T09:00", "2026-08-21T10:00"],
+        "wind_speed_10m_gfs_seamless": [8.0, 8.0],
+        "wind_direction_10m_gfs_seamless": [320.0, 320.0],
+        "wind_speed_10m_icon_seamless": [7.0, None],
+        "wind_direction_10m_icon_seamless": [318.0, None],
+    }, "daily": {"time": ["2026-08-21"], "sunrise": ["2026-08-21T06:45"],
+                 "sunset": ["2026-08-21T18:20"]}}
+
+    por_dia = _combinar_multimodelo(
+        marine, clima, ["gwam", "meteofrance_wave"],
+        ["gfs_seamless", "icon_seamless"])
+    horas = por_dia[date(2026, 8, 21)]
+    assert set(horas[0].viento_por_modelo) == {"gfs_seamless", "icon_seamless"}
+    assert set(horas[1].viento_por_modelo) == {"gfs_seamless"}

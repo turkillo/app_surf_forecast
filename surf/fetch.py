@@ -159,9 +159,11 @@ def obtener_horas_multimodelo(spot: Spot, dias: int = DIAS_PRONOSTICO,
                               sesion=None) -> dict[date, list["HoraMultiModelo"]]:
     """Trae el pronostico de varios modelos y los devuelve agrupados por hora.
 
-    Los modelos de olas y de viento se emparejan por posicion. Si un modelo no
-    tiene cobertura en el spot, Open-Meteo no devuelve su columna y ese modelo
-    se omite; el consenso se calcula con los que si respondieron.
+    Las olas y el viento vienen DESACOPLADOS: cada HoraMultiModelo trae los
+    modelos de olas en `por_modelo` y los de viento en `viento_por_modelo`, y
+    el consenso de cada variable se calcula entre sus propias fuentes. Si un
+    modelo no tiene cobertura en el spot, Open-Meteo no devuelve su columna y
+    ese modelo se omite; el consenso se calcula con los que si respondieron.
     """
     from surf.consenso import (MODELOS_OLAS, MODELOS_OLAS_PEDIDOS,
                                MODELOS_VIENTO, HoraMultiModelo)
@@ -262,13 +264,17 @@ def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
 
     # Columnas de viento de cada modelo, en el orden de `modelos_viento`.
     # Sirven como respaldo: ver el emparejamiento mas abajo.
-    viento_por_modelo: list[tuple[str, dict]] = []
+    viento_por_modelo_cols: list[tuple[str, dict]] = []
     for mv in modelos_viento:
         cols = {c: _sufijo(c, mv, hc) for c in _CAMPOS_CLIMA}
         if all(v is not None for v in cols.values()):
-            viento_por_modelo.append((mv, cols))
+            viento_por_modelo_cols.append((mv, cols))
 
-    # Emparejar modelos de olas con modelos de viento por posicion.
+    # El emparejamiento olas[i]+viento[i] sobrevive SOLO para nombrar cada
+    # fuente y para que cada Hora lleve un viento adentro (lo consume el camino
+    # de compatibilidad de `surf.consenso._viento_de_consenso`). Desde la Tarea
+    # 16 no decide nada: el consenso de viento se calcula sobre
+    # `viento_por_modelo`, que lleva los tres modelos sin repartir.
     pares = []
     series_vistas: dict[tuple, str] = {}
     for i, mo in enumerate(modelos_olas):
@@ -287,7 +293,7 @@ def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
             continue
         series_vistas[huella] = mo
 
-        if not viento_por_modelo:
+        if not viento_por_modelo_cols:
             continue
         preferido = modelos_viento[min(i, len(modelos_viento) - 1)]
         # El modelo de viento asignado va primero y el resto queda de respaldo,
@@ -303,8 +309,8 @@ def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
         # MODELOS_VIENTO tambien lo arreglaria, pero movia 5 de 91 dias del
         # rango 0-6 (medido): el respaldo no toca nada ahi, porque en esos
         # dias los tres modelos de viento tienen cobertura completa.
-        alternativas = ([p for p in viento_por_modelo if p[0] == preferido]
-                        + [p for p in viento_por_modelo if p[0] != preferido])
+        alternativas = ([p for p in viento_por_modelo_cols if p[0] == preferido]
+                        + [p for p in viento_por_modelo_cols if p[0] != preferido])
         pares.append((mo, cols_olas, alternativas))
 
     if not pares:
@@ -321,6 +327,16 @@ def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
             continue
         amanecer, ocaso = sol[t.date()]
         es_de_dia = amanecer <= t <= ocaso
+
+        # Viento de CADA modelo de viento, sin repartir entre modelos de olas.
+        # Es la mitad de arriba del desacople: sobre esto se calcula la mediana
+        # de viento. Un modelo que no tiene dato a esta hora no vota (icon
+        # muere a las 177 h mientras las olas llegan a las 235 h).
+        viento_por_modelo = {}
+        for mv, cols in viento_por_modelo_cols:
+            if all(hc[c][i] is not None for c in cols.values()):
+                viento_por_modelo[mv] = (float(hc[cols["wind_speed_10m"]][i]),
+                                         float(hc[cols["wind_direction_10m"]][i]))
 
         por_modelo = {}
         for mo, cols_olas, alternativas in pares:
@@ -357,7 +373,8 @@ def _combinar_multimodelo(marine: dict, clima: dict, modelos_olas: list[str],
 
         if por_modelo:
             por_dia.setdefault(t.date(), []).append(
-                HoraMultiModelo(t=t, es_de_dia=es_de_dia, por_modelo=por_modelo)
+                HoraMultiModelo(t=t, es_de_dia=es_de_dia, por_modelo=por_modelo,
+                                viento_por_modelo=viento_por_modelo)
             )
 
     return por_dia

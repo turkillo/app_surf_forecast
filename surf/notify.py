@@ -6,7 +6,7 @@ import requests
 from surf.alert import ULTIMO_DIA_GATE_COMPLETO, Ventana
 from surf.consenso import MODELOS_OLAS
 from surf.geo import clasificar_viento, rumbo_a_texto
-from surf.score import DiaEvaluado, energia_kj
+from surf.score import TOLERANCIA_UMBRAL, DiaEvaluado, energia_kj
 from surf.spots import Spot
 
 URL_TELEGRAM = "https://api.telegram.org/bot{token}/sendMessage"
@@ -35,8 +35,15 @@ _NOMBRES_MODELOS = {
 }
 
 
-def _nombre_legible(par: str) -> str:
-    return "/".join(_NOMBRES_MODELOS.get(p, p) for p in par.split("+"))
+def _nombre_legible(nombre: str) -> str:
+    """Nombre corto del modelo de OLAS.
+
+    Lo que llega sigue siendo `"<olas>+<viento>"` por herencia del
+    emparejamiento historico, pero desde la Tarea 16 el viento se consensua
+    aparte, asi que nombrar "GWAM/GFS" describiria un vinculo que ya no existe.
+    Los modelos de viento se listan por su cuenta (ver `linea_fuentes`).
+    """
+    return _NOMBRES_MODELOS.get(nombre.split("+")[0], nombre.split("+")[0])
 
 
 def _listar(nombres: list[str]) -> str:
@@ -45,8 +52,17 @@ def _listar(nombres: list[str]) -> str:
     return f"{', '.join(nombres[:-1])} y {nombres[-1]}"
 
 
+def _sin_repetir(nombres: list[str]) -> list[str]:
+    vistos, salida = set(), []
+    for n in nombres:
+        if n not in vistos:
+            vistos.add(n)
+            salida.append(n)
+    return salida
+
+
 def etiqueta_concordancia(nivel: str, modelos: tuple[str, ...],
-                          de_acuerdo: int, consultadas: int | None = None) -> str:
+                          dispersion: float, consultadas: int | None = None) -> str:
     """Arma la linea de concordancia con los modelos que REALMENTE respondieron.
 
     Antes esta linea era un texto fijo que decia "GFS, ICON y ECMWF coinciden"
@@ -54,13 +70,18 @@ def etiqueta_concordancia(nivel: str, modelos: tuple[str, ...],
     dejaba de servir uno en un spot, el usuario leia que los tres coincidian
     sobre algo que uno de ellos nunca vio.
 
+    Desde la Tarea 16 el numero que acompania no es un conteo de votos sino
+    cuanto difieren entre si: "±9%" dice mucho mas que "2 de 3", porque 2 de 3
+    tapaba si el tercero discrepaba por un centimetro o por un metro.
+
     `consultadas` son las fuentes que este spot pregunta, que no son siempre
     todas las que existen: donde hay un modelo excluido por medir mal, 2 de 2
     es cobertura COMPLETA y reportar "solo 2 de 3" seria denunciar como falta
     algo que se saco a proposito.
     """
     base = "Concordancia entre modelos"
-    total = len(modelos)
+    nombres = _sin_repetir([_nombre_legible(m) for m in modelos])
+    total = len(nombres)
     if consultadas is None:
         consultadas = len(MODELOS_OLAS)
     if not total:
@@ -70,19 +91,36 @@ def etiqueta_concordancia(nivel: str, modelos: tuple[str, ...],
             return f"{base}: alta (los modelos coinciden) ✓"
         return f"{base}: {nivel}"
 
-    nombres = [_nombre_legible(m) for m in modelos]
-    if nivel == "alta":
-        return f"{base}: alta ({de_acuerdo} de {total} coinciden: {_listar(nombres)}) ✓"
+    if total == 1:
+        detalle = "una sola fuente, sin con qué contrastar"
+    else:
+        detalle = f"difieren ±{dispersion:.0%} entre sí"
 
     cola = ""
     if total < consultadas:
         cola = (f" — solo {total} de {consultadas} fuentes disponibles en este spot"
                 if total > 1 else " — una sola fuente disponible en este spot")
-    # En media y baja NO coincidieron todos, asi que los nombres se listan como
-    # "consultados" y no como "coinciden": decir lo contrario seria repetir el
-    # error que este arreglo corrige.
-    return (f"{base}: {nivel} ({de_acuerdo} de {total} coinciden — "
-            f"consultados: {_listar(nombres)}){cola}")
+
+    marca = " ✓" if nivel == "alta" else ""
+    return f"{base}: {nivel} ({detalle}){cola}{marca}"
+
+
+def linea_fuentes(modelos: tuple[str, ...],
+                  modelos_viento: tuple[str, ...]) -> str | None:
+    """Que fuentes produjeron el pronostico, olas y viento por separado.
+
+    Van separadas porque se consensuan separadas: juntarlas en un par
+    ("GWAM/GFS") sugeriria que ese viento es el que le corresponde a esas olas,
+    que es exactamente el emparejamiento arbitrario que la Tarea 16 elimino.
+    """
+    olas = _sin_repetir([_nombre_legible(m) for m in modelos])
+    viento = _sin_repetir([_NOMBRES_MODELOS.get(m, m) for m in modelos_viento])
+    if not olas:
+        return None
+    partes = [f"Olas: {_listar(olas)}"]
+    if viento:
+        partes.append(f"viento: {_listar(viento)}")
+    return "  ·  ".join(partes)
 
 
 class ErrorEnvio(Exception):
@@ -93,6 +131,23 @@ def _fecha_corta(d: date) -> str:
     return f"{_DIAS[d.weekday()]} {d.day}"
 
 
+def _incerteza(dia: DiaEvaluado) -> str:
+    """El "± X%" que acompania a la altura.
+
+    Es la dispersion entre los modelos de olas, o sea cuanto se juegan entre si
+    ese numero. Con una sola fuente --o con un dia armado por una via que no
+    mide dispersion-- no se imprime nada: un "± 0%" seria una promesa de
+    exactitud que nadie hizo.
+    """
+    return f" ± {dia.dispersion:.0%}" if dia.dispersion > 0 else ""
+
+
+def _marca_limite(dia: DiaEvaluado) -> str:
+    """Aviso de que el dia cumplio algun criterio dentro de la banda de
+    tolerancia, en vez de con holgura. Ver score.TOLERANCIA_UMBRAL."""
+    return "  ·  al límite" if dia.al_limite else ""
+
+
 def _linea_dia(dia: DiaEvaluado, spot: Spot) -> str:
     if dia.resumen is None:
         return f"{_fecha_corta(dia.fecha):<7} (sin datos de pronóstico)"
@@ -101,12 +156,13 @@ def _linea_dia(dia: DiaEvaluado, spot: Spot) -> str:
     energia = energia_kj(r.get("altura", 0), r.get("periodo", 0))
     return (
         f"{_fecha_corta(dia.fecha):<7} "
-        f"{r.get('altura', 0):.1f}m @ {r.get('periodo', 0):.0f}s "
+        f"{r.get('altura', 0):.1f}m{_incerteza(dia)} @ {r.get('periodo', 0):.0f}s "
         f"del {rumbo_a_texto(r.get('direccion', 0))}  ·  "
         f"{energia:.0f} kJ  ·  "
         f"viento {rumbo_a_texto(r.get('viento_direccion', 0))} "
         f"{r.get('viento_kmh', 0):.0f}km/h {clase}  ·  "
         f"{dia.score:.0f}/100"
+        f"{_marca_limite(dia)}"
     )
 
 
@@ -122,9 +178,10 @@ def _linea_dia_swell(dia: DiaEvaluado) -> str:
     r = dia.resumen
     energia = energia_kj(r.get("altura", 0), r.get("periodo", 0))
     return (f"{_fecha_corta(dia.fecha):<7} "
-            f"{r.get('altura', 0):.1f}m @ {r.get('periodo', 0):.0f}s "
+            f"{r.get('altura', 0):.1f}m{_incerteza(dia)} @ {r.get('periodo', 0):.0f}s "
             f"del {rumbo_a_texto(r.get('direccion', 0))}  ·  "
-            f"{energia:.0f} kJ")
+            f"{energia:.0f} kJ"
+            f"{_marca_limite(dia)}")
 
 
 def _rango_fechas(desde: date, hasta: date) -> str:
@@ -144,7 +201,8 @@ def _peor_dia(ventana: Ventana) -> DiaEvaluado:
     situacion real y no una mezcla de dias distintos."""
     return min(ventana.dias,
                key=lambda d: (_ORDEN_CONCORDANCIA[d.concordancia],
-                              len(d.modelos), d.modelos_de_acuerdo))
+                              len(d.modelos), -d.dispersion,
+                              d.modelos_de_acuerdo))
 
 
 def formatear_alerta(ventana: Ventana, spot: Spot) -> str:
@@ -168,8 +226,17 @@ def formatear_alerta(ventana: Ventana, spot: Spot) -> str:
 
     peor = _peor_dia(ventana)
     partes.append(etiqueta_concordancia(
-        peor.concordancia, peor.modelos, peor.modelos_de_acuerdo,
+        peor.concordancia, peor.modelos, peor.dispersion,
         len(MODELOS_OLAS) - len(spot.modelos_excluidos)))
+    fuentes = linea_fuentes(peor.modelos, peor.modelos_viento)
+    if fuentes:
+        partes.append(fuentes)
+
+    if any(d.al_limite for d in ventana.dias):
+        partes.append(
+            f"⚠️ Los días marcados «al límite» cumplen el umbral dentro de la "
+            f"tolerancia del {TOLERANCIA_UMBRAL:.0%}: pasaron raspando."
+        )
 
     if spot.confianza == "baja":
         partes.append("⚠️ perfil poco validado — chequear en surf-forecast antes de viajar")
@@ -213,6 +280,14 @@ def formatear_preaviso(ventana: Ventana, spot: Spot, hoy: date) -> str:
     consultadas = len(MODELOS_OLAS) - len(spot.modelos_excluidos)
     partes.append(f"Fuentes de olas disponibles: {len(peor.modelos)} "
                   f"de {consultadas}")
+    partes.append(etiqueta_concordancia(
+        peor.concordancia, peor.modelos, peor.dispersion, consultadas))
+
+    if any(d.al_limite for d in ventana.dias):
+        partes.append(
+            f"⚠️ Los días marcados «al límite» cumplen el umbral dentro de la "
+            f"tolerancia del {TOLERANCIA_UMBRAL:.0%}: pasaron raspando."
+        )
 
     if spot.confianza == "baja":
         partes.append("⚠️ perfil poco validado — chequear en surf-forecast antes de viajar")

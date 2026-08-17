@@ -5,13 +5,32 @@ lado-- calculandola en vez de mostrarla. Windguru no se puede usar como fuente:
 sus terminos prohiben el uso de sus datos en software propio. Los modelos que
 muestra son publicos y Open-Meteo los sirve directamente.
 
-Regla: el gate tiene que pasar en al menos MINIMO_MODELOS_DE_ACUERDO modelos.
-Un swell fantasma rara vez aparece en tres modelos independientes a la vez.
+REGLA (rediseñada en la Tarea 16): primero se calcula el valor de consenso de
+cada variable --la mediana entre los modelos que respondieron-- y despues se
+evalua ESA mediana contra el gate, una sola vez.
+
+Antes se hacia al reves: se evaluaba el gate modelo por modelo y se pedian
+MINIMO_MODELOS_DE_ACUERDO votos. Dos defectos quedaron expuestos con un caso
+real (praia_do_rosa, 2026-08-23 09:00, ver docs/):
+
+  1. Las olas venian emparejadas posicionalmente con el viento, asi que el
+     modelo que acerto las olas (ncep, 1.94 m @ 11.4 s contra los 1.8 m @ 11 s
+     que publicaba surf-forecast) quedaba vetado por el viento de ECMWF
+     --21.6 km/h contra los ~0 reales-- que no le correspondia.
+  2. El gate por modelo hace que una diferencia de 2 cm (0.98 m contra un piso
+     de 1.00 m) descarte un modelo entero y con el su voto.
+
+Con el gate sobre la mediana ese dia pasa: 1.14 m, 9.35 s y 7.2 km/h.
+
+La mediana NO debilita la proteccion contra el swell fantasma, la mejora: si
+un solo modelo ve 2 m y los otros dos 0.5 m, la mediana da 0.5 y no alerta --
+igual que la regla vieja--, pero ademas el outlier tampoco decide en la
+direccion contraria. Los dos casos estan fijados en tests.
 
 Modulo puro: sin red ni reloj.
 """
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from statistics import median
 
@@ -20,20 +39,19 @@ from surf.score import (HORAS_MINIMAS_CONSECUTIVAS, DiaEvaluado, Hora,
                         _resumir)
 from surf.spots import Spot
 
-# El ORDEN de esta lista es carga historica y NO se puede tocar a la ligera.
-# `_combinar_multimodelo` empareja el modelo de olas i con el modelo de viento
-# i, y los tres modelos discrepan de verdad en el mismo punto y hora (medido en
-# asia, 2026-08-15 09:00: GFS 8.8 km/h del 261, ICON 4.5 del 209, ECMWF 5.4 del
-# 250). O sea que QUE modelo de viento le toca a cada modelo de olas decide si
-# el dia pasa el gate o no.
+# Modelos de viento. Desde la Tarea 16 el ORDEN ya no decide nada: el consenso
+# de viento es la mediana ENTRE ESTOS TRES, sin emparejar con los modelos de
+# olas. Sigue existiendo un emparejamiento en `_combinar_multimodelo` --cada
+# Hora lleva un viento adentro-- pero solo como respaldo para el camino que no
+# recibe las series separadas; el consenso no lo mira.
 #
-# Se probo reordenarla por alcance temporal (para que ningun modelo de olas
-# largo quedara atado a un viento corto) y se midio el efecto sobre los 13
-# spots reales: 5 de 91 dias del rango 0-6 cambiaban de es_bueno, y las
-# ventanas detectadas pasaban de 5 a 6. Nada de eso es una mejora -- los dos
-# ordenes son igual de arbitrarios --, asi que se descarto: el problema de
-# cobertura se resuelve en fetch con un respaldo por hora, que en el rango 0-6
-# no se activa nunca (los tres modelos de viento tienen 0 nulos ahi).
+# Que el emparejamiento decidiera era el defecto que motivo el rediseno: los
+# tres discrepan de verdad en el mismo punto y hora (medido en asia,
+# 2026-08-15 09:00: GFS 8.8 km/h del 261, ICON 4.5 del 209, ECMWF 5.4 del 250),
+# asi que QUE modelo de viento le tocaba a cada modelo de olas decidia si el
+# dia pasaba el gate. Se habia probado reordenar la lista y movia 5 de 91 dias
+# del rango 0-6 sin que ninguno de los dos ordenes fuera mejor que el otro:
+# la señal de que el problema no era el orden sino el emparejamiento.
 MODELOS_VIENTO = ["gfs_seamless", "icon_seamless", "ecmwf_ifs025"]
 
 # Fuentes de olas GENUINAMENTE distintas. best_match de la Marine API no es
@@ -72,12 +90,58 @@ RESPALDO_OLAS = {"ncep_gfswave025": "ncep_gfswave016"}
 MODELOS_OLAS_PEDIDOS = MODELOS_OLAS + [m for m in RESPALDO_OLAS.values()
                                        if m not in MODELOS_OLAS]
 
-MINIMO_MODELOS_DE_ACUERDO = 2
+# Cortes de la medida de confianza, en unidades de `dispersion_relativa`.
+#
+# NO son numeros redondos: son los cuartiles de la distribucion real. Se midio
+# max(dispersion de altura, dispersion de periodo) sobre las 5.079 horas de luz
+# que pasan el gate con las TRES fuentes vivas, entre 2025-12-09 --el primer
+# dia que el archivo sirve los tres modelos-- y 2026-08-15:
+#
+#     p10 0.112   p25 0.137   p50 0.190   p75 0.287   p90 0.385
+#
+# `alta` es el cuarto de horas donde los modelos mas coinciden y `baja` el
+# cuarto donde mas discrepan; la mitad central queda en `media`. Leido como el
+# "±" del mensaje: alta es "todos dentro de ±14%", baja es "±29% o peor", que
+# sobre 1.5 m son 43 cm de indefinicion.
+#
+# LA POBLACION IMPORTA, y es el error que se cometio primero. Los cuartiles
+# sobre las 23.347 horas de 2023-2025 dan 0.094 y 0.192, bastante mas
+# estrechos, porque el 96% de esas horas tiene solo DOS fuentes y el maximo de
+# dos numeros es sistematicamente menor que el de tres. Calibrar ahi y emitir
+# en produccion --donde hay tres-- hacia que casi todo saliera "baja" y la
+# etiqueta no distinguiera nada. Los cortes tienen que salir de la misma
+# poblacion sobre la que se van a aplicar.
+#
+# La eleccion de los cuartiles y no de los tercios es por la asimetria de la
+# consecuencia: `alta` es una promesa (el usuario maneja cuatro horas sin
+# chequear nada mas) y `baja` es una advertencia. Las dos tienen que ser la
+# excepcion, y la etiqueta corriente tiene que ser `media`.
+CORTE_DISPERSION_ALTA = 0.137
+CORTE_DISPERSION_MEDIA = 0.287
+
+# Desacuerdo a partir del cual la mediana deja de significar algo y el sistema
+# NO opina. No es una etiqueta de confianza: es un rechazo.
+#
+# Existe por el caso de las DOS fuentes, donde la mediana es el promedio y por
+# lo tanto no protege de un outlier: un modelo que ve 2.0 m @ 14 s con offshore
+# y otro que ve 0.4 m @ 5 s con onshore de 30 km/h promedian 1.2 m @ 9.5 s con
+# viento moderado, o sea un dia bueno que ninguno de los dos pronostico. Los
+# dos no estan describiendo el mismo mar, y promediarlos inventa un tercer mar.
+#
+# El valor tiene una lectura exacta: con dos fuentes, dispersion = (a-b)/(a+b),
+# asi que 0.5 es "un modelo ve el TRIPLE que el otro". Es un filtro de casos
+# irreconciliables, no un dial de volumen, y esta medido en las dos
+# poblaciones: rechaza el 0.4% de las horas que pasarian el gate en 2023-2025
+# (117 de 30.578, mayormente dos fuentes) y el 1.6% con las tres fuentes vivas
+# (82 de 5.079). Bajarlo a 0.30 se llevaria el 10.6% y ahi si estaria
+# calibrando el volumen por la puerta de atras.
+DISPERSION_INCONCILIABLE = 0.5
 
 # Fuentes de olas que tienen que estar DISPONIBLES para emitir un pre-aviso.
-# No es lo mismo que MINIMO_MODELOS_DE_ACUERDO: aquella regla cuenta cuantos
-# modelos pasan el gate entre los que respondieron, esta exige que haya con
-# quien contrastar en primer lugar.
+# No es lo mismo que la medida de dispersion: aquella describe cuanto difieren
+# las fuentes que hubo, esta exige que haya con quien contrastar en primer
+# lugar. Con la mediana la diferencia es critica: la mediana de UNA fuente es
+# esa fuente, asi que sin este piso un modelo solo se auto-confirmaria.
 #
 # Existe porque un modelo solo puede inventar un swell que no existe, y a 8
 # dias no hay con que contrastarlo -- no queda ninguna otra fuente viva que
@@ -93,7 +157,7 @@ MINIMO_MODELOS_DE_ACUERDO = 2
 # dias 8 y 9, contra 0 antes).
 #
 # El regimen de alerta confirmada (dias 0-6) NO usa esta regla: ahi hay
-# cobertura de sobra y el consenso de 2 de 3 ya funciona.
+# cobertura de sobra y la mediana se calcula sobre dos o tres fuentes.
 MINIMO_FUENTES_OLAS_PREAVISO = 2
 # "Alta" es la etiqueta que le dice al usuario que puede manejar cuatro horas
 # sin chequear nada mas. No se puede afirmar con menos de tres fuentes: si un
@@ -107,7 +171,28 @@ _ORDEN_CONCORDANCIA = {"alta": 2, "media": 1, "baja": 0}
 class HoraMultiModelo:
     t: datetime
     es_de_dia: bool
+    # Modelos de OLAS. Cada Hora trae ademas un viento adentro por herencia del
+    # emparejamiento historico; el consenso ya no lo usa salvo como respaldo.
     por_modelo: dict[str, Hora]
+    # Modelos de VIENTO, servidos aparte: {modelo: (km/h, direccion)}. Es lo
+    # que permite calcular el consenso de viento entre los modelos de viento
+    # en vez de heredarlo del emparejamiento. Vacio significa "esta hora vino
+    # por un camino que no separa las fuentes" y entonces se cae al viento que
+    # traen las Horas de `por_modelo`.
+    viento_por_modelo: dict[str, tuple[float, float]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Consenso:
+    """Lo que opinan los modelos, junto."""
+    hora: Hora
+    nivel: str
+    dispersion: float
+    fuentes_olas: int
+    fuentes_viento: int
+    # Cuantas fuentes de olas pasarian el gate por si solas. Ya no decide la
+    # etiqueta (ver DiaEvaluado.modelos_de_acuerdo): es diagnostico.
+    pasan_solas: int
 
 
 def _mediana_angular(angulos: list[float]) -> float:
@@ -135,12 +220,11 @@ def _modelo_de_olas(nombre: str) -> str:
 def sin_modelos_excluidos(hmm: HoraMultiModelo, spot: Spot) -> HoraMultiModelo:
     """La misma hora sin las fuentes de olas que el spot excluye.
 
-    Se filtra ACA y no en `surf.fetch` a proposito. `_combinar_multimodelo`
-    empareja el modelo de olas i con el de viento i, asi que sacar un modelo de
-    la lista que se le pide a la API correria ese emparejamiento y cambiaria
-    tambien con que viento se evalua el modelo que queda: se estarian moviendo
-    dos cosas a la vez. Filtrando despues de combinar, cada fuente conserva el
-    viento que le tocaba y lo unico que cambia es quien vota.
+    Se filtra ACA y no en `surf.fetch`: lo que se excluye son fuentes de OLAS,
+    y sacarlas de la lista que se le pide a la API tocaria tambien la deteccion
+    de series duplicadas y la cadena de respaldo. El consenso de viento no se
+    toca --se calcula entre los modelos de viento y ninguno de ellos se excluye
+    nunca-- asi que `viento_por_modelo` viaja intacto.
     """
     if not spot.modelos_excluidos:
         return hmm
@@ -154,37 +238,106 @@ def sin_modelos_excluidos(hmm: HoraMultiModelo, spot: Spot) -> HoraMultiModelo:
               if _modelo_de_olas(n) not in excluidos}
     if len(quedan) == len(hmm.por_modelo):
         return hmm
-    return HoraMultiModelo(t=hmm.t, es_de_dia=hmm.es_de_dia, por_modelo=quedan)
+    return HoraMultiModelo(t=hmm.t, es_de_dia=hmm.es_de_dia, por_modelo=quedan,
+                           viento_por_modelo=hmm.viento_por_modelo)
 
 
-def consensuar(hmm: HoraMultiModelo, spot: Spot,
-               exigir_viento: bool = True) -> tuple[Hora, str, int]:
-    """Devuelve la hora mediana, el nivel de concordancia y cuantos modelos pasaron."""
+def dispersion_relativa(valores: list[float]) -> float:
+    """Semirango relativo sobre la mediana: cuanto difieren entre si.
+
+    Se eligio esta forma y no el desvio estandar ni el rango intercuartil
+    porque con 2 o 3 fuentes --que es lo que hay siempre-- el IQR es
+    degenerado y el desvio de una muestra de 3 no significa gran cosa. El
+    semirango, en cambio, se lee directo como el "±" que sale impreso en el
+    mensaje: `dispersion_relativa([0.8, 1.0, 1.2]) == 0.2` es exactamente
+    "1.0 ± 20%".
+
+    Con una sola fuente devuelve 0.0, que NO quiere decir acuerdo: quiere
+    decir que no hay desacuerdo medible. Quien clasifica se ocupa de eso.
+    """
+    if len(valores) < 2:
+        return 0.0
+    centro = median(valores)
+    if centro == 0:
+        return 0.0
+    return (max(valores) - min(valores)) / (2 * centro)
+
+
+def _viento_de_consenso(hmm: HoraMultiModelo,
+                        horas: list[Hora]) -> tuple[float, float, int]:
+    """Mediana del viento ENTRE LOS MODELOS DE VIENTO. Sin emparejamiento.
+
+    Cuando la hora no trae las series de viento separadas se cae al viento que
+    cada Hora de olas lleva adentro. Es solo compatibilidad: por ese camino
+    vuelve a haber tantos vientos como modelos de olas, que es la situacion
+    que el rediseno vino a eliminar.
+    """
+    if hmm.viento_por_modelo:
+        vientos = list(hmm.viento_por_modelo.values())
+    else:
+        vientos = [(h.viento_kmh, h.viento_direccion) for h in horas]
+    return (median(v[0] for v in vientos),
+            _mediana_angular([v[1] for v in vientos]),
+            len(vientos))
+
+
+def _nivel(dispersion: float, fuentes_olas: int) -> str:
+    """Etiqueta de confianza a partir de cuanto difieren los modelos."""
+    if fuentes_olas < 2:
+        # Que no haya desacuerdo posible no es lo mismo que haya acuerdo. Una
+        # sola fuente es el escenario de falso positivo que este modulo existe
+        # para evitar.
+        return "baja"
+    if (fuentes_olas >= MINIMO_MODELOS_PARA_ALTA
+            and dispersion <= CORTE_DISPERSION_ALTA):
+        return "alta"
+    if dispersion <= CORTE_DISPERSION_MEDIA:
+        return "media"
+    return "baja"
+
+
+def consensuar(hmm: HoraMultiModelo, spot: Spot) -> Consenso:
+    """Calcula el valor de consenso de la hora y cuanta confianza merece.
+
+    NO aplica el gate: quien llama evalua la hora resultante una sola vez. Es
+    la inversion de orden que define la Tarea 16.
+    """
     hmm = sin_modelos_excluidos(hmm, spot)
     horas = list(hmm.por_modelo.values())
-    pasaron = sum(1 for h in horas if evaluar_hora(h, spot, exigir_viento).pasa)
 
-    total = len(horas)
-    if pasaron == total and total >= MINIMO_MODELOS_PARA_ALTA:
-        nivel = "alta"
-    elif pasaron >= MINIMO_MODELOS_DE_ACUERDO:
-        nivel = "media"
-    else:
-        # Incluye el caso de un solo modelo: que no haya desacuerdo posible
-        # no es lo mismo que haya acuerdo. Una sola fuente es el escenario
-        # de falso positivo que este modulo existe para evitar.
-        nivel = "baja"
+    alturas = [h.swell_altura for h in horas]
+    periodos = [h.swell_periodo for h in horas]
+    viento_kmh, viento_dir, fuentes_viento = _viento_de_consenso(hmm, horas)
 
     mediana = Hora(
         t=hmm.t,
-        swell_altura=median(h.swell_altura for h in horas),
-        swell_periodo=median(h.swell_periodo for h in horas),
+        swell_altura=median(alturas),
+        swell_periodo=median(periodos),
         swell_direccion=_mediana_angular([h.swell_direccion for h in horas]),
-        viento_kmh=median(h.viento_kmh for h in horas),
-        viento_direccion=_mediana_angular([h.viento_direccion for h in horas]),
+        viento_kmh=viento_kmh,
+        viento_direccion=viento_dir,
         es_de_dia=hmm.es_de_dia,
     )
-    return mediana, nivel, pasaron
+
+    # Se toma la PEOR de las dos dispersiones del swell. La de altura y la de
+    # periodo son casi independientes: la de altura es la mayor solo en el 51%
+    # de las horas con dos fuentes y en el 62% con tres, asi que mirar una sola
+    # etiquetaria como "alta" horas donde los modelos discrepan fuerte en la
+    # otra. El viento queda afuera a proposito: el pre-aviso ni siquiera lo
+    # evalua (la etiqueta tiene que significar lo mismo en los dos regimenes)
+    # y ademas su dispersion relativa es el doble que la del swell (p50 0.157
+    # contra 0.095) por una razon que no es desacuerdo real -- 3 km/h de
+    # diferencia sobre 6 km/h ya son 25%, y las dos lecturas son glassy.
+    dispersion = max(dispersion_relativa(alturas), dispersion_relativa(periodos))
+
+    return Consenso(
+        hora=mediana,
+        nivel=_nivel(dispersion, len(horas)),
+        dispersion=dispersion,
+        fuentes_olas=len(horas),
+        fuentes_viento=fuentes_viento,
+        pasan_solas=sum(1 for h in horas if evaluar_hora(h, spot).pasa),
+    )
 
 
 def _categoria(motivo: str | None) -> str | None:
@@ -198,29 +351,6 @@ def _categoria(motivo: str | None) -> str | None:
     if motivo is None:
         return None
     return motivo.split("(")[0].strip()
-
-
-def _motivo_de_rechazo(hmm: HoraMultiModelo, mediana: Hora, spot: Spot,
-                       pasaron: int, exigir_viento: bool = True) -> str:
-    """Por que se rechaza una hora que no junto los votos necesarios.
-
-    Si TODOS los modelos rechazan la hora por el mismo motivo, ese es el
-    motivo real y hay que conservarlo: a las 3 AM los tres modelos coinciden
-    perfectamente en que es de noche, decir "los modelos no coinciden" es
-    falso y ademas tapa el motivo que el digest necesita leer.
-    """
-    motivos = [evaluar_hora(h, spot, exigir_viento).motivo_rechazo
-               for h in hmm.por_modelo.values()]
-    categorias = {_categoria(m) for m in motivos}
-    if len(categorias) == 1 and None not in categorias:
-        # Se prefiere el motivo de la hora mediana, que es la que el resto del
-        # sistema reporta; si la mediana no cae en la misma categoria, sirve
-        # cualquiera de los modelos porque todos dicen lo mismo.
-        de_mediana = evaluar_hora(mediana, spot, exigir_viento).motivo_rechazo
-        if _categoria(de_mediana) in categorias:
-            return de_mediana
-        return motivos[0]
-    return f"los modelos no coinciden ({pasaron} de {len(hmm.por_modelo)})"
 
 
 def _motivo_principal(evaluadas: list[HoraEvaluada],
@@ -275,7 +405,9 @@ def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
     evaluadas: list[HoraEvaluada] = []
     niveles: dict[datetime, str] = {}
     modelos: dict[datetime, tuple[str, ...]] = {}
+    vientos: dict[datetime, tuple[str, ...]] = {}
     acuerdos: dict[datetime, int] = {}
+    dispersiones: dict[datetime, float] = {}
     de_dia: dict[datetime, bool] = {}
 
     for hmm in sorted(hmms, key=lambda x: x.t):
@@ -288,30 +420,36 @@ def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
             # rechazo por las condiciones: es una hora sobre la que el spot no
             # tiene dato, igual que si la API no la hubiera devuelto.
             continue
-        mediana, nivel, pasaron = consensuar(hmm, spot, exigir_viento)
-        niveles[hmm.t] = nivel
+        c = consensuar(hmm, spot)
+        niveles[hmm.t] = c.nivel
         modelos[hmm.t] = tuple(hmm.por_modelo)
-        acuerdos[hmm.t] = pasaron
+        vientos[hmm.t] = tuple(hmm.viento_por_modelo)
+        acuerdos[hmm.t] = c.pasan_solas
+        dispersiones[hmm.t] = c.dispersion
         de_dia[hmm.t] = hmm.es_de_dia
         if len(hmm.por_modelo) < minimo_fuentes:
             # Sin fuentes suficientes no se rechaza por las condiciones: se
             # rechaza por no poder contrastarlas. Es una hora sobre la que el
             # sistema no tiene derecho a opinar.
             evaluadas.append(HoraEvaluada(
-                hora=mediana, pasa=False,
+                hora=c.hora, pasa=False,
                 motivo_rechazo=(f"fuentes de olas insuficientes "
                                 f"({len(hmm.por_modelo)}, mínimo {minimo_fuentes})"),
                 score=0.0, clase_viento="",
             ))
-        elif pasaron < min(MINIMO_MODELOS_DE_ACUERDO, len(hmm.por_modelo)):
+        elif (c.fuentes_olas >= 2
+                and c.dispersion > DISPERSION_INCONCILIABLE):
+            # Los modelos no describen el mismo mar. La mediana entre ellos
+            # seria un mar que no pronostico ninguno.
             evaluadas.append(HoraEvaluada(
-                hora=mediana, pasa=False,
-                motivo_rechazo=_motivo_de_rechazo(hmm, mediana, spot, pasaron,
-                                                  exigir_viento),
+                hora=c.hora, pasa=False,
+                motivo_rechazo=(f"los modelos no coinciden "
+                                f"(±{c.dispersion:.0%} entre {c.fuentes_olas})"),
                 score=0.0, clase_viento="",
             ))
         else:
-            evaluadas.append(evaluar_hora(mediana, spot, exigir_viento))
+            # EL gate, una sola vez, sobre el valor de consenso.
+            evaluadas.append(evaluar_hora(c.hora, spot, exigir_viento))
 
     bloques = [b for b in _bloques_consecutivos(evaluadas)
                if len(b) >= HORAS_MINIMAS_CONSECUTIVAS]
@@ -337,10 +475,11 @@ def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
     assert mejor is not None
     # El dia hereda la PEOR concordancia de su mejor bloque: es el dato
     # conservador, que es el que corresponde para decidir un viaje. Los
-    # nombres de los modelos y cuantos coincidieron salen de esa misma hora,
-    # para que el mensaje describa exactamente la hora que define la etiqueta.
+    # nombres de los modelos y la dispersion salen de esa misma hora, para que
+    # el mensaje describa exactamente la hora que define la etiqueta.
     t_peor = min((e.hora.t for e in mejor),
-                 key=lambda t: (_ORDEN_CONCORDANCIA[niveles[t]], acuerdos[t]))
+                 key=lambda t: (_ORDEN_CONCORDANCIA[niveles[t]],
+                                -dispersiones[t]))
 
     return DiaEvaluado(
         fecha=fecha, spot_id=spot.id, es_bueno=True, score=mejor_score,
@@ -349,4 +488,9 @@ def evaluar_dia_multimodelo(hmms: list[HoraMultiModelo], spot: Spot,
         resumen=_resumir(mejor), motivo_principal=None,
         concordancia=niveles[t_peor], modelos=modelos[t_peor],
         modelos_de_acuerdo=acuerdos[t_peor],
+        modelos_viento=vientos[t_peor],
+        dispersion=dispersiones[t_peor],
+        # Basta con que UNA hora del bloque haya raspado: el dia paso al
+        # limite y el usuario tiene que enterarse.
+        al_limite=any(e.al_limite for e in mejor),
     )

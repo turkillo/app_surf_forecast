@@ -47,6 +47,38 @@ PESOS_SOLO_SWELL = {k: PESOS[k] / _PESO_SWELL
 
 HORAS_MINIMAS_CONSECUTIVAS = 3
 
+# Banda de tolerancia sobre los umbrales del gate. Un criterio que se cumple
+# raspando --dentro de este porcentaje del umbral-- cuenta como cumplido, pero
+# marca la hora como `al_limite` y esa marca viaja hasta el mensaje.
+#
+# Pedido explicito del usuario: "un +/- porcentual de error para los modelos,
+# para no ser tan deterministico". El fundamento es que el umbral se compara
+# contra una MEDIANA de entre 1 y 3 modelos, o sea contra una estimacion con
+# error propio, y tratarla como exacta finge una precision que el dato no
+# tiene: el caso que motivo la Tarea 16 se perdio por 2 cm sobre un piso de
+# 1.00 m.
+#
+# El valor sale de dos mediciones sobre 2023-2025 en los 13 spots, no de un
+# numero redondo:
+#
+#   - Cuanto se equivocan los modelos entre si: el semirango relativo mediano
+#     de la altura entre modelos es 9.5%, y el del periodo 9.5%. La banda
+#     tiene que quedar POR DEBAJO de ese desacuerdo tipico -- si lo igualara,
+#     estaria perdonando un error del tamanio de la incertidumbre completa y
+#     el umbral dejaria de filtrar. 5% es aproximadamente la mitad.
+#
+#   - Cuanto cuesta en volumen: de las horas de luz que hoy fallan por altura,
+#     el 7.0% falla por menos del 5% (y el 16.8% por menos del 10%); de las
+#     que fallan por periodo, el 46.1% falla por menos del 5% (y el 75.2% por
+#     menos del 10%). Al 10% el backtest completo mandaba a `asia` y
+#     `buchupureo` por encima del limite de ruido; al 5% los 13 spots quedan
+#     dentro. Ver docs/resultados-backtest.md.
+#
+# Techo duro: tiene que ser menor que 14.3%, porque a partir de ahi la banda
+# del offshore (maximo 35 km/h) se tragaria los 40 km/h que test_score_gate
+# exige rechazar.
+TOLERANCIA_UMBRAL = 0.05
+
 # Energia por ola y por metro de cresta, en kJ. Es la magnitud que surf-forecast
 # publica en su columna de energia, y se incluye en el mensaje para poder
 # contrastar contra esa fuente. NO participa del gate ni del score: es un dato
@@ -90,6 +122,10 @@ class HoraEvaluada:
     motivo_rechazo: str | None
     score: float
     clase_viento: str
+    # La hora paso, pero algun criterio se cumplio dentro de la banda de
+    # TOLERANCIA_UMBRAL en vez de con holgura. Viaja hasta el mensaje: el
+    # usuario tiene derecho a saber que ese dia paso raspando.
+    al_limite: bool = False
 
 
 @dataclass(frozen=True)
@@ -109,7 +145,22 @@ class DiaEvaluado:
     # trio hardcodeado (Tarea 11: el texto decia "GFS, ICON y ECMWF
     # coinciden" aun cuando a uno nunca se lo habia consultado).
     modelos: tuple[str, ...] = ()
+    # LEGADO. Antes de la Tarea 16 este conteo DECIDIA la etiqueta de
+    # concordancia ("2 de 3 pasaron"). Ya no decide nada: la confianza sale de
+    # `dispersion`. Se conserva como dato de diagnostico --cuantas fuentes de
+    # olas pasarian el gate por si solas-- y como desempate estable en
+    # `notify._peor_dia`.
     modelos_de_acuerdo: int = 0
+    # Modelos de VIENTO que respondieron. Desde la Tarea 16 el consenso de
+    # viento se calcula entre ellos y no por emparejamiento con los de olas,
+    # asi que el mensaje tiene que poder nombrarlos aparte.
+    modelos_viento: tuple[str, ...] = ()
+    # Cuanto difieren entre si los modelos de olas, como semirango relativo
+    # sobre la mediana (ver surf.consenso.dispersion_relativa). Es la medida
+    # de confianza y es el "±" que sale impreso en el mensaje.
+    dispersion: float = 0.0
+    # Algun criterio del dia se cumplio dentro de la banda de tolerancia.
+    al_limite: bool = False
 
 
 def _interpolar(x: float, x0: float, x1: float, y0: float, y1: float) -> float:
@@ -171,26 +222,65 @@ def factor_viento(viento_kmh: float, clase: str) -> float:
     return FACTOR_ONSHORE
 
 
-def _gate_viento(hora: Hora, clase: str) -> str | None:
-    """Devuelve el motivo de rechazo, o None si el viento pasa."""
+def _bajo_piso(valor: float, minimo: float) -> tuple[bool, bool]:
+    """(no llega, raspa) de un valor contra un piso con banda de tolerancia.
+
+    "raspa" es True cuando el valor no llega al umbral pero queda dentro de
+    TOLERANCIA_UMBRAL: cuenta como cumplido y marca la hora.
+    """
+    if valor >= minimo:
+        return False, False
+    if valor >= minimo * (1 - TOLERANCIA_UMBRAL):
+        return False, True
+    return True, False
+
+
+def _sobre_techo(valor: float, maximo: float) -> tuple[bool, bool]:
+    """(se pasa, raspa) de un valor contra un techo con banda de tolerancia."""
+    if valor <= maximo:
+        return False, False
+    if valor <= maximo * (1 + TOLERANCIA_UMBRAL):
+        return False, True
+    return True, False
+
+
+def _gate_viento(hora: Hora, clase: str) -> tuple[str | None, bool]:
+    """Devuelve (motivo de rechazo, si raspo). None de motivo = el viento pasa."""
     if hora.viento_kmh <= VIENTO_GLASSY_KMH:
-        return None
+        return None, False
     if clase == "offshore":
-        if hora.viento_kmh > OFFSHORE_MAX_KMH:
-            return f"offshore muy fuerte ({hora.viento_kmh:.0f} km/h, máximo {OFFSHORE_MAX_KMH:.0f})"
-        return None
+        se_pasa, raspa = _sobre_techo(hora.viento_kmh, OFFSHORE_MAX_KMH)
+        if se_pasa:
+            return (f"offshore muy fuerte ({hora.viento_kmh:.0f} km/h, "
+                    f"máximo {OFFSHORE_MAX_KMH:.0f})"), False
+        return None, raspa
     if clase == "cross":
-        if hora.viento_kmh > CROSS_MAX_KMH:
-            return f"cross muy fuerte ({hora.viento_kmh:.0f} km/h, máximo {CROSS_MAX_KMH:.0f})"
-        return None
-    if hora.viento_kmh > ONSHORE_MAX_KMH:
-        return f"viento onshore ({hora.viento_kmh:.0f} km/h, máximo {ONSHORE_MAX_KMH:.0f})"
-    return None
+        se_pasa, raspa = _sobre_techo(hora.viento_kmh, CROSS_MAX_KMH)
+        if se_pasa:
+            return (f"cross muy fuerte ({hora.viento_kmh:.0f} km/h, "
+                    f"máximo {CROSS_MAX_KMH:.0f})"), False
+        return None, raspa
+    se_pasa, raspa = _sobre_techo(hora.viento_kmh, ONSHORE_MAX_KMH)
+    if se_pasa:
+        return (f"viento onshore ({hora.viento_kmh:.0f} km/h, "
+                f"máximo {ONSHORE_MAX_KMH:.0f})"), False
+    return None, raspa
 
 
 def _gate(hora: Hora, spot: Spot, clase: str,
-          exigir_viento: bool = True) -> str | None:
-    """Aplica las condiciones del gate. Devuelve el primer motivo de rechazo.
+          exigir_viento: bool = True) -> tuple[str | None, bool]:
+    """Aplica las condiciones del gate.
+
+    Devuelve (primer motivo de rechazo, si algun criterio se cumplio raspando).
+
+    Los umbrales llevan la banda de TOLERANCIA_UMBRAL, con dos excepciones
+    deliberadas:
+
+      - `max_altura`, el tamanio con que el spot cierra. La banda existe para
+        no PERDER un buen dia por el error del modelo; aflojar este techo hace
+        lo contrario, manda al usuario a un mar que cierra. El error del
+        modelo no puede jugar a favor del riesgo.
+      - las horas de luz, que son astronomia y no una estimacion de un modelo.
 
     Con `exigir_viento=False` se saltea SOLO el criterio de viento. Es el
     regimen de pre-aviso: a mas de una semana el viento local no se puede
@@ -199,23 +289,46 @@ def _gate(hora: Hora, spot: Spot, clase: str,
     (o astronomia) y siguen aplicando igual.
     """
     sw = spot.swell
+    al_limite = False
 
     if not hora.es_de_dia:
-        return "fuera de horas de luz"
-    if hora.swell_altura < sw.min_altura:
-        return f"altura insuficiente ({hora.swell_altura:.1f}m, mínimo {sw.min_altura:.1f}m)"
+        return "fuera de horas de luz", False
+
+    no_llega, raspa = _bajo_piso(hora.swell_altura, sw.min_altura)
+    if no_llega:
+        return (f"altura insuficiente ({hora.swell_altura:.1f}m, "
+                f"mínimo {sw.min_altura:.1f}m)"), False
+    al_limite = al_limite or raspa
+
     if hora.swell_altura > sw.max_altura:
-        return f"el spot cierra con este tamaño ({hora.swell_altura:.1f}m, máximo {sw.max_altura:.1f}m)"
-    if hora.swell_periodo < sw.min_periodo:
-        return f"período corto ({hora.swell_periodo:.1f}s, mínimo {sw.min_periodo:.1f}s)"
+        return (f"el spot cierra con este tamaño ({hora.swell_altura:.1f}m, "
+                f"máximo {sw.max_altura:.1f}m)"), False
+
+    no_llega, raspa = _bajo_piso(hora.swell_periodo, sw.min_periodo)
+    if no_llega:
+        return (f"período corto ({hora.swell_periodo:.1f}s, "
+                f"mínimo {sw.min_periodo:.1f}s)"), False
+    al_limite = al_limite or raspa
+
+    # La banda de la direccion se mide sobre la SEMI-AMPLITUD de la ventana,
+    # que es la escala propia de este criterio: un porcentaje sobre un rumbo
+    # absoluto (200 grados) no significaria nada.
     if not en_ventana(hora.swell_direccion, sw.ventana):
-        return (
-            f"dirección fuera de la ventana del spot "
-            f"({hora.swell_direccion:.0f}, ventana {sw.ventana[0]:.0f}-{sw.ventana[1]:.0f})"
-        )
+        holgura = TOLERANCIA_UMBRAL * angular_diff(sw.ventana[0], sw.ventana[1]) / 2
+        ancha = ((sw.ventana[0] - holgura) % 360, (sw.ventana[1] + holgura) % 360)
+        if not en_ventana(hora.swell_direccion, ancha):
+            return (f"dirección fuera de la ventana del spot "
+                    f"({hora.swell_direccion:.0f}, ventana "
+                    f"{sw.ventana[0]:.0f}-{sw.ventana[1]:.0f})"), False
+        al_limite = True
+
     if not exigir_viento:
-        return None
-    return _gate_viento(hora, clase)
+        return None, al_limite
+
+    motivo, raspa = _gate_viento(hora, clase)
+    if motivo is not None:
+        return motivo, False
+    return None, al_limite or raspa
 
 
 def evaluar_hora(hora: Hora, spot: Spot,
@@ -228,7 +341,7 @@ def evaluar_hora(hora: Hora, spot: Spot,
     distintos segun un dato que el propio sistema declaro impronosticable.
     """
     clase = clasificar_viento(hora.viento_direccion, spot.costa_mira)
-    motivo = _gate(hora, spot, clase, exigir_viento)
+    motivo, al_limite = _gate(hora, spot, clase, exigir_viento)
     if motivo is not None:
         return HoraEvaluada(hora=hora, pasa=False, motivo_rechazo=motivo,
                             score=0.0, clase_viento=clase)
@@ -246,7 +359,7 @@ def evaluar_hora(hora: Hora, spot: Spot,
             + PESOS_SOLO_SWELL["direccion"] * factor_direccion(hora.swell_direccion, spot)
         )
     return HoraEvaluada(hora=hora, pasa=True, motivo_rechazo=None,
-                        score=score, clase_viento=clase)
+                        score=score, clase_viento=clase, al_limite=al_limite)
 
 
 def _bloques_consecutivos(evaluadas: list[HoraEvaluada]) -> list[list[HoraEvaluada]]:

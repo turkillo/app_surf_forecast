@@ -163,10 +163,13 @@ def test_la_alerta_reporta_la_concordancia_entre_modelos():
     assert "Concordancia entre modelos" in formatear_alerta(v, SPOT)
 
 
-def _dia_con_modelos(d, concordancia, modelos, de_acuerdo, score=87.0):
+def _dia_con_modelos(d, concordancia, modelos, dispersion=0.05, score=87.0,
+                     modelos_viento=("gfs_seamless", "icon_seamless",
+                                     "ecmwf_ifs025")):
     from dataclasses import replace
     return replace(dia(d, score=score), concordancia=concordancia,
-                   modelos=tuple(modelos), modelos_de_acuerdo=de_acuerdo)
+                   modelos=tuple(modelos), dispersion=dispersion,
+                   modelos_viento=tuple(modelos_viento))
 
 
 def test_la_etiqueta_no_inventa_modelos_que_no_respondieron():
@@ -174,13 +177,15 @@ def test_la_etiqueta_no_inventa_modelos_que_no_respondieron():
     'GFS, ICON y ECMWF coinciden' aunque a uno nunca se lo consulto."""
     from surf.alert import Ventana
 
-    d1 = _dia_con_modelos(21, "media", ["gwam+gfs_seamless", "meteofrance_wave+icon_seamless"], 2)
-    d2 = _dia_con_modelos(22, "media", ["gwam+gfs_seamless", "meteofrance_wave+icon_seamless"], 2)
+    d1 = _dia_con_modelos(21, "media", ["gwam+gfs_seamless", "meteofrance_wave+icon_seamless"],
+                          modelos_viento=("gfs_seamless", "icon_seamless"))
+    d2 = _dia_con_modelos(22, "media", ["gwam+gfs_seamless", "meteofrance_wave+icon_seamless"],
+                          modelos_viento=("gfs_seamless", "icon_seamless"))
     v = Ventana(spot_id=SPOT.id, desde=date(2026, 8, 21), hasta=date(2026, 8, 22),
                 dias=(d1, d2), score=87.0)
     m = formatear_alerta(v, SPOT)
     assert "ECMWF" not in m
-    assert "2 de 2" in m
+    assert "solo 2 de 3 fuentes" in m
 
 
 def test_la_etiqueta_alta_nombra_los_modelos_que_respondieron():
@@ -188,20 +193,21 @@ def test_la_etiqueta_alta_nombra_los_modelos_que_respondieron():
 
     modelos = ["gwam+gfs_seamless", "meteofrance_wave+icon_seamless",
                "ncep_gfswave025+ecmwf_ifs025"]
-    d1 = _dia_con_modelos(21, "alta", modelos, 3)
-    d2 = _dia_con_modelos(22, "alta", modelos, 3)
+    d1 = _dia_con_modelos(21, "alta", modelos)
+    d2 = _dia_con_modelos(22, "alta", modelos)
     v = Ventana(spot_id=SPOT.id, desde=date(2026, 8, 21), hasta=date(2026, 8, 22),
                 dias=(d1, d2), score=87.0)
     m = formatear_alerta(v, SPOT)
-    assert "GWAM" in m
-    assert "ECMWF" in m
-    assert "3 de 3" in m
+    # Las fuentes de olas y las de viento se nombran por separado: ya no hay
+    # emparejamiento que justifique escribirlas como un par.
+    assert "Olas: GWAM, MFWAM y GFS-Wave" in m
+    assert "viento: GFS, ICON y ECMWF" in m
 
 
 def test_la_etiqueta_avisa_cuando_faltan_fuentes():
     from surf.alert import Ventana
 
-    d1 = _dia_con_modelos(21, "media", ["gwam+gfs_seamless", "meteofrance_wave+icon_seamless"], 2)
+    d1 = _dia_con_modelos(21, "media", ["gwam+gfs_seamless", "meteofrance_wave+icon_seamless"])
     v = Ventana(spot_id=SPOT.id, desde=date(2026, 8, 21), hasta=date(2026, 8, 21),
                 dias=(d1,), score=87.0)
     m = formatear_alerta(v, SPOT)
@@ -221,3 +227,48 @@ def test_ventana_de_un_dia_usa_singular():
     )
     m = formatear_alerta(ventana, SPOT)
     assert "1 día" in m
+
+
+# --- Tarea 16: el mensaje muestra la incertidumbre --------------------------
+
+def test_la_linea_del_dia_muestra_la_dispersion_entre_modelos():
+    """El "±" es cuanto difieren los modelos de olas entre si. Sin ese numero
+    el usuario lee "1.8m" como si fuera una medicion."""
+    from surf.alert import Ventana
+
+    d1 = _dia_con_modelos(21, "media", ["gwam+x", "meteofrance_wave+y"],
+                          dispersion=0.15)
+    v = Ventana(spot_id=SPOT.id, desde=date(2026, 8, 21), hasta=date(2026, 8, 21),
+                dias=(d1,), score=87.0)
+    assert "1.8m ± 15%" in formatear_alerta(v, SPOT)
+
+
+def test_sin_dispersion_medida_no_se_imprime_un_mas_menos_cero():
+    """Un "± 0%" seria una promesa de exactitud que nadie hizo."""
+    v = detectar_ventanas([dia(21), dia(22)])[0]
+    m = formatear_alerta(v, SPOT)
+    assert "1.8m @" in m
+    assert "±" not in m
+
+
+def test_la_etiqueta_reporta_cuanto_difieren_y_no_cuantos_votaron():
+    from surf.alert import Ventana
+
+    d1 = _dia_con_modelos(21, "media", ["gwam+x", "meteofrance_wave+y"],
+                          dispersion=0.15)
+    v = Ventana(spot_id=SPOT.id, desde=date(2026, 8, 21), hasta=date(2026, 8, 21),
+                dias=(d1,), score=87.0)
+    m = formatear_alerta(v, SPOT)
+    assert "difieren ±15% entre sí" in m
+
+
+def test_con_una_sola_fuente_la_etiqueta_lo_dice_sin_hablar_de_dispersion():
+    from surf.alert import Ventana
+
+    d1 = _dia_con_modelos(21, "baja", ["gwam+x"], dispersion=0.0,
+                          modelos_viento=("gfs_seamless",))
+    v = Ventana(spot_id=SPOT.id, desde=date(2026, 8, 21), hasta=date(2026, 8, 21),
+                dias=(d1,), score=87.0)
+    m = formatear_alerta(v, SPOT)
+    assert "una sola fuente" in m
+    assert "±" not in m

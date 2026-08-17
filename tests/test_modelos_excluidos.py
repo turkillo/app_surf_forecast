@@ -94,17 +94,18 @@ SPOT_SIN_GWAM = replace(SPOT, modelos_excluidos=["gwam"])
 
 
 def test_consensuar_no_cuenta_el_modelo_excluido():
-    """El modelo excluido pasaba el gate; sacarlo tiene que bajar el conteo."""
+    """El modelo excluido votaba; sacarlo tiene que bajar el conteo de fuentes
+    y con el la etiqueta, porque "alta" exige tres opiniones."""
     hmm = _hmm({"gwam+gfs_seamless": _hora(),
                 "meteofrance_wave+icon_seamless": _hora(),
                 "ncep_gfswave025+ecmwf_ifs025": _hora()})
-    _, nivel, n = consensuar(hmm, SPOT)
-    assert (nivel, n) == ("alta", 3)
+    c = consensuar(hmm, SPOT)
+    assert (c.nivel, c.fuentes_olas) == ("alta", 3)
 
-    _, nivel, n = consensuar(hmm, SPOT_SIN_GWAM)
-    assert n == 2
+    c = consensuar(hmm, SPOT_SIN_GWAM)
+    assert c.fuentes_olas == 2
     # "alta" exige tres opiniones; con dos fuentes no se puede afirmar.
-    assert nivel == "media"
+    assert c.nivel == "media"
 
 
 def test_el_modelo_excluido_no_arrastra_la_mediana():
@@ -113,15 +114,16 @@ def test_el_modelo_excluido_no_arrastra_la_mediana():
     hmm = _hmm({"gwam+gfs_seamless": _hora(altura=0.6),
                 "meteofrance_wave+icon_seamless": _hora(altura=1.8),
                 "ncep_gfswave025+ecmwf_ifs025": _hora(altura=1.7)})
-    con_gwam, _, _ = consensuar(hmm, SPOT)
-    sin_gwam, _, _ = consensuar(hmm, SPOT_SIN_GWAM)
+    con_gwam = consensuar(hmm, SPOT).hora
+    sin_gwam = consensuar(hmm, SPOT_SIN_GWAM).hora
     assert con_gwam.swell_altura == 1.7
     assert sin_gwam.swell_altura == pytest.approx(1.75)
 
 
 def test_el_modelo_excluido_no_veta_el_dia():
-    """El caso que motiva la tarea: dos modelos dicen que si, el excluido dice
-    que no, y sin la exclusion no hay dos que coincidan sobre el que si."""
+    """El caso que motiva la tarea: el modelo excluido ve 0.5 m donde el otro
+    ve 2.0 m. Con los dos adentro no hay una lectura del mar --difieren
+    ±60%, mas que DISPERSION_INCONCILIABLE-- y el dia se cae."""
     def dia(hora):
         return _hmm({"gwam+gfs_seamless": _hora(altura=0.5, t=datetime(2026, 8, 21, hora)),
                      "meteofrance_wave+icon_seamless": _hora(t=datetime(2026, 8, 21, hora))},
@@ -135,17 +137,23 @@ def test_el_modelo_excluido_no_veta_el_dia():
     assert d.modelos == ("meteofrance_wave+icon_seamless",)
 
 
-def test_excluir_un_modelo_de_olas_no_tira_el_viento_del_que_queda():
-    """`_combinar_multimodelo` empareja olas[i] con viento[i]. La exclusion se
-    aplica DESPUES de combinar, asi que el modelo que queda conserva el viento
-    que le tocaba: sacar gwam no puede cambiar con que viento se evalua
-    meteofrance."""
-    viento_propio = _hora(viento=3.0, viento_dir=320.0)
-    hmm = _hmm({"gwam+gfs_seamless": _hora(viento=25.0, viento_dir=140.0),
-                "meteofrance_wave+icon_seamless": viento_propio})
-    mediana, _, _ = consensuar(hmm, SPOT_SIN_GWAM)
-    assert mediana.viento_kmh == 3.0
-    assert mediana.viento_direccion == 320.0
+def test_excluir_un_modelo_de_olas_no_toca_el_consenso_de_viento():
+    """Desde la Tarea 16 el viento se consensua entre los modelos de VIENTO, y
+    ninguno de ellos se excluye nunca. Sacar una fuente de olas no puede mover
+    el viento con el que se evalua el dia."""
+    hmm = HoraMultiModelo(
+        t=datetime(2026, 8, 21, 9), es_de_dia=True,
+        por_modelo={"gwam+gfs_seamless": _hora(viento=25.0, viento_dir=140.0),
+                    "meteofrance_wave+icon_seamless": _hora(viento=3.0, viento_dir=320.0)},
+        viento_por_modelo={"gfs_seamless": (5.0, 320.0),
+                           "icon_seamless": (6.0, 322.0),
+                           "ecmwf_ifs025": (7.0, 318.0)})
+    con_gwam = consensuar(hmm, SPOT).hora
+    sin_gwam = consensuar(hmm, SPOT_SIN_GWAM).hora
+    # Medianas de los TRES modelos de viento: 6.0 km/h y 320 grados. Ninguno
+    # de los dos vientos que traen las Horas de olas (25 y 3 km/h) participa.
+    assert con_gwam.viento_kmh == sin_gwam.viento_kmh == 6.0
+    assert con_gwam.viento_direccion == sin_gwam.viento_direccion == 320.0
 
 
 def test_la_exclusion_no_hace_match_parcial_de_nombres():
@@ -153,8 +161,8 @@ def test_la_exclusion_no_hace_match_parcial_de_nombres():
     cualquier modelo cuyo nombre lo contenga."""
     hmm = _hmm({"gwam+gfs_seamless": _hora(),
                 "meteofrance_wave+icon_seamless": _hora()})
-    _, _, n = consensuar(hmm, replace(SPOT, modelos_excluidos=["gwa"]))
-    assert n == 2, "un prefijo no es un nombre de modelo"
+    c = consensuar(hmm, replace(SPOT, modelos_excluidos=["gwa"]))
+    assert c.fuentes_olas == 2, "un prefijo no es un nombre de modelo"
 
 
 def test_una_hora_sin_modelos_utiles_no_rompe_ni_pasa():
