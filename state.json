@@ -1,17 +1,41 @@
 {
-  "ultima_corrida": "2026-08-17",
+  "ultima_corrida": "2026-08-18",
   "observadas": [
     {
       "spot_id": "asia",
-      "desde": "2026-08-17",
-      "hasta": "2026-08-19",
-      "score": 79.91666666666667
+      "desde": "2026-08-18",
+      "hasta": "2026-08-20",
+      "score": 80.47222222222221
     },
     {
-      "spot_id": "chicama",
-      "desde": "2026-08-17",
-      "hasta": "2026-08-20",
-      "score": 67.28136973180077
+      "spot_id": "huanchaco",
+      "desde": "2026-08-18",
+      "hasta": "2026-08-19",
+      "score": 69.03888888888889
+    },
+    {
+      "spot_id": "joaquina",
+      "desde": "2026-08-22",
+      "hasta": "2026-08-24",
+      "score": 57.804166666666674
+    },
+    {
+      "spot_id": "praia_do_rosa",
+      "desde": "2026-08-22",
+      "hasta": "2026-08-24",
+      "score": 78.18253968253968
+    },
+    {
+      "spot_id": "punta_del_diablo",
+      "desde": "2026-08-22",
+      "hasta": "2026-08-24",
+      "score": 78.29333333333334
+    },
+    {
+      "spot_id": "saquarema",
+      "desde": "2026-08-23",
+      "hasta": "2026-08-24",
+      "score": 69.92222222222222
     }
   ],
   "alertadas": [
@@ -37,27 +61,35 @@
       "fecha_alerta": "2026-08-14"
     },
     {
-      "spot_id": "asia",
-      "desde": "2026-08-17",
-      "hasta": "2026-08-19",
-      "score": 79.91666666666667,
-      "fecha_alerta": "2026-08-17"
-    },
-    {
       "spot_id": "chicama",
       "desde": "2026-08-17",
       "hasta": "2026-08-20",
       "score": 67.28136973180077,
       "fecha_alerta": "2026-08-17"
+    },
+    {
+      "spot_id": "asia",
+      "desde": "2026-08-18",
+      "hasta": "2026-08-20",
+      "score": 80.47222222222221,
+      "fecha_alerta": "2026-08-18"
     }
   ],
   "observadas_preaviso": [
     {
       "spot_id": "saquarema",
-      "desde": "2026-08-24",
-      "hasta": "2026-08-25",
-      "score": 71.05555555555556
+      "desde": "2026-08-25",
+      "hasta": "2026-08-26",
+      "score": 79.89583333333333
     }
   ],
-  "preavisadas": []
+  "preavisadas": [
+    {
+      "spot_id": "saquarema",
+      "desde": "2026-08-25",
+      "hasta": "2026-08-26",
+      "score": 79.89583333333333,
+      "fecha_alerta": "2026-08-18"
+    }
+  ]
 }
