@@ -1,65 +1,59 @@
 {
-  "ultima_corrida": "2026-08-25",
+  "ultima_corrida": "2026-08-26",
   "observadas": [
     {
       "spot_id": "asia",
       "desde": "2026-08-29",
       "hasta": "2026-08-30",
-      "score": 84.6388888888889
+      "score": 84.83333333333333
     },
     {
       "spot_id": "buchupureo",
       "desde": "2026-08-27",
       "hasta": "2026-08-28",
-      "score": 71.57986111111111
+      "score": 73.85069444444444
     },
     {
       "spot_id": "chapadmalal",
-      "desde": "2026-08-25",
+      "desde": "2026-08-26",
       "hasta": "2026-08-27",
-      "score": 73.45277777777777
-    },
-    {
-      "spot_id": "huanchaco",
-      "desde": "2026-08-28",
-      "hasta": "2026-08-29",
-      "score": 77.45833333333333
+      "score": 73.74166666666666
     },
     {
       "spot_id": "joaquina",
-      "desde": "2026-08-25",
+      "desde": "2026-08-26",
       "hasta": "2026-08-27",
-      "score": 76.22222222222221
+      "score": 78.16666666666667
     },
     {
       "spot_id": "la_barra",
-      "desde": "2026-08-25",
-      "hasta": "2026-08-26",
-      "score": 75.20833333333333
+      "desde": "2026-08-26",
+      "hasta": "2026-08-27",
+      "score": 76.56666666666666
     },
     {
-      "spot_id": "praia_do_rosa",
-      "desde": "2026-08-25",
-      "hasta": "2026-08-27",
-      "score": 83.03968253968253
+      "spot_id": "lobitos",
+      "desde": "2026-08-31",
+      "hasta": "2026-09-01",
+      "score": 49.90625
     },
     {
       "spot_id": "punta_de_lobos",
       "desde": "2026-08-27",
       "hasta": "2026-08-28",
-      "score": 77.46875
+      "score": 77.63888888888887
     },
     {
-      "spot_id": "punta_del_diablo",
-      "desde": "2026-08-25",
-      "hasta": "2026-08-27",
-      "score": 84.77777777777777
+      "spot_id": "santa_teresa",
+      "desde": "2026-08-29",
+      "hasta": "2026-08-31",
+      "score": 89.46031746031747
     },
     {
       "spot_id": "saquarema",
-      "desde": "2026-08-25",
+      "desde": "2026-08-26",
       "hasta": "2026-08-27",
-      "score": 87.44444444444446
+      "score": 82.0013888888889
     }
   ],
   "alertadas": [
