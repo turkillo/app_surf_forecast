@@ -1,41 +1,41 @@
 {
-  "ultima_corrida": "2026-08-27",
+  "ultima_corrida": "2026-08-28",
   "observadas": [
     {
-      "spot_id": "buchupureo",
-      "desde": "2026-08-27",
-      "hasta": "2026-08-28",
-      "score": 71.37430555555555
+      "spot_id": "asia",
+      "desde": "2026-08-29",
+      "hasta": "2026-08-30",
+      "score": 81.72222222222221
     },
     {
       "spot_id": "huanchaco",
-      "desde": "2026-08-28",
-      "hasta": "2026-08-29",
-      "score": 70.25277777777778
-    },
-    {
-      "spot_id": "joaquina",
-      "desde": "2026-09-01",
-      "hasta": "2026-09-02",
-      "score": 55.32222222222222
+      "desde": "2026-08-29",
+      "hasta": "2026-08-30",
+      "score": 77.95833333333333
     },
     {
       "spot_id": "lobitos",
-      "desde": "2026-08-30",
-      "hasta": "2026-09-02",
-      "score": 62.479166666666664
+      "desde": "2026-08-29",
+      "hasta": "2026-08-30",
+      "score": 76.95625
     },
     {
-      "spot_id": "punta_de_lobos",
-      "desde": "2026-08-27",
-      "hasta": "2026-08-28",
-      "score": 79.10069444444444
+      "spot_id": "lobitos",
+      "desde": "2026-09-01",
+      "hasta": "2026-09-02",
+      "score": 52.475
+    },
+    {
+      "spot_id": "praia_do_rosa",
+      "desde": "2026-09-02",
+      "hasta": "2026-09-03",
+      "score": 70.80952380952381
     },
     {
       "spot_id": "santa_teresa",
       "desde": "2026-08-29",
-      "hasta": "2026-08-30",
-      "score": 88.00396825396825
+      "hasta": "2026-08-31",
+      "score": 88.45238095238095
     }
   ],
   "alertadas": [
@@ -145,18 +145,32 @@
       "fecha_alerta": "2026-08-25"
     },
     {
-      "spot_id": "santa_teresa",
-      "desde": "2026-08-29",
-      "hasta": "2026-08-30",
-      "score": 88.00396825396825,
-      "fecha_alerta": "2026-08-27"
-    },
-    {
       "spot_id": "lobitos",
       "desde": "2026-08-30",
       "hasta": "2026-09-02",
       "score": 62.479166666666664,
       "fecha_alerta": "2026-08-27"
+    },
+    {
+      "spot_id": "santa_teresa",
+      "desde": "2026-08-29",
+      "hasta": "2026-08-31",
+      "score": 88.45238095238095,
+      "fecha_alerta": "2026-08-28"
+    },
+    {
+      "spot_id": "huanchaco",
+      "desde": "2026-08-29",
+      "hasta": "2026-08-30",
+      "score": 77.95833333333333,
+      "fecha_alerta": "2026-08-28"
+    },
+    {
+      "spot_id": "lobitos",
+      "desde": "2026-08-29",
+      "hasta": "2026-08-30",
+      "score": 76.95625,
+      "fecha_alerta": "2026-08-28"
     }
   ],
   "observadas_preaviso": [
@@ -164,31 +178,19 @@
       "spot_id": "huanchaco",
       "desde": "2026-09-04",
       "hasta": "2026-09-05",
-      "score": 84.28645833333333
-    },
-    {
-      "spot_id": "la_barra",
-      "desde": "2026-09-04",
-      "hasta": "2026-09-05",
-      "score": 42.00694444444445
+      "score": 85.22569444444444
     },
     {
       "spot_id": "lobitos",
-      "desde": "2026-09-03",
-      "hasta": "2026-09-05",
-      "score": 87.50260416666669
-    },
-    {
-      "spot_id": "punta_del_diablo",
       "desde": "2026-09-04",
-      "hasta": "2026-09-05",
-      "score": 40.28472222222222
+      "hasta": "2026-09-06",
+      "score": 90.92708333333333
     },
     {
       "spot_id": "santa_teresa",
       "desde": "2026-09-04",
-      "hasta": "2026-09-05",
-      "score": 94.99007936507935
+      "hasta": "2026-09-06",
+      "score": 94.50892857142857
     }
   ],
   "preavisadas": [
@@ -212,6 +214,27 @@
       "hasta": "2026-09-01",
       "score": 54.0390625,
       "fecha_alerta": "2026-08-24"
+    },
+    {
+      "spot_id": "santa_teresa",
+      "desde": "2026-09-04",
+      "hasta": "2026-09-06",
+      "score": 94.50892857142857,
+      "fecha_alerta": "2026-08-28"
+    },
+    {
+      "spot_id": "lobitos",
+      "desde": "2026-09-04",
+      "hasta": "2026-09-06",
+      "score": 90.92708333333333,
+      "fecha_alerta": "2026-08-28"
+    },
+    {
+      "spot_id": "huanchaco",
+      "desde": "2026-09-04",
+      "hasta": "2026-09-05",
+      "score": 85.22569444444444,
+      "fecha_alerta": "2026-08-28"
     }
   ]
 }
