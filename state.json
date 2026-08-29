@@ -1,41 +1,41 @@
 {
-  "ultima_corrida": "2026-08-28",
+  "ultima_corrida": "2026-08-29",
   "observadas": [
     {
       "spot_id": "asia",
       "desde": "2026-08-29",
       "hasta": "2026-08-30",
-      "score": 81.72222222222221
-    },
-    {
-      "spot_id": "huanchaco",
-      "desde": "2026-08-29",
-      "hasta": "2026-08-30",
-      "score": 77.95833333333333
+      "score": 78.97222222222221
     },
     {
       "spot_id": "lobitos",
       "desde": "2026-08-29",
       "hasta": "2026-08-30",
-      "score": 76.95625
+      "score": 75.73541666666667
     },
     {
       "spot_id": "lobitos",
       "desde": "2026-09-01",
       "hasta": "2026-09-02",
-      "score": 52.475
+      "score": 50.56250000000001
     },
     {
       "spot_id": "praia_do_rosa",
       "desde": "2026-09-02",
       "hasta": "2026-09-03",
-      "score": 70.80952380952381
+      "score": 68.21333333333332
+    },
+    {
+      "spot_id": "punta_del_diablo",
+      "desde": "2026-09-01",
+      "hasta": "2026-09-02",
+      "score": 49.47222222222221
     },
     {
       "spot_id": "santa_teresa",
       "desde": "2026-08-29",
       "hasta": "2026-08-31",
-      "score": 88.45238095238095
+      "score": 88.39285714285715
     }
   ],
   "alertadas": [
@@ -169,28 +169,29 @@
       "spot_id": "lobitos",
       "desde": "2026-08-29",
       "hasta": "2026-08-30",
-      "score": 76.95625,
-      "fecha_alerta": "2026-08-28"
+      "score": 75.73541666666667,
+      "fecha_alerta": "2026-08-29"
+    },
+    {
+      "spot_id": "praia_do_rosa",
+      "desde": "2026-09-02",
+      "hasta": "2026-09-03",
+      "score": 68.21333333333332,
+      "fecha_alerta": "2026-08-29"
     }
   ],
   "observadas_preaviso": [
     {
-      "spot_id": "huanchaco",
-      "desde": "2026-09-04",
-      "hasta": "2026-09-05",
-      "score": 85.22569444444444
-    },
-    {
       "spot_id": "lobitos",
-      "desde": "2026-09-04",
-      "hasta": "2026-09-06",
-      "score": 90.92708333333333
+      "desde": "2026-09-05",
+      "hasta": "2026-09-07",
+      "score": 81.625
     },
     {
       "spot_id": "santa_teresa",
-      "desde": "2026-09-04",
+      "desde": "2026-09-05",
       "hasta": "2026-09-06",
-      "score": 94.50892857142857
+      "score": 90.87301587301586
     }
   ],
   "preavisadas": [
