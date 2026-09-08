@@ -1,23 +1,29 @@
 {
-  "ultima_corrida": "2026-09-07",
+  "ultima_corrida": "2026-09-08",
   "observadas": [
+    {
+      "spot_id": "asia",
+      "desde": "2026-09-10",
+      "hasta": "2026-09-11",
+      "score": 68.94444444444446
+    },
+    {
+      "spot_id": "joaquina",
+      "desde": "2026-09-08",
+      "hasta": "2026-09-09",
+      "score": 48.36111111111111
+    },
+    {
+      "spot_id": "joaquina",
+      "desde": "2026-09-13",
+      "hasta": "2026-09-14",
+      "score": 47.166666666666664
+    },
     {
       "spot_id": "lobitos",
       "desde": "2026-09-10",
       "hasta": "2026-09-11",
-      "score": 60.06666666666666
-    },
-    {
-      "spot_id": "praia_do_rosa",
-      "desde": "2026-09-07",
-      "hasta": "2026-09-08",
-      "score": 52.29333333333333
-    },
-    {
-      "spot_id": "saquarema",
-      "desde": "2026-09-07",
-      "hasta": "2026-09-08",
-      "score": 75.88888888888887
+      "score": 59.86666666666667
     }
   ],
   "alertadas": [
@@ -206,10 +212,16 @@
   ],
   "observadas_preaviso": [
     {
-      "spot_id": "saquarema",
-      "desde": "2026-09-14",
-      "hasta": "2026-09-15",
-      "score": 59.94444444444445
+      "spot_id": "chapadmalal",
+      "desde": "2026-09-16",
+      "hasta": "2026-09-17",
+      "score": 58.84583333333333
+    },
+    {
+      "spot_id": "la_barra",
+      "desde": "2026-09-16",
+      "hasta": "2026-09-17",
+      "score": 45.78472222222222
     }
   ],
   "preavisadas": [
