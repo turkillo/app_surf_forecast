@@ -1,17 +1,17 @@
 {
-  "ultima_corrida": "2026-09-10",
+  "ultima_corrida": "2026-09-11",
   "observadas": [
     {
-      "spot_id": "asia",
-      "desde": "2026-09-10",
-      "hasta": "2026-09-11",
-      "score": 65.3611111111111
+      "spot_id": "joaquina",
+      "desde": "2026-09-15",
+      "hasta": "2026-09-16",
+      "score": 50.666666666666664
     },
     {
-      "spot_id": "saquarema",
-      "desde": "2026-09-13",
-      "hasta": "2026-09-15",
-      "score": 52.180555555555564
+      "spot_id": "la_barra",
+      "desde": "2026-09-16",
+      "hasta": "2026-09-17",
+      "score": 63.68611111111111
     }
   ],
   "alertadas": [
