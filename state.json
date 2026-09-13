@@ -1,37 +1,6 @@
 {
-  "ultima_corrida": "2026-09-12",
-  "observadas": [
-    {
-      "spot_id": "joaquina",
-      "desde": "2026-09-16",
-      "hasta": "2026-09-17",
-      "score": 50.90555555555556
-    },
-    {
-      "spot_id": "la_barra",
-      "desde": "2026-09-16",
-      "hasta": "2026-09-17",
-      "score": 63.32222222222223
-    },
-    {
-      "spot_id": "praia_do_rosa",
-      "desde": "2026-09-17",
-      "hasta": "2026-09-18",
-      "score": 61.11873015873015
-    },
-    {
-      "spot_id": "punta_del_diablo",
-      "desde": "2026-09-16",
-      "hasta": "2026-09-17",
-      "score": 64.63888888888887
-    },
-    {
-      "spot_id": "saquarema",
-      "desde": "2026-09-17",
-      "hasta": "2026-09-18",
-      "score": 66.57777777777778
-    }
-  ],
+  "ultima_corrida": "2026-09-13",
+  "observadas": [],
   "alertadas": [
     {
       "spot_id": "santa_teresa",
