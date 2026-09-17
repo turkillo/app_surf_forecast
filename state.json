@@ -1,27 +1,20 @@
 {
-  "ultima_corrida": "2026-09-16",
+  "ultima_corrida": "2026-09-17",
   "observadas": [
     {
-      "spot_id": "la_barra",
-      "desde": "2026-09-16",
-      "hasta": "2026-09-17",
-      "score": 50.541666666666664
+      "spot_id": "chapadmalal",
+      "desde": "2026-09-22",
+      "hasta": "2026-09-23",
+      "score": 77.06222222222222
     },
     {
       "spot_id": "punta_del_diablo",
       "desde": "2026-09-20",
       "hasta": "2026-09-21",
-      "score": 55.87222222222223
+      "score": 47.94444444444445
     }
   ],
   "alertadas": [
-    {
-      "spot_id": "santa_teresa",
-      "desde": "2026-08-15",
-      "hasta": "2026-08-17",
-      "score": 79.59047619047618,
-      "fecha_alerta": "2026-08-14"
-    },
     {
       "spot_id": "buchupureo",
       "desde": "2026-08-18",
@@ -210,20 +203,21 @@
       "hasta": "2026-09-17",
       "score": 50.90555555555556,
       "fecha_alerta": "2026-09-12"
+    },
+    {
+      "spot_id": "punta_del_diablo",
+      "desde": "2026-09-20",
+      "hasta": "2026-09-21",
+      "score": 47.94444444444445,
+      "fecha_alerta": "2026-09-17"
     }
   ],
   "observadas_preaviso": [
     {
       "spot_id": "chapadmalal",
-      "desde": "2026-09-23",
-      "hasta": "2026-09-24",
-      "score": 72.91666666666667
-    },
-    {
-      "spot_id": "praia_do_rosa",
-      "desde": "2026-09-23",
-      "hasta": "2026-09-24",
-      "score": 51.51765873015873
+      "desde": "2026-09-25",
+      "hasta": "2026-09-26",
+      "score": 56.07916666666666
     }
   ],
   "preavisadas": [
