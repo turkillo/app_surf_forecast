@@ -1,21 +1,38 @@
 {
-  "ultima_corrida": "2026-09-18",
+  "ultima_corrida": "2026-09-19",
   "observadas": [
+    {
+      "spot_id": "joaquina",
+      "desde": "2026-09-23",
+      "hasta": "2026-09-25",
+      "score": 56.6
+    },
     {
       "spot_id": "la_barra",
       "desde": "2026-09-23",
       "hasta": "2026-09-24",
-      "score": 75.88888888888887
+      "score": 81.05555555555556
+    },
+    {
+      "spot_id": "praia_do_rosa",
+      "desde": "2026-09-23",
+      "hasta": "2026-09-25",
+      "score": 68.5447619047619
+    },
+    {
+      "spot_id": "punta_del_diablo",
+      "desde": "2026-09-23",
+      "hasta": "2026-09-24",
+      "score": 77.37222222222222
+    },
+    {
+      "spot_id": "saquarema",
+      "desde": "2026-09-24",
+      "hasta": "2026-09-25",
+      "score": 77.875
     }
   ],
   "alertadas": [
-    {
-      "spot_id": "buchupureo",
-      "desde": "2026-08-18",
-      "hasta": "2026-08-19",
-      "score": 63.821111111111094,
-      "fecha_alerta": "2026-08-14"
-    },
     {
       "spot_id": "chicama",
       "desde": "2026-08-17",
@@ -204,6 +221,13 @@
       "hasta": "2026-09-21",
       "score": 47.94444444444445,
       "fecha_alerta": "2026-09-17"
+    },
+    {
+      "spot_id": "la_barra",
+      "desde": "2026-09-23",
+      "hasta": "2026-09-24",
+      "score": 81.05555555555556,
+      "fecha_alerta": "2026-09-19"
     }
   ],
   "observadas_preaviso": [
@@ -211,7 +235,7 @@
       "spot_id": "lobitos",
       "desde": "2026-09-26",
       "hasta": "2026-09-27",
-      "score": 60.270833333333336
+      "score": 57.65625
     }
   ],
   "preavisadas": [
@@ -277,6 +301,13 @@
       "hasta": "2026-09-23",
       "score": 58.29444444444445,
       "fecha_alerta": "2026-09-15"
+    },
+    {
+      "spot_id": "lobitos",
+      "desde": "2026-09-26",
+      "hasta": "2026-09-27",
+      "score": 57.65625,
+      "fecha_alerta": "2026-09-19"
     }
   ]
 }
