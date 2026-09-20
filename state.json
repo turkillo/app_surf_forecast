@@ -1,52 +1,38 @@
 {
-  "ultima_corrida": "2026-09-19",
+  "ultima_corrida": "2026-09-20",
   "observadas": [
     {
-      "spot_id": "joaquina",
-      "desde": "2026-09-23",
-      "hasta": "2026-09-25",
-      "score": 56.6
+      "spot_id": "chapadmalal",
+      "desde": "2026-09-22",
+      "hasta": "2026-09-24",
+      "score": 83.86666666666667
     },
     {
       "spot_id": "la_barra",
       "desde": "2026-09-23",
       "hasta": "2026-09-24",
-      "score": 81.05555555555556
+      "score": 82.77777777777779
     },
     {
       "spot_id": "praia_do_rosa",
       "desde": "2026-09-23",
       "hasta": "2026-09-25",
-      "score": 68.5447619047619
+      "score": 74.47619047619047
     },
     {
       "spot_id": "punta_del_diablo",
       "desde": "2026-09-23",
       "hasta": "2026-09-24",
-      "score": 77.37222222222222
+      "score": 77.4588888888889
     },
     {
       "spot_id": "saquarema",
       "desde": "2026-09-24",
       "hasta": "2026-09-25",
-      "score": 77.875
+      "score": 80.63194444444444
     }
   ],
   "alertadas": [
-    {
-      "spot_id": "chicama",
-      "desde": "2026-08-17",
-      "hasta": "2026-08-20",
-      "score": 67.28136973180077,
-      "fecha_alerta": "2026-08-17"
-    },
-    {
-      "spot_id": "asia",
-      "desde": "2026-08-18",
-      "hasta": "2026-08-20",
-      "score": 80.47222222222221,
-      "fecha_alerta": "2026-08-18"
-    },
     {
       "spot_id": "punta_del_diablo",
       "desde": "2026-08-22",
@@ -228,16 +214,30 @@
       "hasta": "2026-09-24",
       "score": 81.05555555555556,
       "fecha_alerta": "2026-09-19"
-    }
-  ],
-  "observadas_preaviso": [
+    },
     {
-      "spot_id": "lobitos",
-      "desde": "2026-09-26",
-      "hasta": "2026-09-27",
-      "score": 57.65625
+      "spot_id": "saquarema",
+      "desde": "2026-09-24",
+      "hasta": "2026-09-25",
+      "score": 80.63194444444444,
+      "fecha_alerta": "2026-09-20"
+    },
+    {
+      "spot_id": "punta_del_diablo",
+      "desde": "2026-09-23",
+      "hasta": "2026-09-24",
+      "score": 77.4588888888889,
+      "fecha_alerta": "2026-09-20"
+    },
+    {
+      "spot_id": "praia_do_rosa",
+      "desde": "2026-09-23",
+      "hasta": "2026-09-25",
+      "score": 74.47619047619047,
+      "fecha_alerta": "2026-09-20"
     }
   ],
+  "observadas_preaviso": [],
   "preavisadas": [
     {
       "spot_id": "saquarema",
