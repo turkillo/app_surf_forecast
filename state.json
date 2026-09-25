@@ -1,39 +1,14 @@
 {
-  "ultima_corrida": "2026-09-24",
+  "ultima_corrida": "2026-09-25",
   "observadas": [
-    {
-      "spot_id": "joaquina",
-      "desde": "2026-09-24",
-      "hasta": "2026-09-25",
-      "score": 65.09999999999998
-    },
     {
       "spot_id": "lobitos",
       "desde": "2026-09-26",
       "hasta": "2026-09-27",
-      "score": 58.070833333333326
-    },
-    {
-      "spot_id": "praia_do_rosa",
-      "desde": "2026-09-24",
-      "hasta": "2026-09-25",
-      "score": 78.53968253968254
-    },
-    {
-      "spot_id": "saquarema",
-      "desde": "2026-09-24",
-      "hasta": "2026-09-25",
-      "score": 80.59027777777777
+      "score": 56.614583333333336
     }
   ],
   "alertadas": [
-    {
-      "spot_id": "punta_del_diablo",
-      "desde": "2026-08-22",
-      "hasta": "2026-08-25",
-      "score": 80.32444444444445,
-      "fecha_alerta": "2026-08-19"
-    },
     {
       "spot_id": "saquarema",
       "desde": "2026-08-23",
@@ -247,28 +222,16 @@
   ],
   "observadas_preaviso": [
     {
-      "spot_id": "chapadmalal",
-      "desde": "2026-10-01",
-      "hasta": "2026-10-02",
-      "score": 63.47222222222223
-    },
-    {
-      "spot_id": "la_barra",
-      "desde": "2026-10-01",
-      "hasta": "2026-10-02",
-      "score": 47.96527777777778
-    },
-    {
       "spot_id": "praia_do_rosa",
       "desde": "2026-10-02",
       "hasta": "2026-10-03",
-      "score": 54.95337301587301
+      "score": 54.53928571428571
     },
     {
-      "spot_id": "saquarema",
+      "spot_id": "punta_del_diablo",
       "desde": "2026-10-02",
       "hasta": "2026-10-03",
-      "score": 61.29166666666668
+      "score": 67.19097222222223
     }
   ],
   "preavisadas": [
@@ -348,6 +311,13 @@
       "hasta": "2026-10-01",
       "score": 46.20555555555555,
       "fecha_alerta": "2026-09-23"
+    },
+    {
+      "spot_id": "praia_do_rosa",
+      "desde": "2026-10-02",
+      "hasta": "2026-10-03",
+      "score": 54.53928571428571,
+      "fecha_alerta": "2026-09-25"
     }
   ]
 }
