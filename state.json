@@ -1,71 +1,50 @@
 {
-  "ultima_corrida": "2026-09-29",
+  "ultima_corrida": "2026-09-30",
   "observadas": [
     {
       "spot_id": "buchupureo",
       "desde": "2026-10-03",
       "hasta": "2026-10-04",
-      "score": 73.4861111111111
+      "score": 74.73611111111113
     },
     {
       "spot_id": "chapadmalal",
       "desde": "2026-10-02",
       "hasta": "2026-10-03",
-      "score": 62.76222222222223
+      "score": 59.419999999999995
     },
     {
       "spot_id": "joaquina",
-      "desde": "2026-10-04",
-      "hasta": "2026-10-05",
-      "score": 52.800000000000004
+      "desde": "2026-10-05",
+      "hasta": "2026-10-06",
+      "score": 41.30555555555555
     },
     {
       "spot_id": "la_barra",
       "desde": "2026-10-02",
       "hasta": "2026-10-03",
-      "score": 58.20000000000001
+      "score": 53.55555555555555
+    },
+    {
+      "spot_id": "punta_de_lobos",
+      "desde": "2026-10-03",
+      "hasta": "2026-10-04",
+      "score": 75.25347222222223
     },
     {
       "spot_id": "punta_del_diablo",
-      "desde": "2026-10-02",
-      "hasta": "2026-10-03",
-      "score": 67.74999999999999
-    },
-    {
-      "spot_id": "saquarema",
-      "desde": "2026-10-03",
-      "hasta": "2026-10-04",
-      "score": 61.11111111111111
+      "desde": "2026-09-30",
+      "hasta": "2026-10-05",
+      "score": 58.26250000000001
     }
   ],
   "alertadas": [
-    {
-      "spot_id": "asia",
-      "desde": "2026-08-29",
-      "hasta": "2026-08-30",
-      "score": 84.6388888888889,
-      "fecha_alerta": "2026-08-25"
-    },
     {
       "spot_id": "santa_teresa",
       "desde": "2026-08-29",
       "hasta": "2026-08-31",
       "score": 88.45238095238095,
       "fecha_alerta": "2026-08-28"
-    },
-    {
-      "spot_id": "huanchaco",
-      "desde": "2026-08-29",
-      "hasta": "2026-08-30",
-      "score": 77.95833333333333,
-      "fecha_alerta": "2026-08-28"
-    },
-    {
-      "spot_id": "lobitos",
-      "desde": "2026-08-29",
-      "hasta": "2026-08-30",
-      "score": 75.73541666666667,
-      "fecha_alerta": "2026-08-29"
     },
     {
       "spot_id": "praia_do_rosa",
@@ -208,13 +187,6 @@
       "fecha_alerta": "2026-09-27"
     },
     {
-      "spot_id": "punta_del_diablo",
-      "desde": "2026-09-29",
-      "hasta": "2026-10-03",
-      "score": 62.855555555555554,
-      "fecha_alerta": "2026-09-28"
-    },
-    {
       "spot_id": "buchupureo",
       "desde": "2026-10-03",
       "hasta": "2026-10-04",
@@ -229,22 +201,36 @@
       "fecha_alerta": "2026-09-29"
     },
     {
-      "spot_id": "joaquina",
-      "desde": "2026-10-04",
+      "spot_id": "punta_del_diablo",
+      "desde": "2026-09-30",
       "hasta": "2026-10-05",
-      "score": 52.800000000000004,
-      "fecha_alerta": "2026-09-29"
+      "score": 58.26250000000001,
+      "fecha_alerta": "2026-09-30"
+    },
+    {
+      "spot_id": "la_barra",
+      "desde": "2026-10-02",
+      "hasta": "2026-10-03",
+      "score": 53.55555555555555,
+      "fecha_alerta": "2026-09-30"
+    },
+    {
+      "spot_id": "joaquina",
+      "desde": "2026-10-05",
+      "hasta": "2026-10-06",
+      "score": 41.30555555555555,
+      "fecha_alerta": "2026-09-30"
     }
   ],
-  "observadas_preaviso": [],
-  "preavisadas": [
+  "observadas_preaviso": [
     {
       "spot_id": "lobitos",
-      "desde": "2026-08-29",
-      "hasta": "2026-08-30",
-      "score": 82.3046875,
-      "fecha_alerta": "2026-08-22"
-    },
+      "desde": "2026-10-08",
+      "hasta": "2026-10-09",
+      "score": 68.54166666666667
+    }
+  ],
+  "preavisadas": [
     {
       "spot_id": "lobitos",
       "desde": "2026-08-31",
