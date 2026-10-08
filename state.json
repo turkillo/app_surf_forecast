@@ -1,52 +1,25 @@
 {
-  "ultima_corrida": "2026-10-07",
+  "ultima_corrida": "2026-10-08",
   "observadas": [
     {
       "spot_id": "lobitos",
-      "desde": "2026-10-09",
-      "hasta": "2026-10-10",
-      "score": 69.52458333333334
+      "desde": "2026-10-10",
+      "hasta": "2026-10-14",
+      "score": 68.98750000000001
     },
     {
-      "spot_id": "lobitos",
-      "desde": "2026-10-12",
-      "hasta": "2026-10-13",
-      "score": 72.30833333333334
-    },
-    {
-      "spot_id": "santa_teresa",
+      "spot_id": "punta_del_diablo",
       "desde": "2026-10-09",
-      "hasta": "2026-10-13",
-      "score": 92.70238095238095
+      "hasta": "2026-10-12",
+      "score": 69.77499999999999
     }
   ],
   "alertadas": [
-    {
-      "spot_id": "chapadmalal",
-      "desde": "2026-09-06",
-      "hasta": "2026-09-07",
-      "score": 62.24305555555555,
-      "fecha_alerta": "2026-09-02"
-    },
-    {
-      "spot_id": "lobitos",
-      "desde": "2026-09-06",
-      "hasta": "2026-09-07",
-      "score": 62.68541666666667,
-      "fecha_alerta": "2026-09-03"
-    },
     {
       "spot_id": "saquarema",
       "desde": "2026-09-07",
       "hasta": "2026-09-08",
       "score": 61.06666666666667,
-      "fecha_alerta": "2026-09-03"
-    },
-    {
-      "spot_id": "punta_del_diablo",
-      "desde": "2026-09-06",
-      "hasta": "2026-09-07",
-      "score": 52.00972222222222,
       "fecha_alerta": "2026-09-03"
     },
     {
@@ -198,13 +171,20 @@
     },
     {
       "spot_id": "lobitos",
-      "desde": "2026-10-09",
-      "hasta": "2026-10-10",
-      "score": 69.52458333333334,
-      "fecha_alerta": "2026-10-07"
+      "desde": "2026-10-10",
+      "hasta": "2026-10-14",
+      "score": 68.98750000000001,
+      "fecha_alerta": "2026-10-08"
     }
   ],
-  "observadas_preaviso": [],
+  "observadas_preaviso": [
+    {
+      "spot_id": "lobitos",
+      "desde": "2026-10-16",
+      "hasta": "2026-10-17",
+      "score": 78.09375
+    }
+  ],
   "preavisadas": [
     {
       "spot_id": "saquarema",
