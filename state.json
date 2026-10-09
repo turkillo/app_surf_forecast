@@ -1,34 +1,26 @@
 {
-  "ultima_corrida": "2026-10-08",
+  "ultima_corrida": "2026-10-09",
   "observadas": [
+    {
+      "spot_id": "asia",
+      "desde": "2026-10-12",
+      "hasta": "2026-10-13",
+      "score": 87.30555555555554
+    },
     {
       "spot_id": "lobitos",
       "desde": "2026-10-10",
-      "hasta": "2026-10-14",
-      "score": 68.98750000000001
-    },
-    {
-      "spot_id": "punta_del_diablo",
-      "desde": "2026-10-09",
-      "hasta": "2026-10-12",
-      "score": 69.77499999999999
-    }
-  ],
-  "alertadas": [
-    {
-      "spot_id": "saquarema",
-      "desde": "2026-09-07",
-      "hasta": "2026-09-08",
-      "score": 61.06666666666667,
-      "fecha_alerta": "2026-09-03"
+      "hasta": "2026-10-13",
+      "score": 70.09375
     },
     {
       "spot_id": "santa_teresa",
-      "desde": "2026-09-05",
-      "hasta": "2026-09-08",
-      "score": 90.12301587301586,
-      "fecha_alerta": "2026-09-05"
-    },
+      "desde": "2026-10-09",
+      "hasta": "2026-10-14",
+      "score": 90.90079365079366
+    }
+  ],
+  "alertadas": [
     {
       "spot_id": "lobitos",
       "desde": "2026-09-10",
@@ -181,18 +173,17 @@
     {
       "spot_id": "lobitos",
       "desde": "2026-10-16",
-      "hasta": "2026-10-17",
-      "score": 78.09375
+      "hasta": "2026-10-18",
+      "score": 82.1328125
+    },
+    {
+      "spot_id": "saquarema",
+      "desde": "2026-10-17",
+      "hasta": "2026-10-18",
+      "score": 75.55555555555556
     }
   ],
   "preavisadas": [
-    {
-      "spot_id": "saquarema",
-      "desde": "2026-09-07",
-      "hasta": "2026-09-08",
-      "score": 65.06944444444444,
-      "fecha_alerta": "2026-08-31"
-    },
     {
       "spot_id": "lobitos",
       "desde": "2026-09-09",
@@ -262,6 +253,13 @@
       "hasta": "2026-10-14",
       "score": 92.03869047619048,
       "fecha_alerta": "2026-10-06"
+    },
+    {
+      "spot_id": "lobitos",
+      "desde": "2026-10-16",
+      "hasta": "2026-10-18",
+      "score": 82.1328125,
+      "fecha_alerta": "2026-10-09"
     }
   ]
 }
