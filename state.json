@@ -1,17 +1,17 @@
 {
-  "ultima_corrida": "2026-10-23",
+  "ultima_corrida": "2026-10-24",
   "observadas": [
     {
       "spot_id": "asia",
-      "desde": "2026-10-23",
+      "desde": "2026-10-24",
       "hasta": "2026-10-25",
-      "score": 80.0
+      "score": 65.77777777777777
     },
     {
-      "spot_id": "punta_del_diablo",
-      "desde": "2026-10-25",
+      "spot_id": "santa_teresa",
+      "desde": "2026-10-24",
       "hasta": "2026-10-26",
-      "score": 49.458333333333336
+      "score": 82.8611111111111
     }
   ],
   "alertadas": [
@@ -202,24 +202,23 @@
     {
       "spot_id": "huanchaco",
       "desde": "2026-10-31",
-      "hasta": "2026-11-01",
-      "score": 84.04947916666666
+      "hasta": "2026-11-02",
+      "score": 84.24479166666667
     },
     {
       "spot_id": "lobitos",
-      "desde": "2026-10-30",
-      "hasta": "2026-11-01",
-      "score": 82.796875
+      "desde": "2026-10-31",
+      "hasta": "2026-11-02",
+      "score": 85.30729166666667
+    },
+    {
+      "spot_id": "santa_teresa",
+      "desde": "2026-11-01",
+      "hasta": "2026-11-02",
+      "score": 65.52083333333334
     }
   ],
   "preavisadas": [
-    {
-      "spot_id": "chapadmalal",
-      "desde": "2026-09-22",
-      "hasta": "2026-09-23",
-      "score": 58.29444444444445,
-      "fecha_alerta": "2026-09-15"
-    },
     {
       "spot_id": "lobitos",
       "desde": "2026-09-26",
@@ -324,6 +323,13 @@
       "hasta": "2026-11-01",
       "score": 82.796875,
       "fecha_alerta": "2026-10-23"
+    },
+    {
+      "spot_id": "huanchaco",
+      "desde": "2026-10-31",
+      "hasta": "2026-11-02",
+      "score": 84.24479166666667,
+      "fecha_alerta": "2026-10-24"
     }
   ]
 }
