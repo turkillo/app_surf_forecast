@@ -1,33 +1,26 @@
 {
-  "ultima_corrida": "2026-10-27",
+  "ultima_corrida": "2026-10-28",
   "observadas": [
     {
       "spot_id": "asia",
       "desde": "2026-10-31",
       "hasta": "2026-11-02",
-      "score": 86.22222222222223
+      "score": 83.75
     },
     {
       "spot_id": "huanchaco",
       "desde": "2026-10-31",
       "hasta": "2026-11-02",
-      "score": 59.64166666666667
+      "score": 70.3
     },
     {
-      "spot_id": "lobitos",
+      "spot_id": "santa_teresa",
       "desde": "2026-10-31",
-      "hasta": "2026-11-02",
-      "score": 84.95000000000002
+      "hasta": "2026-11-03",
+      "score": 92.50396825396825
     }
   ],
   "alertadas": [
-    {
-      "spot_id": "lobitos",
-      "desde": "2026-09-26",
-      "hasta": "2026-09-27",
-      "score": 63.57708333333333,
-      "fecha_alerta": "2026-09-22"
-    },
     {
       "spot_id": "chapadmalal",
       "desde": "2026-10-02",
@@ -183,22 +176,8 @@
       "fecha_alerta": "2026-10-27"
     }
   ],
-  "observadas_preaviso": [
-    {
-      "spot_id": "lobitos",
-      "desde": "2026-11-03",
-      "hasta": "2026-11-05",
-      "score": 65.99479166666667
-    }
-  ],
+  "observadas_preaviso": [],
   "preavisadas": [
-    {
-      "spot_id": "lobitos",
-      "desde": "2026-09-26",
-      "hasta": "2026-09-27",
-      "score": 57.65625,
-      "fecha_alerta": "2026-09-19"
-    },
     {
       "spot_id": "chapadmalal",
       "desde": "2026-09-30",
