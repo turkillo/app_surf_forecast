@@ -1,27 +1,20 @@
 {
-  "ultima_corrida": "2026-11-05",
+  "ultima_corrida": "2026-11-06",
   "observadas": [
     {
       "spot_id": "asia",
       "desde": "2026-11-07",
       "hasta": "2026-11-09",
-      "score": 81.13888888888889
+      "score": 80.25
     },
     {
-      "spot_id": "lobitos",
-      "desde": "2026-11-05",
-      "hasta": "2026-11-06",
-      "score": 72.2
+      "spot_id": "saquarema",
+      "desde": "2026-11-09",
+      "hasta": "2026-11-10",
+      "score": 54.577777777777776
     }
   ],
   "alertadas": [
-    {
-      "spot_id": "joaquina",
-      "desde": "2026-10-05",
-      "hasta": "2026-10-06",
-      "score": 41.30555555555555,
-      "fecha_alerta": "2026-09-30"
-    },
     {
       "spot_id": "punta_del_diablo",
       "desde": "2026-10-08",
@@ -152,9 +145,9 @@
   "observadas_preaviso": [
     {
       "spot_id": "lobitos",
-      "desde": "2026-11-12",
-      "hasta": "2026-11-14",
-      "score": 63.7890625
+      "desde": "2026-11-13",
+      "hasta": "2026-11-15",
+      "score": 62.21875000000001
     }
   ],
   "preavisadas": [
