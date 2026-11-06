@@ -6,7 +6,7 @@ from surf.spots import cargar_spots
 IDS_ESPERADOS = {
     "la_barra", "chapadmalal", "praia_do_rosa", "buchupureo", "asia",
     "huanchaco", "santa_teresa", "saquarema", "punta_de_lobos",
-    "chicama", "lobitos", "punta_del_diablo", "joaquina",
+    "chicama", "lobitos", "punta_del_diablo", "joaquina", "san_gallan",
 }
 
 
@@ -14,7 +14,7 @@ def _spots():
     return cargar_spots(Path("spots.yaml"))
 
 
-def test_estan_los_trece_spots():
+def test_estan_los_catorce_spots():
     assert {s.id for s in _spots()} == IDS_ESPERADOS
 
 

@@ -1,7 +1,7 @@
 # app_surf_forecast
 
 Sistema de alertas de swell para surf. Todos los días a la mañana revisa el
-pronóstico de 13 spots (Open-Meteo), evalúa cada uno contra su propio perfil
+pronóstico de 14 spots (Open-Meteo), evalúa cada uno contra su propio perfil
 de condiciones ideales, y manda un mensaje de Telegram cuando aparece una
 ventana de buen swell confirmada en dos corridas consecutivas. Los domingos
 además manda un resumen semanal aunque no haya habido alertas.
@@ -382,7 +382,7 @@ python -m venv .venv
 .venv/bin/pytest tests/ -v
 ```
 
-Para probar el pipeline completo contra los 13 spots reales sin mandar nada
+Para probar el pipeline completo contra los 14 spots reales sin mandar nada
 a Telegram (la primera corrida nunca alerta):
 
 ```bash
@@ -391,10 +391,10 @@ from datetime import date
 from pathlib import Path
 from run import correr
 from surf.alert import estado_vacio
-from surf.fetch import obtener_horas
+from surf.fetch import obtener_horas_multimodelo
 from surf.spots import cargar_spots
 estado, msgs = correr(cargar_spots(Path('spots.yaml')), date.today(),
-                      obtener_horas, print, estado_vacio())
+                      obtener_horas_multimodelo, print, estado_vacio())
 print(f'--- ventanas observadas: {len(estado[\"observadas\"])}')
 "
 ```

@@ -1,4 +1,4 @@
-# Investigación de los 13 spots
+# Investigación de los 14 spots
 
 Registro crudo de cada fuente **antes** de convertirla a `spots.yaml`. Si dentro de
 seis meses alguien pregunta de dónde salió un número, la respuesta está acá.
@@ -1081,6 +1081,82 @@ tamaño y el viento cierran con surf-forecast y con la geometría.
 
 ---
 
+## san_gallan — Isla San Gallán, Paracas, Perú
+
+*Agregado el 2026-11-06, después de la Tarea 16: el perfil se armó con el método de este
+archivo y el umbral se calibró directamente con el motor nuevo (gate sobre la mediana).*
+
+**surf-forecast** — `https://www.surf-forecast.com/breaks/San-Gallan` (leída el 2026-11-06)
+
+- Tipo: *"exposed beach and reef break"*, ícono *Reef*; *"There is a right breaking reef"*
+- Swell ideal: *southwest* ("the ideal swell angle is from the southwest"). El recuadro
+  "Surfing San Gallan" dice en cambio *South swell*.
+- Viento ideal: **se contradice**. La descripción dice *"best wind direction is from the
+  east"*; el recuadro dice *"offshore wind direction from the North-northwest"*.
+- Temporada: la descripción dice *"Winter is the optimum time"*; la estadística dice
+  *Summer, most often February* (la trampa de siempre, ver arriba).
+- Riesgos: *"Submerged rocks are a hazard"*; *"not likley to be crowded"*
+- Rating 4/10, *consistent*. Coordenadas de la página: 13.82 S, 76.46 W
+- La página `/surf-guide` da 404. Altura mínima, techo y marea: **no documentados**.
+
+**Wannasurf** — sin ficha encontrada. Por eso `fuentes` no la cita.
+
+**Geometría de costa** (muestreo DEM en -13.82, -76.46)
+
+- El punto de surf-forecast cae en el mar (elevación 0.0), justo al N/NW de la punta norte
+  de la isla. Grilla de elevación a 0.01°: la isla ocupa aprox. -13.83..-13.85 S y
+  -76.44..-76.46 W, unos 3 km.
+- Al ser una isla chica, hay mar en los 36 rumbos; el peso cae solo en el sector 110-180
+  (la isla y, a 20 km, la península de Paracas).
+- `costa_mira` derivado: **310** en -13.82/-76.46 (320 en -13.80/-76.47). Mar abierto al NW,
+  coherente con una derecha que rompe en la punta norte.
+- Offshore esperado: 130. Viento E documentado (90): desvío **40**, el validador lo rechaza.
+  Viento NNW documentado (337): es onshore en esta costa, desvío 153.
+
+**Discrepancia de viento:** las dos frases de surf-forecast no son compatibles entre sí ni
+con la geometría. Se descarta el NNW (onshore) y, como el E queda fuera de la tolerancia,
+`viento_ideal` toma el offshore medido redondeado a la rosa: **135 (SE)**, desvío 5. Es un
+campo informativo: el gate clasifica el viento con `costa_mira`, no con `viento_ideal`.
+Ojo con el viento local: en Paracas domina el S/SSE de la tarde, que acá queda cross-offshore.
+
+**Cobertura de modelos** (pronóstico en vivo, 2026-11-06): `gwam`, `meteofrance_wave` y
+`ncep_gfswave025` responden los tres en este punto; `ncep_gfswave016` devuelve vacío, pero no
+hace falta como respaldo. Direcciones de swell leídas: 195-216 (S-SSW), dentro de la ventana.
+
+**Conversión**
+
+- `tipo`: `reef` -> `min_periodo` 8 (la regla de 10 s en período pico, expresada en período
+  medio de Open-Meteo, ver la sección de `min_periodo`)
+- `swell.ideal`: 225 (SW)
+- `swell.ventana`: [180, 270]. **No se recorta a `costa_mira ± 90` = [220, 40]**, y es
+  deliberado: la ola rompe en la punta de una isla y el swell del S-SSW la envuelve. Recortar
+  a 220 dejaría afuera justamente el swell que hoy le llega (195-216 medido arriba).
+- `min_altura`: sin dato de fuente. Se calibró con el backtest 2023-2025, con el mismo
+  criterio de la Tarea 16 (el menor que deja 10-25 ventanas/año con la estacionalidad en pie):
+
+  | `min_altura` | ventanas/año | temporada | conc |
+  |---|---|---|---|
+  | 1.0 | 22.7 | NO COINCIDE | 0.88 |
+  | 1.4 | 35.0 | ok | 1.09 |
+  | 1.6 | 32.0 | ok | 1.16 |
+  | 1.8 | 26.3 | ok | 1.28 |
+  | **1.9** | **19.0** | **ok** | **1.26** |
+  | 2.0 | 16.7 | ok | 1.27 |
+  | 2.2 | 12.0 | ok | 1.33 |
+
+  Se elige **1.9**. Que 1.0 dé menos ventanas que 1.4 no es un error: con el umbral bajo los
+  días buenos se encadenan en ventanas más largas y el conteo de ventanas baja.
+  Fuentes promedio en el backtest: 2.01.
+- `max_altura`: **4.0, estimado** por analogía con `chicama`. Ninguna fuente lo documenta.
+- `rango_ideal`: [2.0, 3.4] (convención de point/reef sobre 1.0-4.0; queda por encima de 1.9)
+- `temporada`: **[4, 5, 6, 7, 8, 9, 10]**. La ventana solo ve sector sur, igual que los otros 13.
+- `cercania`: `viaje`.
+
+**Confianza: baja.** Una sola fuente documental, que además se contradice en el viento, y
+sin dato de tamaño: el piso sale del backtest y el techo es una estimación.
+
+---
+
 ## Verificación de coordenadas contra Open-Meteo
 
 Las 7 coordenadas fijadas en la fase de diseño se usaron tal cual. Las 6 restantes
@@ -1127,6 +1203,7 @@ mar adentro.**
 | `santa_teresa` | Playa Santa Teresa | CR | **baja** | `ideal` y `ventana` reorientados contra surf-forecast, según la geometría medida |
 | `lobitos` | Lobitos | PE | **baja** | surf-forecast se contradice 113 grados a sí misma; `max_altura` por analogía |
 | `punta_del_diablo` | Punta del Diablo | UY | **baja** | `max_altura` estimado: Wannasurf no lo documenta |
+| `san_gallan` | Isla San Gallán | PE | **baja** | Sin Wannasurf; surf-forecast se contradice en el viento; `max_altura` por analogía (agregado 2026-11-06) |
 
 Dos `alta`, ocho `media`, tres `baja`. Ningún perfil se infló: los `media` lo son porque una
 de las tres fuentes falló en un campo concreto, y los `baja` porque el dato central está en

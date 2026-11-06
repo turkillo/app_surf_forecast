@@ -9,7 +9,7 @@
 #
 # SEMANTICA DE `temporada`: son los meses en que SE GENERA el groundswell que
 # la `ventana` de ese spot puede recibir. No son los meses de mejor viento, ni
-# los de temporada turistica, ni los de agua mas calida. Los 13 spots de este
+# los de temporada turistica, ni los de agua mas calida. Los 14 spots de este
 # archivo tienen ventanas que solo ven sector sur, asi que a todos les
 # corresponde el motor austral, que se genera de abril a octubre: [4..10]. La
 # unica excepcion es santa_teresa, que suma noviembre porque a 9.65 N esta
@@ -424,4 +424,38 @@
   url_surfforecast: "https://www.surf-forecast.com/breaks/Joaquina"
   fuentes: [surf-forecast, wannasurf, geometria-costa]
   confianza: media
+  cercania: viaje
+
+- id: san_gallan
+  nombre: "Isla San Gallán, Paracas"
+  pais: "PE"
+  lat: -13.82
+  lon: -76.46
+  tipo: reef
+  costa_mira: 310
+  swell:
+    ventana: [180, 270]
+    ideal: 225
+    # Sin ficha de Wannasurf: ni el piso ni el techo estan documentados.
+    # max_altura 4.0 es una estimacion por analogia con chicama (otro pico
+    # peruano de derecha que aguanta tamanio), no un dato de fuente.
+    # min_altura sale del backtest con el mismo criterio de la Tarea 16: el
+    # MENOR umbral que deja el spot en 10-25 ventanas/anio con la
+    # estacionalidad en pie (2023-2025). Medido: 1.0 -> 22.7 pero temporada
+    # NO (conc 0.88); 1.4 -> 35.0; 1.6 -> 32.0; 1.8 -> 26.3; 1.9 -> 19.0 y
+    # conc 1.26; 2.0 -> 16.7; 2.2 -> 12.0. Se elige 1.9.
+    min_altura: 1.9
+    max_altura: 4.0
+    rango_ideal: [2.0, 3.4]
+    min_periodo: 8
+  # surf-forecast se contradice: "best wind from the east" (90) y "offshore
+  # from the North-northwest" (337). El NNW es onshore en una costa que mira
+  # al NW, asi que se descarta; el E queda a 40 grados del offshore medido y
+  # el validador lo rechaza. Se usa el offshore de la geometria (310+180 =
+  # 130), redondeado a SE. Ver el bloque del spot en docs/investigacion-spots.md.
+  viento_ideal: 135
+  temporada: [4, 5, 6, 7, 8, 9, 10]
+  url_surfforecast: "https://es.surf-forecast.com/breaks/San-Gallan"
+  fuentes: [surf-forecast, geometria-costa]
+  confianza: baja
   cercania: viaje
