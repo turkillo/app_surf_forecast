@@ -1,17 +1,17 @@
 {
-  "ultima_corrida": "2026-11-07",
+  "ultima_corrida": "2026-11-08",
   "observadas": [
     {
-      "spot_id": "asia",
-      "desde": "2026-11-07",
-      "hasta": "2026-11-08",
-      "score": 84.33333333333333
+      "spot_id": "lobitos",
+      "desde": "2026-11-13",
+      "hasta": "2026-11-14",
+      "score": 63.29583333333335
     },
     {
       "spot_id": "santa_teresa",
       "desde": "2026-11-09",
       "hasta": "2026-11-10",
-      "score": 61.69444444444445
+      "score": 62.16666666666666
     }
   ],
   "alertadas": [
@@ -140,14 +140,21 @@
       "hasta": "2026-11-09",
       "score": 81.13888888888889,
       "fecha_alerta": "2026-11-05"
+    },
+    {
+      "spot_id": "santa_teresa",
+      "desde": "2026-11-09",
+      "hasta": "2026-11-10",
+      "score": 62.16666666666666,
+      "fecha_alerta": "2026-11-08"
     }
   ],
   "observadas_preaviso": [
     {
       "spot_id": "lobitos",
-      "desde": "2026-11-14",
+      "desde": "2026-11-15",
       "hasta": "2026-11-16",
-      "score": 60.33593750000001
+      "score": 50.2890625
     }
   ],
   "preavisadas": [
@@ -262,6 +269,13 @@
       "hasta": "2026-11-14",
       "score": 63.7890625,
       "fecha_alerta": "2026-11-05"
+    },
+    {
+      "spot_id": "lobitos",
+      "desde": "2026-11-15",
+      "hasta": "2026-11-16",
+      "score": 50.2890625,
+      "fecha_alerta": "2026-11-08"
     }
   ]
 }
