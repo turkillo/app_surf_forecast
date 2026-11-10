@@ -1,25 +1,6 @@
 {
-  "ultima_corrida": "2026-11-09",
-  "observadas": [
-    {
-      "spot_id": "lobitos",
-      "desde": "2026-11-12",
-      "hasta": "2026-11-15",
-      "score": 61.85
-    },
-    {
-      "spot_id": "santa_teresa",
-      "desde": "2026-11-09",
-      "hasta": "2026-11-10",
-      "score": 62.083333333333336
-    },
-    {
-      "spot_id": "saquarema",
-      "desde": "2026-11-09",
-      "hasta": "2026-11-10",
-      "score": 60.0
-    }
-  ],
+  "ultima_corrida": "2026-11-10",
+  "observadas": [],
   "alertadas": [
     {
       "spot_id": "punta_del_diablo",
@@ -164,26 +145,13 @@
   ],
   "observadas_preaviso": [
     {
-      "spot_id": "la_barra",
-      "desde": "2026-11-16",
-      "hasta": "2026-11-17",
-      "score": 45.416666666666664
-    },
-    {
       "spot_id": "punta_del_diablo",
-      "desde": "2026-11-16",
-      "hasta": "2026-11-17",
-      "score": 62.25347222222222
+      "desde": "2026-11-18",
+      "hasta": "2026-11-19",
+      "score": 64.39583333333334
     }
   ],
   "preavisadas": [
-    {
-      "spot_id": "lobitos",
-      "desde": "2026-10-08",
-      "hasta": "2026-10-10",
-      "score": 70.70572916666667,
-      "fecha_alerta": "2026-10-01"
-    },
     {
       "spot_id": "lobitos",
       "desde": "2026-10-11",
