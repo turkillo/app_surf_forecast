@@ -1,6 +1,13 @@
 {
-  "ultima_corrida": "2026-11-10",
-  "observadas": [],
+  "ultima_corrida": "2026-11-11",
+  "observadas": [
+    {
+      "spot_id": "lobitos",
+      "desde": "2026-11-13",
+      "hasta": "2026-11-15",
+      "score": 63.44375
+    }
+  ],
   "alertadas": [
     {
       "spot_id": "punta_del_diablo",
@@ -143,14 +150,7 @@
       "fecha_alerta": "2026-11-09"
     }
   ],
-  "observadas_preaviso": [
-    {
-      "spot_id": "punta_del_diablo",
-      "desde": "2026-11-18",
-      "hasta": "2026-11-19",
-      "score": 64.39583333333334
-    }
-  ],
+  "observadas_preaviso": [],
   "preavisadas": [
     {
       "spot_id": "lobitos",
