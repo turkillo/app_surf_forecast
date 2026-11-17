@@ -1,23 +1,29 @@
 {
-  "ultima_corrida": "2026-11-16",
+  "ultima_corrida": "2026-11-17",
   "observadas": [
     {
       "spot_id": "chapadmalal",
       "desde": "2026-11-19",
       "hasta": "2026-11-20",
-      "score": 64.14722222222223
+      "score": 63.55777777777778
     },
     {
       "spot_id": "joaquina",
       "desde": "2026-11-17",
       "hasta": "2026-11-18",
-      "score": 37.36805555555555
+      "score": 45.54583333333333
     },
     {
-      "spot_id": "santa_teresa",
-      "desde": "2026-11-16",
-      "hasta": "2026-11-17",
-      "score": 64.86111111111113
+      "spot_id": "la_barra",
+      "desde": "2026-11-19",
+      "hasta": "2026-11-20",
+      "score": 54.4888888888889
+    },
+    {
+      "spot_id": "lobitos",
+      "desde": "2026-11-22",
+      "hasta": "2026-11-23",
+      "score": 67.38125000000001
     }
   ],
   "alertadas": [
@@ -153,16 +159,16 @@
       "hasta": "2026-11-20",
       "score": 64.14722222222223,
       "fecha_alerta": "2026-11-16"
-    }
-  ],
-  "observadas_preaviso": [
+    },
     {
-      "spot_id": "huanchaco",
-      "desde": "2026-11-23",
-      "hasta": "2026-11-24",
-      "score": 91.71875
+      "spot_id": "joaquina",
+      "desde": "2026-11-17",
+      "hasta": "2026-11-18",
+      "score": 45.54583333333333,
+      "fecha_alerta": "2026-11-17"
     }
   ],
+  "observadas_preaviso": [],
   "preavisadas": [
     {
       "spot_id": "lobitos",
