@@ -1,41 +1,53 @@
 {
-  "ultima_corrida": "2026-11-21",
+  "ultima_corrida": "2026-11-22",
   "observadas": [
     {
       "spot_id": "asia",
       "desde": "2026-11-22",
-      "hasta": "2026-11-24",
-      "score": 85.6388888888889
-    },
-    {
-      "spot_id": "asia",
-      "desde": "2026-11-26",
-      "hasta": "2026-11-27",
-      "score": 78.44444444444444
+      "hasta": "2026-11-28",
+      "score": 83.91666666666666
     },
     {
       "spot_id": "buchupureo",
       "desde": "2026-11-23",
       "hasta": "2026-11-24",
-      "score": 72.625
+      "score": 75.32499999999997
+    },
+    {
+      "spot_id": "chapadmalal",
+      "desde": "2026-11-25",
+      "hasta": "2026-11-26",
+      "score": 55.46444444444444
+    },
+    {
+      "spot_id": "la_barra",
+      "desde": "2026-11-25",
+      "hasta": "2026-11-26",
+      "score": 62.5111111111111
     },
     {
       "spot_id": "lobitos",
       "desde": "2026-11-22",
       "hasta": "2026-11-24",
-      "score": 77.48083333333334
+      "score": 76.23708333333333
     },
     {
       "spot_id": "punta_de_lobos",
       "desde": "2026-11-25",
       "hasta": "2026-11-26",
-      "score": 70.61319444444445
+      "score": 73.98263888888887
     },
     {
       "spot_id": "santa_teresa",
-      "desde": "2026-11-23",
+      "desde": "2026-11-24",
       "hasta": "2026-11-26",
-      "score": 91.97222222222219
+      "score": 90.83333333333333
+    },
+    {
+      "spot_id": "saquarema",
+      "desde": "2026-11-27",
+      "hasta": "2026-11-28",
+      "score": 74.06666666666668
     }
   ],
   "alertadas": [
@@ -180,49 +192,29 @@
       "fecha_alerta": "2026-11-21"
     },
     {
-      "spot_id": "asia",
-      "desde": "2026-11-22",
-      "hasta": "2026-11-24",
-      "score": 85.6388888888889,
-      "fecha_alerta": "2026-11-21"
-    },
-    {
       "spot_id": "buchupureo",
       "desde": "2026-11-23",
       "hasta": "2026-11-24",
       "score": 72.625,
       "fecha_alerta": "2026-11-21"
+    },
+    {
+      "spot_id": "asia",
+      "desde": "2026-11-22",
+      "hasta": "2026-11-28",
+      "score": 83.91666666666666,
+      "fecha_alerta": "2026-11-22"
     }
   ],
   "observadas_preaviso": [
     {
-      "spot_id": "praia_do_rosa",
-      "desde": "2026-11-28",
-      "hasta": "2026-11-29",
-      "score": 36.82380952380953
-    },
-    {
-      "spot_id": "saquarema",
-      "desde": "2026-11-28",
-      "hasta": "2026-11-29",
-      "score": 64.77777777777779
+      "spot_id": "chapadmalal",
+      "desde": "2026-11-30",
+      "hasta": "2026-12-01",
+      "score": 55.63749999999999
     }
   ],
   "preavisadas": [
-    {
-      "spot_id": "huanchaco",
-      "desde": "2026-10-21",
-      "hasta": "2026-10-22",
-      "score": 84.4609375,
-      "fecha_alerta": "2026-10-13"
-    },
-    {
-      "spot_id": "praia_do_rosa",
-      "desde": "2026-10-20",
-      "hasta": "2026-10-22",
-      "score": 59.830952380952375,
-      "fecha_alerta": "2026-10-13"
-    },
     {
       "spot_id": "lobitos",
       "desde": "2026-10-22",
