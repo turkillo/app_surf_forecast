@@ -1,47 +1,47 @@
 {
-  "ultima_corrida": "2026-11-25",
+  "ultima_corrida": "2026-11-26",
   "observadas": [
     {
       "spot_id": "asia",
       "desde": "2026-11-26",
       "hasta": "2026-11-28",
-      "score": 78.1111111111111
-    },
-    {
-      "spot_id": "chapadmalal",
-      "desde": "2026-11-25",
-      "hasta": "2026-11-26",
-      "score": 59.96
+      "score": 77.8888888888889
     },
     {
       "spot_id": "huanchaco",
-      "desde": "2026-11-26",
+      "desde": "2026-11-27",
       "hasta": "2026-11-28",
-      "score": 58.362500000000004
+      "score": 60.12499999999998
     },
     {
       "spot_id": "la_barra",
-      "desde": "2026-11-25",
+      "desde": "2026-11-26",
       "hasta": "2026-11-27",
-      "score": 59.71111111111111
+      "score": 58.24583333333333
     },
     {
       "spot_id": "lobitos",
-      "desde": "2026-11-25",
-      "hasta": "2026-11-26",
-      "score": 55.22916666666668
+      "desde": "2026-11-27",
+      "hasta": "2026-11-28",
+      "score": 54.94375
     },
     {
-      "spot_id": "punta_de_lobos",
-      "desde": "2026-11-25",
-      "hasta": "2026-11-26",
-      "score": 62.96875
+      "spot_id": "san_gallan",
+      "desde": "2026-11-26",
+      "hasta": "2026-11-28",
+      "score": 77.875
     },
     {
       "spot_id": "santa_teresa",
-      "desde": "2026-11-25",
+      "desde": "2026-11-26",
       "hasta": "2026-11-29",
-      "score": 90.58333333333333
+      "score": 89.61111111111113
+    },
+    {
+      "spot_id": "saquarema",
+      "desde": "2026-11-28",
+      "hasta": "2026-11-29",
+      "score": 76.83333333333333
     }
   ],
   "alertadas": [
@@ -193,7 +193,26 @@
       "fecha_alerta": "2026-11-25"
     }
   ],
-  "observadas_preaviso": [],
+  "observadas_preaviso": [
+    {
+      "spot_id": "la_barra",
+      "desde": "2026-12-03",
+      "hasta": "2026-12-04",
+      "score": 49.82638888888889
+    },
+    {
+      "spot_id": "lobitos",
+      "desde": "2026-12-03",
+      "hasta": "2026-12-04",
+      "score": 56.375
+    },
+    {
+      "spot_id": "saquarema",
+      "desde": "2026-12-04",
+      "hasta": "2026-12-05",
+      "score": 49.729166666666664
+    }
+  ],
   "preavisadas": [
     {
       "spot_id": "lobitos",
