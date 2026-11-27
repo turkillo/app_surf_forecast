@@ -1,57 +1,26 @@
 {
-  "ultima_corrida": "2026-11-26",
+  "ultima_corrida": "2026-11-27",
   "observadas": [
     {
       "spot_id": "asia",
-      "desde": "2026-11-26",
-      "hasta": "2026-11-28",
-      "score": 77.8888888888889
-    },
-    {
-      "spot_id": "huanchaco",
       "desde": "2026-11-27",
       "hasta": "2026-11-28",
-      "score": 60.12499999999998
-    },
-    {
-      "spot_id": "la_barra",
-      "desde": "2026-11-26",
-      "hasta": "2026-11-27",
-      "score": 58.24583333333333
-    },
-    {
-      "spot_id": "lobitos",
-      "desde": "2026-11-27",
-      "hasta": "2026-11-28",
-      "score": 54.94375
-    },
-    {
-      "spot_id": "san_gallan",
-      "desde": "2026-11-26",
-      "hasta": "2026-11-28",
-      "score": 77.875
+      "score": 78.22222222222223
     },
     {
       "spot_id": "santa_teresa",
-      "desde": "2026-11-26",
+      "desde": "2026-11-27",
       "hasta": "2026-11-29",
-      "score": 89.61111111111113
+      "score": 85.33333333333333
     },
     {
       "spot_id": "saquarema",
-      "desde": "2026-11-28",
+      "desde": "2026-11-27",
       "hasta": "2026-11-29",
-      "score": 76.83333333333333
+      "score": 76.64027777777777
     }
   ],
   "alertadas": [
-    {
-      "spot_id": "joaquina",
-      "desde": "2026-10-26",
-      "hasta": "2026-10-27",
-      "score": 46.699999999999996,
-      "fecha_alerta": "2026-10-22"
-    },
     {
       "spot_id": "huanchaco",
       "desde": "2026-10-31",
@@ -195,22 +164,10 @@
   ],
   "observadas_preaviso": [
     {
-      "spot_id": "la_barra",
-      "desde": "2026-12-03",
-      "hasta": "2026-12-04",
-      "score": 49.82638888888889
-    },
-    {
-      "spot_id": "lobitos",
-      "desde": "2026-12-03",
-      "hasta": "2026-12-04",
-      "score": 56.375
-    },
-    {
       "spot_id": "saquarema",
       "desde": "2026-12-04",
       "hasta": "2026-12-05",
-      "score": 49.729166666666664
+      "score": 51.111111111111114
     }
   ],
   "preavisadas": [
@@ -290,6 +247,13 @@
       "hasta": "2026-11-28",
       "score": 50.958333333333336,
       "fecha_alerta": "2026-11-20"
+    },
+    {
+      "spot_id": "saquarema",
+      "desde": "2026-12-04",
+      "hasta": "2026-12-05",
+      "score": 51.111111111111114,
+      "fecha_alerta": "2026-11-27"
     }
   ]
 }
