@@ -1,23 +1,41 @@
 {
-  "ultima_corrida": "2026-11-27",
+  "ultima_corrida": "2026-11-28",
   "observadas": [
     {
-      "spot_id": "asia",
-      "desde": "2026-11-27",
-      "hasta": "2026-11-28",
-      "score": 78.22222222222223
+      "spot_id": "chapadmalal",
+      "desde": "2026-12-03",
+      "hasta": "2026-12-04",
+      "score": 62.464444444444446
+    },
+    {
+      "spot_id": "joaquina",
+      "desde": "2026-12-03",
+      "hasta": "2026-12-04",
+      "score": 49.48888888888889
+    },
+    {
+      "spot_id": "la_barra",
+      "desde": "2026-12-03",
+      "hasta": "2026-12-04",
+      "score": 62.03333333333333
+    },
+    {
+      "spot_id": "punta_del_diablo",
+      "desde": "2026-12-03",
+      "hasta": "2026-12-04",
+      "score": 67.5
     },
     {
       "spot_id": "santa_teresa",
-      "desde": "2026-11-27",
+      "desde": "2026-11-28",
       "hasta": "2026-11-29",
-      "score": 85.33333333333333
+      "score": 75.54444444444444
     },
     {
       "spot_id": "saquarema",
-      "desde": "2026-11-27",
+      "desde": "2026-11-28",
       "hasta": "2026-11-29",
-      "score": 76.64027777777777
+      "score": 79.32222222222221
     }
   ],
   "alertadas": [
@@ -165,9 +183,9 @@
   "observadas_preaviso": [
     {
       "spot_id": "saquarema",
-      "desde": "2026-12-04",
-      "hasta": "2026-12-05",
-      "score": 51.111111111111114
+      "desde": "2026-12-05",
+      "hasta": "2026-12-06",
+      "score": 57.5625
     }
   ],
   "preavisadas": [
